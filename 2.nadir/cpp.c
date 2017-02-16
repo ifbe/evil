@@ -6,6 +6,10 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#define u8 unsigned char
+#define u16 unsigned short
+#define u32 unsigned int
+#define u64 unsigned long long
 #ifndef O_BINARY
 	//mingw64 compatiable
 	#define O_BINARY 0x0
@@ -209,7 +213,11 @@ finalprint:
 	write(dest,strbuf,count);
 	//printf("%s",dest);
 }
-int cpp_explain(int start,int end)
+
+
+
+
+static int cpp_read(int start,int end)
 {
 	int i=0;
 	unsigned char ch=0;
@@ -605,7 +613,31 @@ int cpp_explain(int start,int end)
 	countbyte += 0x100000;
 	return i-end;	//可能多分析了几十几百个字节
 }
-int cpp_start(char* thisfile,int size)
+static int cpp_write()
+{
+}
+static int cpp_list()
+{
+}
+static int cpp_choose()
+{
+}
+static int cpp_stop(int where)
+{
+/*
+	printf("@%x@%d -> %d,%d,%d,%d\n",
+		where,
+		countline,
+		infunc,
+		inmarco,
+		innote,
+		instr
+	);
+	printf("\n\n\n\n");
+	write(dest,"\n\n\n\n",4);
+*/
+}
+static int cpp_start(char* thisfile,int size)
 {
 	int ret;
 
@@ -624,30 +656,20 @@ int cpp_start(char* thisfile,int size)
 	prophet=prophetinsist=0;
 	infunc = inmarco = innote = instr = 0;
 }
-int cpp_stop(int where)
+int cpp_delete()
 {
-	printf("@%x@%d -> %d,%d,%d,%d\n",
-		where,
-		countline,
-		infunc,
-		inmarco,
-		innote,
-		instr
-	);
-	printf("\n\n\n\n");
-	write(dest,"\n\n\n\n",4);
 }
-int cpp_init(char* file,char* memory)
+int cpp_create(u64* that, u64* this)
 {
-	//
-	dest=open(
-		file,
-		O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
-		S_IRWXU|S_IRWXG|S_IRWXO
-	);
-	datahome=memory;
-}
-int cpp_kill()
-{
-	close(dest);
+        this[0] = 0x6573726170;
+        this[1] = 0x7070632e;
+
+        this[8] = (u64)cpp_create;
+        this[9] = (u64)cpp_delete;
+        this[10] = (u64)cpp_start;
+        this[11] = (u64)cpp_stop;
+        this[12] = (u64)cpp_list;
+        this[13] = (u64)cpp_choose;
+        this[14] = (u64)cpp_read;
+        this[15] = (u64)cpp_write;
 }

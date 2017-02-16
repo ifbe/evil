@@ -6,6 +6,10 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#define u8 unsigned char
+#define u16 unsigned short
+#define u32 unsigned int
+#define u64 unsigned long long
 #ifndef O_BINARY
 	//mingw64 compatiable
 	#define O_BINARY 0x0
@@ -16,10 +20,6 @@
 
 //
 static int dest=-1;
-
-//
-static unsigned char* datahome;		//4k+4k
-static unsigned char strbuf[256];
 
 //count
 static int countbyte=0;		//统计字节数
@@ -46,13 +46,13 @@ static int instr=0;
 
 
 
-int count_explain(int start,int end)
+static int count_read(char* datahome, int len)
 {
 	int i=0;
 	unsigned char ch=0;
 	printf(
 		"@%x@%d -> %d,%d,%d,%d\n",
-		countbyte+start,
+		countbyte,
 		countline+1,
 		infunc,
 		inmarco,
@@ -61,13 +61,13 @@ int count_explain(int start,int end)
 	);
 
 	//不用i<end防止交界麻烦,给足了整整0x800个机会自己决定滚不滚
-	for(i=start;i<0x180000;i++)
+	for(i=0;i<0x180000;i++)
 	{
 		//拿一个
 		ch=datahome[i];
 
 		//软退
-		if(i>end)
+		if(i>len)
 		{
 			if(ch==' ')break;
 			else if(ch==0x9)break;
@@ -138,30 +138,22 @@ int count_explain(int start,int end)
 		}
 	}//for
 
-	countbyte += 0x100000;
-	return i-end;	//可能多分析了几十几百个字节
+	countbyte += len;
+	return i-len;	//可能多分析了几十几百个字节
 }
-int count_start(char* thisfile,int size)
+static int count_write()
 {
-	int ret;
-
-	//infomation
-	ret=snprintf(datahome,256,"#name:	%s\n",thisfile);
-	printf("%s",datahome);
-	write(dest,datahome,ret);
-
-	ret=snprintf(datahome,256,"#size:	%d(0x%x)\n",size,size);
-	printf("%s",datahome);
-	write(dest,datahome,ret);
-
-	//init
-	countbyte=countline=0;
-	infunc = inmarco = innote = instr = 0;
 }
-int count_stop(int where)
+static int count_list()
+{
+}
+static int count_choose()
+{
+}
+static int count_stop()
 {
 	printf("@%x@%d -> %d,%d,%d,%d\n",
-		where,
+		countbyte,
 		countline,
 		infunc,
 		inmarco,
@@ -169,20 +161,26 @@ int count_stop(int where)
 		instr
 	);
 	printf("\n\n\n\n");
-	write(dest,"\n\n\n\n",4);
 }
-int count_init(char* file,char* memory)
+static int count_start()
 {
-/*
-	dest=open(
-		file,
-		O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
-		S_IRWXU|S_IRWXG|S_IRWXO
-	);
-*/
-	datahome=memory;
+	countbyte=countline=0;
+	infunc = inmarco = innote = instr = 0;
 }
-int count_kill()
+int count_delete()
 {
-	//close(dest);
+}
+int count_create(u64* file, u64* this)
+{
+        this[0] = 0x6573726170;
+        this[1] = 0x746e756f63;
+
+        this[8] = (u64)count_create;
+        this[9] = (u64)count_delete;
+        this[10] = (u64)count_start;
+        this[11] = (u64)count_stop;
+        this[12] = (u64)count_list;
+        this[13] = (u64)count_choose;
+        this[14] = (u64)count_read;
+        this[15] = (u64)count_write;
 }

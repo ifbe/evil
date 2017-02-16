@@ -6,6 +6,10 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#define u8 unsigned char
+#define u16 unsigned short
+#define u32 unsigned int
+#define u64 unsigned long long
 #ifndef O_BINARY
 	//mingw64 compatiable
 	#define O_BINARY 0x0
@@ -16,7 +20,7 @@
 
 //
 static int dest=-1;
-static unsigned char* datahome;		//4k+4k
+static u8* datahome;		//4k+4k
 
 //
 static int inleaf=0;
@@ -28,7 +32,7 @@ static int thisname=0;
 
 //
 static int signal=0;
-static unsigned char strbuf[256];
+static u8 strbuf[256];
 
 //count
 static int countbyte=0;		//统计字节数
@@ -55,7 +59,7 @@ static int instr=0;
 
 
 
-int dts_explain(int start,int end)
+static int dts_read(int start,int end)
 {
 	int i=0;
 	int ret=0;
@@ -342,7 +346,31 @@ int dts_explain(int start,int end)
 	countbyte += 0x100000;
 	return i-end;	//可能多分析了几十几百个字节
 }
-int dts_start(char* thisfile,int size)
+static int dts_write()
+{
+}
+static int dts_list()
+{
+}
+static int dts_choose()
+{
+}
+static int dts_stop(int where)
+{
+/*
+	printf("@%x@%d -> %d,%d,%d,%d\n",
+		where,
+		countline,
+		infunc,
+		inmarco,
+		innote,
+		instr
+	);
+	printf("\n\n\n\n");
+	write(dest,"\n\n\n\n",4);
+*/
+}
+static int dts_start(char* thisfile,int size)
 {
 	int ret;
 
@@ -360,30 +388,20 @@ int dts_start(char* thisfile,int size)
 	countbyte=countline=0;
 	infunc = inmarco = innote = instr = 0;
 }
-int dts_stop(int where)
+int dts_delete()
 {
-	printf("@%x@%d -> %d,%d,%d,%d\n",
-		where,
-		countline,
-		infunc,
-		inmarco,
-		innote,
-		instr
-	);
-	printf("\n\n\n\n");
-	write(dest,"\n\n\n\n",4);
 }
-int dts_init(char* file,char* memory)
+int dts_create(u64* file,u64* this)
 {
-	//
-	dest=open(
-		file,
-		O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
-		S_IRWXU|S_IRWXG|S_IRWXO
-	);
-	datahome=memory;
-}
-int dts_kill()
-{
-	close(dest);
+        this[0] = 0x6573726170;
+        this[1] = 0x7374642e;
+
+        this[8] = (u64)dts_create;
+        this[9] = (u64)dts_delete;
+        this[10] = (u64)dts_start;
+        this[11] = (u64)dts_stop;
+        this[12] = (u64)dts_list;
+        this[13] = (u64)dts_choose;
+        this[14] = (u64)dts_read;
+        this[15] = (u64)dts_write;
 }

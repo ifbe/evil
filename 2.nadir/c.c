@@ -6,10 +6,10 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#define u64 unsigned long long
-#define u32 unsigned int
-#define u16 unsigned short
 #define u8 unsigned char
+#define u16 unsigned short
+#define u32 unsigned int
+#define u64 unsigned long long
 #ifndef O_BINARY
 	//mingw64 compatiable
 	#define O_BINARY 0x0
@@ -225,7 +225,7 @@ finalprint:
 	printf("%s",strbuf);
 	return;
 }
-int c_explain(char* src, int count)
+static int c_read(char* src, int count)
 {
 	unsigned char ch=0;
 	countbyte = 0;
@@ -615,14 +615,16 @@ int c_explain(char* src, int count)
 
 	return countbyte;
 }
-int c_start()
+static int c_write()
 {
-	chance=roundbracket=0;
-	countbyte=countline=0;
-	infunc = inmarco = innote = instr = 0;
-	prophet=insist=doubt=0;
 }
-int c_stop()
+static int c_list()
+{
+}
+static int c_choose()
+{
+}
+static int c_stop()
 {
 /*
 	printf("@%x@%d -> %d,%d,%d,%d\n\n\n\n\n",
@@ -636,9 +638,27 @@ int c_stop()
 */
 	//write(outfile,"\n\n\n\n",4);
 }
-int c_init(void* src)
+static int c_start()
+{
+	chance=roundbracket=0;
+	countbyte=countline=0;
+	infunc = inmarco = innote = instr = 0;
+	prophet=insist=doubt=0;
+}
+int c_delete()
 {
 }
-int c_kill()
+int c_create(u64* that, u64* this)
 {
+	this[0] = 0x6573726170;
+	this[1] = 0x632e;
+
+	this[8] = (u64)c_create;
+	this[9] = (u64)c_delete;
+	this[10] = (u64)c_start;
+	this[11] = (u64)c_stop;
+	this[12] = (u64)c_list;
+	this[13] = (u64)c_choose;
+	this[14] = (u64)c_read;
+	this[15] = (u64)c_write;
 }

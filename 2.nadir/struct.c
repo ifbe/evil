@@ -6,6 +6,10 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#define u8 unsigned char
+#define u16 unsigned short
+#define u32 unsigned int
+#define u64 unsigned long long
 #ifndef O_BINARY
 	//mingw64 compatiable
 	#define O_BINARY 0x0
@@ -51,7 +55,7 @@ static int instr=0;
 
 
 
-int struct_pickname(unsigned char* p,unsigned char* q)
+static int struct_pickname(unsigned char* p,unsigned char* q)
 {
 	int i;
 	int o;
@@ -108,7 +112,7 @@ int struct_pickname(unsigned char* p,unsigned char* q)
 	//printf("out=%d,%s\n\n\n\n",o,q);
 	return o;
 }
-int struct_printprophet(unsigned char* p)
+static int struct_printprophet(unsigned char* p)
 {
 	int i,o;
 	//printf("in=%s\n\n\n\n",p);
@@ -144,7 +148,7 @@ printthis:
 	prophet=0;
 	return 0;
 }
-int checkprophet(unsigned char* p)
+static int checkprophet(unsigned char* p)
 {
 	int i;
 //printf("=%s\n",p);
@@ -206,7 +210,11 @@ wrong:
 //printf("wrong:%c\n",p[0]);
 	return 0;
 }
-int struct_explain(int start,int end)
+
+
+
+
+static int struct_read(int start,int end)
 {
 	int i=0;
 	unsigned char ch=0;
@@ -531,7 +539,29 @@ int struct_explain(int start,int end)
 	countbyte += 0x100000;
 	return i-end;
 }
-int struct_start(char* thisfile,int size)
+static int struct_write()
+{
+}
+static int struct_list()
+{
+}
+static int struct_choose()
+{
+}
+static int struct_stop(int where)
+{
+	printf("@%x@%d -> %d,%d,%d,%d\n",
+		where,
+		countline,
+		instruct,
+		inmarco,
+		innote,
+		instr
+	);
+	printf("\n\n\n\n");
+	write(dest,"\n\n\n\n",4);
+}
+static int struct_start(char* thisfile,int size)
 {
 	int ret;
 
@@ -549,29 +579,20 @@ int struct_start(char* thisfile,int size)
 	countbyte=countline=0;
 	instruct=inmarco=innote=instr=0;
 }
-int struct_stop(int where)
+int struct_delete()
 {
-	printf("@%x@%d -> %d,%d,%d,%d\n",
-		where,
-		countline,
-		instruct,
-		inmarco,
-		innote,
-		instr
-	);
-	printf("\n\n\n\n");
-	write(dest,"\n\n\n\n",4);
 }
-int struct_init(char* file,char* memory)
+int struct_create(u64* that, u64* this)
 {
-	dest=open(
-		file,
-		O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
-		S_IRWXU|S_IRWXG|S_IRWXO
-	);
-	datahome=memory;
-}
-int struct_kill()
-{
-	close(dest);
+        this[0] = 0x6573726170;
+        this[1] = 0x746e756f63;
+
+        this[8] = (u64)struct_create;
+        this[9] = (u64)struct_delete;
+        this[10] = (u64)struct_start;
+        this[11] = (u64)struct_stop;
+        this[12] = (u64)struct_list;
+        this[13] = (u64)struct_choose;
+        this[14] = (u64)struct_read;
+        this[15] = (u64)struct_write;
 }

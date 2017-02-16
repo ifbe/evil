@@ -18,59 +18,59 @@
 
 
 //none(example)
-int none_init(void*);
-int none_kill();
+int none_create(void*, void*);
+int none_delete();
 //count(example)
-int count_init(void*);
-int count_kill();
+int count_create(void*, void*);
+int count_delete();
 //bash
-int bash_init(void*);
-int bash_kill();
+int bash_create(void*, void*);
+int bash_delete();
 //c
-int c_init(void*);
-int c_kill();
+int c_create(void*, void*);
+int c_delete();
 //cpp
-int cpp_init(void*);
-int cpp_kill();
+int cpp_create(void*, void*);
+int cpp_delete();
 //class
-int class_init(void*);
-int class_kill();
+int class_create(void*, void*);
+int class_delete();
 //dts
-int dts_init(void*);
-int dts_kill();
+int dts_create(void*, void*);
+int dts_delete();
 //go
-int go_init(void*);
-int go_kill();
+int go_create(void*, void*);
+int go_delete();
 //include
-int include_init(void*);
-int include_kill();
+int include_create(void*, void*);
+int include_delete();
 //makefile
-int makefile_init(void*);
-int makefile_kill();
+int makefile_create(void*, void*);
+int makefile_delete();
 //java
-int java_init(void*);
-int java_kill();
+int java_create(void*, void*);
+int java_delete();
 //js
-int js_init(void*);
-int js_kill();
+int js_create(void*, void*);
+int js_delete();
 //json
-int json_init(void*);
-int json_kill();
+int json_create(void*, void*);
+int json_delete();
 //perl
-int perl_init(void*);
-int perl_kill();
+int perl_create(void*, void*);
+int perl_delete();
 //php
-int php_init(void*);
-int php_kill();
+int php_create(void*, void*);
+int php_delete();
 //python
-int python_init(void*);
-int python_kill();
+int python_create(void*, void*);
+int python_delete();
 //ruby
-int ruby_init(void*);
-int ruby_kill();
+int ruby_create(void*, void*);
+int ruby_delete();
 //struct
-int struct_init(void*);
-int struct_kill();
+int struct_create(void*, void*);
+int struct_delete();
 
 
 
@@ -90,21 +90,41 @@ char* traverse_read();
 
 struct worker
 {
+	u64 type;
 	u64 id;
+	u64 at10;
+	u64 at18;
+	u64 at20;
+	u64 at28;
+	u64 at30;
+	u64 at38;
 
-	int (*explain)(char*,int);
-	char pad2[8-sizeof(char*)];
-
-	int (*start)();
+	int (*create)();
 	char pad0[8-sizeof(char*)];
 
-	int (*stop)();
+	int (*delete)();
 	char pad1[8-sizeof(char*)];
+
+	int (*start)();
+	char pad2[8-sizeof(char*)];
+
+	int (*stop)();
+	char pad3[8-sizeof(char*)];
+
+	int (*list)();
+	char pad4[8-sizeof(char*)];
+
+	int (*choose)();
+	char pad5[8-sizeof(char*)];
+
+	int (*read)(char*, int, char*, int);
+	char pad6[8-sizeof(char*)];
+
+	int (*write)();
+	char pad7[8-sizeof(char*)];
 };
 static struct worker w[20];
-//
 static int chosen;
-static struct stat statbuf;
 //
 static int infile = -1;
 static unsigned char inbuf[0x100000];
@@ -127,23 +147,41 @@ int worker_read()
 		close(infile);
 		return -4;
 	}
+
 	inbuf[ret]=0;
-	c_explain(inbuf, ret, outbuf, 0x100000);
-	//w[chosen].explain(0,ret);
+	w[chosen].read(inbuf, ret, outbuf, 0x100000);
 }
-
-
-
-
-int worker_start(char* p)
+int worker_list()
 {
-	int ret;
-	int size;
+	int j;
+	for(j=0;j<20;j++)
+	{
+		printf("%llx,%llx\n", w[j].type, w[j].id);
+		printf("%llx,%llx,%llx,%llx,%llx,%llx\n",
+			(u64)w[j].start,
+			(u64)w[j].stop,
+			(u64)w[j].list,
+			(u64)w[j].choose,
+			(u64)w[j].read,
+			(u64)w[j].write
+		);
+	}
+}
+int worker_choose(char* p)
+{
 	u64 x = suffix_value(p);
 	if(x != 0x63)return 0;
 
-
-
+	chosen = 1;
+	return chosen;
+}
+int worker_start(char* p)
+{
+	struct stat statbuf;
+	int size;
+	int ret;
+	ret = worker_choose(p);
+	if(ret < 0)return 0;
 
 //~~~~~~~~~~~~~~~~~~~~~~~1~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	//stat
@@ -168,9 +206,6 @@ int worker_start(char* p)
 	ret = snprintf(outbuf, 256, "#size:       %d(0x%x)\n", size, size);
 	printf("%s", outbuf);
 
-
-
-
 //~~~~~~~~~~~~~~~~~~~~~~~2~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	//open
 	infile = open(p , O_RDONLY|O_BINARY);
@@ -179,42 +214,46 @@ int worker_start(char* p)
 		printf("fail@open\n");
 		return -3;
 	}
-	c_start();
-	//w[chosen].start();
 
+	w[chosen].start();
 	return 1;
 }
 int worker_stop()
 {
-	c_stop();
+	w[chosen].stop();
 	close(infile);
 }
 void worker_create()
 {
 	char* j = (char*)w;
 
-	//none_init(j);	//how many file has been ignored
-	j += 0x20;
+	none_create(w, j);	//how many file has been ignored
+	j += 0x80;
 
-	count_init(j);	//how many bytes and lines in this file
-	j += 0x20;
+	count_create(w, j);	//how many bytes and lines in this file
+	j += 0x80;
 
-	c_init(j);
-	j += 0x20;
+	c_create(w, j);
+	j += 0x80;
 
-	cpp_init(j);
-	j += 0x20;
+	cpp_create(w, j);
+	j += 0x80;
 
-	dts_init(j);
-	j += 0x20;
+	dts_create(w, j);
+	j += 0x80;
 
-	include_init(j);
-	j += 0x20;
+	include_create(w, j);
+	j += 0x80;
 
-	struct_init(j);
-	j += 0x20;
+	struct_create(w, j);
+	j += 0x80;
 
-	outfile = open("code.seed", O_WRONLY|O_BINARY);
+	worker_list();
+	outfile = open(
+		"code.seed",
+		O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
+                S_IRWXU|S_IRWXG|S_IRWXO
+	);
 }
 void worker_delete()
 {
