@@ -393,15 +393,12 @@ int dts_delete()
 }
 int dts_create(u64* file,u64* this)
 {
-        this[0] = 0x6573726170;
-        this[1] = 0x7374642e;
-
-        this[8] = (u64)dts_create;
-        this[9] = (u64)dts_delete;
-        this[10] = (u64)dts_start;
-        this[11] = (u64)dts_stop;
-        this[12] = (u64)dts_list;
-        this[13] = (u64)dts_choose;
-        this[14] = (u64)dts_read;
-        this[15] = (u64)dts_write;
+	this[0] = 0x6573726170;
+	this[1] = 0x737464;
+	this[2] = (u64)dts_start;
+	this[3] = (u64)dts_stop;
+	this[4] = (u64)dts_list;
+	this[5] = (u64)dts_choose;
+	this[6] = (u64)dts_read;
+	this[7] = (u64)dts_write;
 }

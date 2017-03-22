@@ -172,15 +172,12 @@ int count_delete()
 }
 int count_create(u64* file, u64* this)
 {
-        this[0] = 0x6573726170;
-        this[1] = 0x746e756f63;
-
-        this[8] = (u64)count_create;
-        this[9] = (u64)count_delete;
-        this[10] = (u64)count_start;
-        this[11] = (u64)count_stop;
-        this[12] = (u64)count_list;
-        this[13] = (u64)count_choose;
-        this[14] = (u64)count_read;
-        this[15] = (u64)count_write;
+	this[0] = 0x6573726170;
+	this[1] = 0x746e756f63;
+	this[2] = (u64)count_start;
+	this[3] = (u64)count_stop;
+	this[4] = (u64)count_list;
+	this[5] = (u64)count_choose;
+	this[6] = (u64)count_read;
+	this[7] = (u64)count_write;
 }

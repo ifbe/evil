@@ -47,16 +47,13 @@ int none_delete()
 }
 int none_create(u64* that, u64* this)
 {
-        this[0] = 0x6573726170;
-        this[1] = 0x656e6f6e;
-
-        this[8] = (u64)none_create;
-        this[9] = (u64)none_delete;
-        this[10] = (u64)none_start;
-        this[11] = (u64)none_stop;
-        this[12] = (u64)none_list;
-        this[13] = (u64)none_choose;
-        this[14] = (u64)none_read;
-        this[15] = (u64)none_write;
+	this[0] = 0x6573726170;
+	this[1] = 0x656e6f6e;
+	this[2] = (u64)none_start;
+	this[3] = (u64)none_stop;
+	this[4] = (u64)none_list;
+	this[5] = (u64)none_choose;
+	this[6] = (u64)none_read;
+	this[7] = (u64)none_write;
 	return 0;
 }

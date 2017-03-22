@@ -90,38 +90,38 @@ char* traverse_read();
 
 struct worker
 {
+	//[00,07]
 	u64 type;
-	u64 id;
-	u64 at10;
-	u64 at18;
-	u64 at20;
-	u64 at28;
-	u64 at30;
-	u64 at38;
 
-	int (*create)();
-	char pad0[8-sizeof(char*)];
+	//[08,0f]
+	u64 name;
 
-	int (*delete)();
-	char pad1[8-sizeof(char*)];
-
+	//[10,17]
 	int (*start)();
 	char pad2[8-sizeof(char*)];
 
+	//[18,1f]
 	int (*stop)();
 	char pad3[8-sizeof(char*)];
 
+	//[20,27]
 	int (*list)();
 	char pad4[8-sizeof(char*)];
 
+	//[28,2f]
 	int (*choose)();
 	char pad5[8-sizeof(char*)];
 
+	//[30,37]
 	int (*read)(char*, int, char*, int);
 	char pad6[8-sizeof(char*)];
 
+	//[38,3f]
 	int (*write)();
 	char pad7[8-sizeof(char*)];
+
+	//[40,ff]
+	u8 data[0xc0];
 };
 static struct worker w[20];
 static int chosen;
@@ -156,8 +156,11 @@ int worker_list()
 	int j;
 	for(j=0;j<20;j++)
 	{
-		printf("%llx,%llx\n", w[j].type, w[j].id);
-		printf("%llx,%llx,%llx,%llx,%llx,%llx\n",
+		if(w[j].type == 0)break;
+
+		printf("%-8s %-8s %llx,%llx,%llx,%llx,%llx,%llx\n",
+			(char*)&w[j].type,
+			(char*)&w[j].name,
 			(u64)w[j].start,
 			(u64)w[j].stop,
 			(u64)w[j].list,
@@ -169,11 +172,20 @@ int worker_list()
 }
 int worker_choose(char* p)
 {
+	int j,k=0;
 	u64 x = suffix_value(p);
-	if(x != 0x63)return 0;
 
-	chosen = 1;
-	return chosen;
+	for(j=0;j<20;j++)
+	{
+		if(w[j].name == x)
+		{
+			k = j;
+			break;
+		}
+	}
+
+	if(k > 0)chosen = k;
+	return k;
 }
 int worker_start(char* p)
 {
@@ -222,31 +234,35 @@ int worker_stop()
 {
 	w[chosen].stop();
 	close(infile);
+
+	printf("\n\n");
 }
 void worker_create()
 {
+	int t;
 	char* j = (char*)w;
+	for(t=0;t<0x100*20;t++)j[t] = 0;
 
 	none_create(w, j);	//how many file has been ignored
-	j += 0x80;
+	j += 0x100;
 
 	count_create(w, j);	//how many bytes and lines in this file
-	j += 0x80;
+	j += 0x100;
 
 	c_create(w, j);
-	j += 0x80;
+	j += 0x100;
 
 	cpp_create(w, j);
-	j += 0x80;
+	j += 0x100;
 
 	dts_create(w, j);
-	j += 0x80;
+	j += 0x100;
 
 	include_create(w, j);
-	j += 0x80;
+	j += 0x100;
 
 	struct_create(w, j);
-	j += 0x80;
+	j += 0x100;
 
 	worker_list();
 	outfile = open(

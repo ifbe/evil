@@ -584,15 +584,12 @@ int struct_delete()
 }
 int struct_create(u64* that, u64* this)
 {
-        this[0] = 0x6573726170;
-        this[1] = 0x746e756f63;
-
-        this[8] = (u64)struct_create;
-        this[9] = (u64)struct_delete;
-        this[10] = (u64)struct_start;
-        this[11] = (u64)struct_stop;
-        this[12] = (u64)struct_list;
-        this[13] = (u64)struct_choose;
-        this[14] = (u64)struct_read;
-        this[15] = (u64)struct_write;
+	this[0] = 0x6573726170;
+	this[1] = 0x746e756f63;
+	this[2] = (u64)struct_start;
+	this[3] = (u64)struct_stop;
+	this[4] = (u64)struct_list;
+	this[5] = (u64)struct_choose;
+	this[6] = (u64)struct_read;
+	this[7] = (u64)struct_write;
 }

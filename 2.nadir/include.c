@@ -356,15 +356,12 @@ int include_delete()
 }
 int include_create(u64* file, u64* this)
 {
-        this[0] = 0x6573726170;
-        this[1] = 0x682e;
-
-        this[8] = (u64)include_create;
-        this[9] = (u64)include_delete;
-        this[10] = (u64)include_start;
-        this[11] = (u64)include_stop;
-        this[12] = (u64)include_list;
-        this[13] = (u64)include_choose;
-        this[14] = (u64)include_read;
-        this[15] = (u64)include_write;
+	this[0] = 0x6573726170;
+	this[1] = 0x68;
+	this[2] = (u64)include_start;
+	this[3] = (u64)include_stop;
+	this[4] = (u64)include_list;
+	this[5] = (u64)include_choose;
+	this[6] = (u64)include_read;
+	this[7] = (u64)include_write;
 }

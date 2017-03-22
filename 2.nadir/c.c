@@ -651,14 +651,11 @@ int c_delete()
 int c_create(u64* that, u64* this)
 {
 	this[0] = 0x6573726170;
-	this[1] = 0x632e;
-
-	this[8] = (u64)c_create;
-	this[9] = (u64)c_delete;
-	this[10] = (u64)c_start;
-	this[11] = (u64)c_stop;
-	this[12] = (u64)c_list;
-	this[13] = (u64)c_choose;
-	this[14] = (u64)c_read;
-	this[15] = (u64)c_write;
+	this[1] = 0x63;
+	this[2] = (u64)c_start;
+	this[3] = (u64)c_stop;
+	this[4] = (u64)c_list;
+	this[5] = (u64)c_choose;
+	this[6] = (u64)c_read;
+	this[7] = (u64)c_write;
 }
