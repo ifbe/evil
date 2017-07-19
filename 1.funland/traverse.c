@@ -74,11 +74,13 @@ char* traverse_read()
 			continue;
 		}
 
-		//kill nondir
+#ifdef DT_LNK
+		//ignore nondir
 		if(ent->d_type == DT_LNK)
 		{
 			continue;
 		}
+#endif
 
 		//ignore . .. .*
 		if(ent->d_name[0] == '.')
@@ -112,7 +114,10 @@ char* traverse_read()
 		rsp++;
 	}
 }
-int traverse_write(char* p)
+int traverse_write()
+{
+}
+void traverse_start(char* p)
 {
 	int j;
 
@@ -128,10 +133,9 @@ int traverse_write(char* p)
 		if(p[j-1]=='/')stack[0].name[j-1]=0;
 	}
 }
-
-
-
-
+void traverse_stop()
+{
+}
 void traverse_create()
 {
 }

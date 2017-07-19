@@ -17,71 +17,67 @@
 
 
 
-//none(example)
-int none_create(void*, void*);
-int none_delete();
-//count(example)
-int count_create(void*, void*);
-int count_delete();
-//bash
-int bash_create(void*, void*);
-int bash_delete();
-//c
-int c_create(void*, void*);
-int c_delete();
-//cpp
-int cpp_create(void*, void*);
-int cpp_delete();
-//class
-int class_create(void*, void*);
-int class_delete();
-//dts
-int dts_create(void*, void*);
-int dts_delete();
-//go
-int go_create(void*, void*);
-int go_delete();
-//include
-int include_create(void*, void*);
-int include_delete();
-//makefile
-int makefile_create(void*, void*);
-int makefile_delete();
-//java
-int java_create(void*, void*);
-int java_delete();
-//js
-int js_create(void*, void*);
-int js_delete();
-//json
+//json(data)
 int json_create(void*, void*);
 int json_delete();
-//perl
-int perl_create(void*, void*);
-int perl_delete();
-//php
-int php_create(void*, void*);
-int php_delete();
-//python
-int python_create(void*, void*);
-int python_delete();
-//ruby
-int ruby_create(void*, void*);
-int ruby_delete();
-//struct
+//dts(data)
+int dts_create(void*, void*);
+int dts_delete();
+//class(data)
+int class_create(void*, void*);
+int class_delete();
+//struct(data)
 int struct_create(void*, void*);
 int struct_delete();
+//c(prog)
+int c_create(void*, void*);
+int c_delete();
+//cpp(prog)
+int cpp_create(void*, void*);
+int cpp_delete();
+//go(prog)
+int go_create(void*, void*);
+int go_delete();
+//java(prog)
+int java_create(void*, void*);
+int java_delete();
+//js(prog)
+int js_create(void*, void*);
+int js_delete();
+//perl(prog)
+int perl_create(void*, void*);
+int perl_delete();
+//php(prog)
+int php_create(void*, void*);
+int php_delete();
+//python(prog)
+int python_create(void*, void*);
+int python_delete();
+//ruby(prog)
+int ruby_create(void*, void*);
+int ruby_delete();
+//bash(script)
+int bash_create(void*, void*);
+int bash_delete();
+//makefile(script)
+int makefile_create(void*, void*);
+int makefile_delete();
+//none(test)
+int none_create(void*, void*);
+int none_delete();
+//count(test)
+int count_create(void*, void*);
+int count_delete();
+//include(test)
+int include_create(void*, void*);
+int include_delete();
 
 
 
 
 //string.c
-void string_create();
-void string_delete();
 u64 suffix_value(char*);
 //traverse.c
-void traverse_create();
-void traverse_delete();
 int traverse_write();
 char* traverse_read();
 
@@ -127,9 +123,9 @@ static struct worker w[20];
 static int chosen;
 //
 static int infile = -1;
-static unsigned char inbuf[0x100000];
+static u8 inbuf[0x100000];
 static int outfile = -1;
-static unsigned char outbuf[0x100000];
+static u8 outbuf[0x100000];
 
 
 
@@ -264,59 +260,8 @@ void worker_create()
 	struct_create(w, j);
 	j += 0x100;
 
-	worker_list();
-	outfile = open(
-		"code.seed",
-		O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
-                S_IRWXU|S_IRWXG|S_IRWXO
-	);
+	//worker_list();
 }
 void worker_delete()
 {
-	if(outfile > 0)close(outfile);
-}
-
-
-
-
-int learn(int argc,char** argv)
-{
-	int j,k;
-	char* p;
-
-	//before
-	string_create();
-	traverse_create();
-	worker_create();
-
-	//example:	./a.out 1.c *.c /src/*.c */*.c
-	for(j=1;j<argc;j++)
-	{
-		//do it
-		traverse_write(argv[j]);
-		while(1)
-		{
-			//get one(traverse.c)
-			p = traverse_read();
-			if(p == 0)break;
-			//printf("file=%s\n",p);
-
-			//choose worker
-			k = worker_start(p);
-			if(k <= 0)continue;
-			//printf("worker=%d\n",k);
-
-			//do it
-			k = worker_read();
-			//worker_write(k);
-
-			//
-			worker_stop();
-		}
-	}//for
-
-	//after
-	string_delete();
-	traverse_delete();
-	worker_delete();
 }

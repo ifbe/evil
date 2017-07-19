@@ -1,6 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+void hash_create();
+void hash_delete();
+void string_create();
+void string_delete();
+void traverse_create();
+void traverse_delete();
+void worker_create();
+void worker_delete();
 int learn(int argc,char** argv);
 int check(int argc,char** argv);
 int hash(int argc,char** argv);
@@ -36,13 +44,22 @@ int main(int argc,char *argv[])
 		help();
 		return 0;
 	}
-	//------------------------------------------------------------
+	//---------------------------------------------------------
 
 
 
 
-	//------------------------------------------------------
-	//
+	//-------------------------before--------------------------
+	hash_create();
+	string_create();
+	traverse_create();
+	worker_create();
+	//----------------------------------------------------------
+
+
+
+
+	//auto mode
 	if(strcmp(argv[1] , "learn") == 0)
 	{
 		learn(argc-1 , argv+1);
@@ -59,14 +76,6 @@ int main(int argc,char *argv[])
 	}
 
 	//
-	else if(strcmp(argv[1] , "search") == 0)
-	{
-		printf("@search\n");
-	}
-	else if(strcmp(argv[1] , "change") == 0)
-	{
-		printf("@change\n");
-	}
 	else if(strcmp(argv[1] , "create") == 0)
 	{
 		printf("@create\n");
@@ -75,11 +84,29 @@ int main(int argc,char *argv[])
 	{
 		printf("@delete\n");
 	}
+	else if(strcmp(argv[1] , "search") == 0)
+	{
+		printf("@search\n");
+	}
+	else if(strcmp(argv[1] , "change") == 0)
+	{
+		printf("@change\n");
+	}
 
 	//
 	else
 	{
 		help();
+		return 0;
 	}
-	//------------------------------------------------------
+
+
+
+
+	//-------------------------after---------------------------
+	worker_delete();
+	traverse_delete();
+	string_delete();
+	hash_delete();
+	//---------------------------------------------------------
 }
