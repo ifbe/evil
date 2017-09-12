@@ -130,9 +130,18 @@ static u8 outbuf[0x100000];
 
 
 
-int worker_write(int count)
+int worker_write(char* p)
 {
 	//write(outfile, outbuf, count);
+	int j;
+	for(j=0;j<256;j++)
+	{
+		if(p[j] == 0)
+		{
+			hash_write(p, j);
+			break;
+		}
+	}
 }
 int worker_read()
 {
@@ -196,23 +205,16 @@ int worker_start(char* p)
 	ret=stat(p, &statbuf);
 	if(ret == -1)
 	{
-		//printf("wrong@stat\n");
+		printf("wrong@stat: %d\n", errno);
 		return -1;
 	}
 
 	size = statbuf.st_size;
 	if( (size <= 0) | (size > 0xfffff) )
 	{
-		//printf("wrong@size\n");
+		printf("wrong@size\n");
 		return -2;
 	}
-
-	//infomation
-	ret = snprintf(outbuf, 256, "#name:       %s\n", p);
-	printf("%s", outbuf);
-
-	ret = snprintf(outbuf, 256, "#size:       %d(0x%x)\n", size, size);
-	printf("%s", outbuf);
 
 //~~~~~~~~~~~~~~~~~~~~~~~2~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	//open
@@ -224,6 +226,16 @@ int worker_start(char* p)
 	}
 
 	w[chosen].start();
+
+//~~~~~~~~~~~~~~~~~~~~~~~3~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	//infomation
+	ret = snprintf(outbuf, 256, "#name:       %s\n", p);
+	printf("%s", outbuf);
+
+	ret = snprintf(outbuf, 256, "#size:       %d(0x%x)\n", size, size);
+	printf("%s", outbuf);
+
+	worker_write(p);
 	return 1;
 }
 int worker_stop()

@@ -181,10 +181,10 @@ forcecopy:
 	return i;
 
 }
-static void printprophet(unsigned char* p)
+static void c_write(u8* p)
 {
 	int count=0;
-	unsigned char strbuf[256];
+	u8 strbuf[256];
 
 	//函数结束
 	if(p==0)
@@ -201,10 +201,8 @@ static void printprophet(unsigned char* p)
 	{
 		count = copyname(p , strbuf);
 		count += snprintf(
-			strbuf+count,
-			0x80,
-			"	@%d\n{\n",
-			countline
+			strbuf+count,	0x80,
+			"	@%d\n{\n",	countline
 		);
 	}
 	else
@@ -362,7 +360,7 @@ static int c_read(char* src, int count)
 			{
 				if(prophet!=0)
 				{
-					printprophet(prophet);
+					c_write(prophet);
 					prophet=0;
 					doubt=0;
 				}
@@ -406,7 +404,7 @@ static int c_read(char* src, int count)
 				//消灭aaa=(struct){int a,int b}这种
 				if( (chance>0) && (insist!=0) )
 				{
-					printprophet(insist);
+					c_write(insist);
 
 					infunc++;
 					chance=0;
@@ -423,7 +421,7 @@ static int c_read(char* src, int count)
 			if(infunc>0)
 			{
 				infunc--;
-				if(infunc==0)printprophet(0);
+				if(infunc==0)c_write(0);
 			}
 		}
 
@@ -614,9 +612,6 @@ static int c_read(char* src, int count)
 	}//for
 
 	return countbyte;
-}
-static int c_write()
-{
 }
 static int c_list()
 {

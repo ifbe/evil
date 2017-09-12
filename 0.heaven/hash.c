@@ -126,8 +126,9 @@ void hash_write(u8* buf, int len)
 		hash[1] = bkdrhash(buf, len);
 		hash[0] = djb2hash(buf, len);
 	}
+	printf("%08x,%08x: %s\n", hash[0], hash[1], buf);
 
-	j = hash_list(hash, &q);
+	//j = hash_list(hash, &q);
 }
 void hash_start()
 {
