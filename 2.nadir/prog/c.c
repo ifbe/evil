@@ -200,6 +200,7 @@ static void c_write(u8* p)
 	if(infunc==0)
 	{
 		count = copyname(p , strbuf);
+		worker_write(p, count-1, 1);
 		count += snprintf(
 			strbuf+count,	0x80,
 			"	@%d\n{\n",	countline
@@ -212,6 +213,8 @@ static void c_write(u8* p)
 
 		count += copyname(p , strbuf+1);
 		if(count==1)return;
+
+		worker_write(p, count-1, 2);
 
 		strbuf[count]='\n';
 		strbuf[count+1]=0;

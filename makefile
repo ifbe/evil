@@ -1,6 +1,6 @@
 all:
-	gcc \
-	0.heaven/main.c \
+	gcc main.c \
+	0.heaven/connect.c \
 	0.heaven/hash.c \
 	0.heaven/string.c \
 	0.heaven/traverse.c \

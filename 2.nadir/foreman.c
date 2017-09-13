@@ -10,7 +10,6 @@
 #define u16 unsigned short
 #define u8 unsigned char
 #ifndef O_BINARY
-	//mingw64 compatiable
 	#define O_BINARY 0x0
 #endif
 
@@ -130,17 +129,27 @@ static u8 outbuf[0x100000];
 
 
 
-int worker_write(char* p)
+int worker_write(char* p, int len, int type)
 {
-	//write(outfile, outbuf, count);
 	int j;
-	for(j=0;j<256;j++)
+	if(type == 0)	//file
 	{
-		if(p[j] == 0)
+		for(j=0;j<256;j++)
 		{
-			hash_write(p, j);
-			break;
+			if(p[j] == 0)
+			{
+				hash_write(p, j);
+				break;
+			}
 		}
+	}
+	else if(type == 1)
+	{
+		hash_write(p, len);
+	}
+	else if(type == 2)
+	{
+		hash_write(p, len);
 	}
 }
 int worker_read()
@@ -235,7 +244,7 @@ int worker_start(char* p)
 	ret = snprintf(outbuf, 256, "#size:       %d(0x%x)\n", size, size);
 	printf("%s", outbuf);
 
-	worker_write(p);
+	worker_write(p, 0, 0);
 	return 1;
 }
 int worker_stop()

@@ -123,7 +123,7 @@ void hash_write(u8* buf, int len)
 		hash[1] = bkdrhash(buf, len);
 		hash[0] = djb2hash(buf, len);
 	}
-	printf("%08x,%08x: %s\n", hash[0], hash[1], buf);
+	//printf("%08x,%08x: %s\n", hash[0], hash[1], buf);
 
 
 	//no space
@@ -199,9 +199,9 @@ void hash_create()
 }
 void hash_delete()
 {
-	write(hashfd, hbuf, 0x100000);
+	write(hashfd, hbuf, hashlen*0x20);
 	close(hashfd);
 
-	write(charfd, sbuf, 0x100000);
+	write(charfd, sbuf, charlen);
 	close(charfd);
 }
