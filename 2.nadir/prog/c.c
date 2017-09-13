@@ -14,6 +14,7 @@
 	//mingw64 compatiable
 	#define O_BINARY 0x0
 #endif
+void worker_write(void*, int, int);
 
 
 

@@ -74,6 +74,10 @@ int include_delete();
 
 
 
+//
+void* hash_write(void*, int);
+void connect(u64, u64, void*, void*);
+//
 //string.c
 u64 suffix_value(char*);
 //traverse.c
@@ -214,7 +218,7 @@ int worker_start(char* p)
 	ret=stat(p, &statbuf);
 	if(ret == -1)
 	{
-		printf("wrong@stat: %d\n", errno);
+		printf("wrong@stat\n");
 		return -1;
 	}
 

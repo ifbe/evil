@@ -9,6 +9,10 @@
 #define u16 unsigned short
 #define u32 unsigned int
 #define u64 unsigned long long
+#ifndef O_BINARY
+        //mingw64 compatiable
+        #define O_BINARY 0x0
+#endif
 
 
 
