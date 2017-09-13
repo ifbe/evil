@@ -24,3 +24,13 @@ typedef struct hash* hash;
 void connect(u64 relation, u64 detail, hash first, hash last)
 {
 }
+
+
+
+
+void connect_create()
+{
+}
+void connect_delete()
+{
+}

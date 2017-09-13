@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+void connect_create();
+void connect_delete();
 void hash_create();
 void hash_delete();
 void string_create();
@@ -50,6 +52,7 @@ int main(int argc,char *argv[])
 
 
 	//-------------------------before--------------------------
+	connect_create();
 	hash_create();
 	string_create();
 	traverse_create();
@@ -108,5 +111,6 @@ int main(int argc,char *argv[])
 	traverse_delete();
 	string_delete();
 	hash_delete();
+	connect_delete();
 	//---------------------------------------------------------
 }

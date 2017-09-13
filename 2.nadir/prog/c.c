@@ -53,179 +53,31 @@ static int instr=0;
 
 
 
-static int copyname(u8* src, u8* dst)
-{
-	int i=0;
-	u64 temp;
-
-	//2byte:	if
-	if(src[2]==' ' | src[2]=='(' | src[2]==0x9)
-	{
-		temp=*(u16*)src;
-		if(temp==0x6669)
-		{
-			i=2;
-			goto decide;
-		}
-	}
-
-	//3byte:	for
-	if(src[3]==' ' | src[3]=='(' | src[3]==0x9)
-	{
-		temp = *(u32*)src;
-		temp &= 0xffffff;
-		if(temp==0x726f66)
-		{
-			i=3;
-			goto decide;
-		}
-	}
-
-	//4byte:	else,free
-	if(src[4]==' ' | src[4]=='(' | src[4]==0x9)
-	{
-		temp=*(u32*)src;
-		if(temp==0x65736c65)
-		{
-			i=4;
-			goto decide;
-		}
-		else if(temp==0x65657266)
-		{
-			i=4;
-			goto decide;
-		}
-	}
-
-	//5byte:	while
-	if(src[5]==' ' | src[5]=='(' | src[5]==0x9)
-	{
-		temp = *(u64*)src;
-		temp &= 0xffffffffff;
-		if(temp==0x656c696877)
-		{
-			i=5;
-			goto decide;
-		}
-	}
-
-	//6byte:	return,sizeof,switch,printf,malloc
-	if(src[6]==' ' | src[6]=='(' | src[6]==0x9)
-	{
-		temp =  *(u64*)src;
-		temp &= 0xffffffffffff;
-
-		//return
-		if(temp==0x6e7275746572)
-		{
-			i=6;
-			goto decide;
-		}
-
-		//sizeof
-		else if(temp==0x666f657a6973)
-		{
-			i=6;
-			goto decide;
-		}
-
-		//switch
-		else if(temp==0x686374697773)
-		{
-			i=6;
-			goto decide;
-		}
-
-		//printf
-		else if(temp==0x66746e697270)
-		{
-			i=6;
-			goto decide;
-		}
-
-		//malloc
-		else if(temp==0x636f6c6c616d)
-		{
-			i=6;
-			goto decide;
-		}
-
-	}
-decide:
-	if(i!=0)
-	{
-		if(infunc != 0)return 0;
-
-		*(u64*)dst=temp;
-		*(u32*)(dst+i)=0x3f3f3f3f;
-		return i+4;
-	}
-
-forcecopy:
-	for(i=0;i<80;i++)
-	{
-		if(	((src[i]>='a')&&(src[i]<='z')) |
-			((src[i]>='A')&&(src[i]<='Z')) |
-			((src[i]>='0')&&(src[i]<='9')) |
-			(src[i]=='_') |
-			(src[i]=='.') |
-			(src[i]=='-') |
-			(src[i]=='>') )
-		{
-			dst[i]=src[i];
-		}
-		else break;
-	}
-
-	//0
-	dst[i]=0;
-	return i;
-
-}
 static void c_write(u8* p)
 {
-	int count=0;
-	u8 strbuf[256];
-
-	//函数结束
-	if(p==0)
+	int j,k;
+	for(j=0;j<256;j++)
 	{
-		strbuf[0]='}';
-		strbuf[1]='\n';
-		strbuf[2]=0;
-		count=2;
-		goto finalprint;
+		if(	((p[j]>='a')&&(p[j]<='z')) |
+			((p[j]>='A')&&(p[j]<='Z')) |
+			((p[j]>='0')&&(p[j]<='9')) |
+			(p[j]=='_') )continue;
+		else break;
 	}
+	worker_write(p, j, 1);
 
 	//在函数外
 	if(infunc==0)
 	{
-		count = copyname(p , strbuf);
-		worker_write(p, count-1, 1);
-		count += snprintf(
-			strbuf+count,	0x80,
-			"	@%d\n{\n",	countline
-		);
+		for(k=0;k<j;k++)printf("%c",p[k]);
+		printf("	@%d\n{\n",	countline);
 	}
 	else
 	{
-		strbuf[0]=0x9;
-		count++;
-
-		count += copyname(p , strbuf+1);
-		if(count==1)return;
-
-		worker_write(p, count-1, 2);
-
-		strbuf[count]='\n';
-		strbuf[count+1]=0;
-		count++;
+		printf("	");
+		for(k=0;k<j;k++)printf("%c",p[k]);
+		printf("\n");
 	}
-
-finalprint:
-	//write(outfile,strbuf,count);
-	printf("%s",strbuf);
-	return;
 }
 static int c_read(char* src, int count)
 {
@@ -425,7 +277,10 @@ static int c_read(char* src, int count)
 			if(infunc>0)
 			{
 				infunc--;
-				if(infunc==0)c_write(0);
+				if(infunc==0)
+				{
+					printf("}\n");
+				}
 			}
 		}
 
@@ -658,3 +513,134 @@ int c_create(u64* that, u64* this)
 	this[6] = (u64)c_read;
 	this[7] = (u64)c_write;
 }
+/*
+static int copyname(u8* src, u8* dst)
+{
+	int i=0;
+	u64 temp;
+
+	//2byte:	if
+	if(src[2]==' ' | src[2]=='(' | src[2]==0x9)
+	{
+		temp=*(u16*)src;
+		if(temp==0x6669)
+		{
+			i=2;
+			goto decide;
+		}
+	}
+
+	//3byte:	for
+	if(src[3]==' ' | src[3]=='(' | src[3]==0x9)
+	{
+		temp = *(u32*)src;
+		temp &= 0xffffff;
+		if(temp==0x726f66)
+		{
+			i=3;
+			goto decide;
+		}
+	}
+
+	//4byte:	else,free
+	if(src[4]==' ' | src[4]=='(' | src[4]==0x9)
+	{
+		temp=*(u32*)src;
+		if(temp==0x65736c65)
+		{
+			i=4;
+			goto decide;
+		}
+		else if(temp==0x65657266)
+		{
+			i=4;
+			goto decide;
+		}
+	}
+
+	//5byte:	while
+	if(src[5]==' ' | src[5]=='(' | src[5]==0x9)
+	{
+		temp = *(u64*)src;
+		temp &= 0xffffffffff;
+		if(temp==0x656c696877)
+		{
+			i=5;
+			goto decide;
+		}
+	}
+
+	//6byte:	return,sizeof,switch,printf,malloc
+	if(src[6]==' ' | src[6]=='(' | src[6]==0x9)
+	{
+		temp =  *(u64*)src;
+		temp &= 0xffffffffffff;
+
+		//return
+		if(temp==0x6e7275746572)
+		{
+			i=6;
+			goto decide;
+		}
+
+		//sizeof
+		else if(temp==0x666f657a6973)
+		{
+			i=6;
+			goto decide;
+		}
+
+		//switch
+		else if(temp==0x686374697773)
+		{
+			i=6;
+			goto decide;
+		}
+
+		//printf
+		else if(temp==0x66746e697270)
+		{
+			i=6;
+			goto decide;
+		}
+
+		//malloc
+		else if(temp==0x636f6c6c616d)
+		{
+			i=6;
+			goto decide;
+		}
+
+	}
+decide:
+	if(i!=0)
+	{
+		if(infunc != 0)return 0;
+
+		*(u64*)dst=temp;
+		*(u32*)(dst+i)=0x3f3f3f3f;
+		return i+4;
+	}
+
+forcecopy:
+	for(i=0;i<80;i++)
+	{
+		if(	((src[i]>='a')&&(src[i]<='z')) |
+			((src[i]>='A')&&(src[i]<='Z')) |
+			((src[i]>='0')&&(src[i]<='9')) |
+			(src[i]=='_') |
+			(src[i]=='.') |
+			(src[i]=='-') |
+			(src[i]=='>') )
+		{
+			dst[i]=src[i];
+		}
+		else break;
+	}
+
+	//0
+	dst[i]=0;
+	return i;
+
+}
+*/
