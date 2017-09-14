@@ -17,9 +17,9 @@
 
 
 //
+static u8 charbuf[0x100000];
 static int charfd;
 static int charlen;
-static u8 charbuf[0x100000];
 
 
 
@@ -122,6 +122,14 @@ int string_write(char* buf, int len)
 	charlen += len;
 	return charlen;
 }
+void string_start()
+{
+	lseek(charfd, 0, SEEK_SET);
+	charlen = 0;
+}
+void string_stop()
+{
+}
 void string_create()
 {
 	int j;
@@ -133,10 +141,15 @@ void string_create()
 	//char
 	charfd = open(
 		".42/42.char",
-		O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
+		O_CREAT|O_RDWR|O_BINARY,	//O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
 		S_IRWXU|S_IRWXG|S_IRWXO
 	);
-	charlen = 0;
+
+	//
+	charlen = read(charfd, charbuf, 0x100000);
+	printf("char:	%x\n", charlen);
+
+	string_start();
 }
 void string_delete()
 {

@@ -76,7 +76,7 @@ int include_delete();
 
 //
 void* hash_write(void*, int);
-void connect(u64, u64, void*, void*);
+void connect_write(u64, u64, int, int);
 //
 //string.c
 u64 suffix_value(char*);
@@ -133,22 +133,39 @@ static u8 outbuf[0x100000];
 
 
 
+static u64 filehash;
+static u64 funchash;
+static u64 callhash;
 int worker_write(char* buf, int len, int relation, int detail)
 {
 	int j;
+	void* ret;
 	if(relation == 0)	//file
 	{
-		hash_write(buf, len);
+		ret = hash_write(buf, len);
+		if(ret != 0)
+		{
+			filehash = *(u64*)ret;
+			//printf("filehash = %llx\n", filehash);
+		}
 	}
 	else if(relation == 1)
 	{
-		hash_write(buf, len);
-		//connect(filefd, funcfd, file, line);
+		ret = hash_write(buf, len);
+		if(ret != 0)
+		{
+			funchash = *(u64*)ret;
+			connect_write(filehash, funchash, relation, detail);
+		}
 	}
 	else if(relation == 2)
 	{
-		hash_write(buf, len);
-		//connect(call, line, filefd, funcfd);
+		ret = hash_write(buf, len);
+		if(ret != 0)
+		{
+			callhash = *(u64*)ret;
+			connect_write(funchash, callhash, relation, detail);
+		}
 	}
 }
 int worker_read()
@@ -237,12 +254,8 @@ int worker_start(char* p)
 
 //~~~~~~~~~~~~~~~~~~~~~~~3~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	//infomation
-	ret = snprintf(outbuf, 256, "#name:       %s\n", p);
-	printf("%s", outbuf);
-
-	ret = snprintf(outbuf, 256, "#size:       %d(0x%x)\n", size, size);
-	printf("%s", outbuf);
-
+	printf("#name:       %s\n", p);
+	printf("#size:       %d(0x%x)\n", size, size);
 	for(ret=0;ret<256;ret++)
 	{
 		if(p[ret] == 0)

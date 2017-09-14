@@ -16,21 +16,21 @@
 
 
 
-struct hash
+struct wire
 {
-	u32 hash0;
-	u32 hash1;
-	u32 off;
-	u32 len;
+	u32 pintype;
+	u32 detail;
+	u32 samepinlastchip;
+	u32 sameinnextchip;
 
-	u64 first;
-	u64 last;
+	u32 chipinfo;
+	u32 footinfo;
+	u32 samechiplastpin;
+	u32 samechipnextpin;
 };
-typedef struct hash* hash;
-//
+static u8 wirebuf[0x100000];
 static int wirefd;
 static int wirelen;
-static u8 wirebuf[0x100000];
 
 
 
@@ -39,13 +39,27 @@ static u8 wirebuf[0x100000];
 //'file',	linenum,	filename,	funcname
 //'call',	linenum,	funcname,	callname
 //'struct',	linenum,	structname,	elementname
-void connect(hash first, hash last, u64 relation, u64 detail)
+void connect_write(u64 upper, u64 below, u64 relation, u64 detail)
+{
+	printf("%llx, %llx\n", upper, below);
+}
+void connect_read()
 {
 }
-
-
-
-
+void connect_list()
+{
+}
+void connect_choose()
+{
+}
+void connect_start()
+{
+	lseek(wirefd, 0, SEEK_SET);
+	wirelen = 0;
+}
+void connect_stop()
+{
+}
 void connect_create()
 {
 	int j;
@@ -54,12 +68,18 @@ void connect_create()
 	buf = (void*)wirebuf;
 	for(j=0;j<0x100000;j++)buf[j] = 0;
 
+	//wire
 	wirefd = open(
 		".42/42.wire",
-		O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
+		O_CREAT|O_RDWR|O_BINARY,	//O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
 		S_IRWXU|S_IRWXG|S_IRWXO
 	);
-	wirelen = 0;
+
+	//
+	wirelen = read(wirefd, wirebuf, 0x100000);
+	printf("wire:	%x\n", wirelen);
+
+	connect_start();
 }
 void connect_delete()
 {

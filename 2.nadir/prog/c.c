@@ -14,7 +14,7 @@
 	//mingw64 compatiable
 	#define O_BINARY 0x0
 #endif
-void worker_write(void*, int, int);
+void worker_write(void*, int, int, int);
 
 
 
@@ -64,8 +64,10 @@ static void c_write(u8* p)
 			(p[j]=='_') )continue;
 		else break;
 	}
-	worker_write(p, j, 1);
+	if(infunc == 0)worker_write(p, j, 1, countline);
+	else worker_write(p, j, 2, countline);
 
+return;
 	//在函数外
 	if(infunc==0)
 	{
@@ -277,10 +279,7 @@ static int c_read(char* src, int count)
 			if(infunc>0)
 			{
 				infunc--;
-				if(infunc==0)
-				{
-					printf("}\n");
-				}
+				//if(infunc==0)printf("}\n");
 			}
 		}
 

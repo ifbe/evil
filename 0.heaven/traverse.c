@@ -27,9 +27,9 @@ static char path[512];
 //
 static int rsp=0;
 //
+static u8 travbuf[0x100000];
 static int travfd;
 static int travlen;
-static u8 travbuf[0x100000];
 
 
 
@@ -158,9 +158,13 @@ void traverse_create()
 	//trav
 	travfd = open(
 		".42/42.trav",
-		O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
+		O_CREAT|O_RDWR|O_BINARY,	//O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
 		S_IRWXU|S_IRWXG|S_IRWXO
 	);
+
+	//
+	travlen = read(travfd, travbuf, 0x100000);
+	printf("trav:	%x\n", travlen);
 	travlen = 0;
 }
 void traverse_delete()
