@@ -159,8 +159,11 @@ void hash_write(u8* buf, int len)
 	q->len = len;
 
 	//insert string
-	for(j=0;j<len;j++)sbuf[charlen+j] = buf[j];
-	charlen += len;
+	if(len > 8)
+	{
+		for(j=0;j<len;j++)sbuf[charlen+j] = buf[j];
+		charlen += len;
+	}
 }
 void hash_list()
 {
