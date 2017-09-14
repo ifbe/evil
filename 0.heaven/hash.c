@@ -10,9 +10,9 @@
 #define u32 unsigned int
 #define u64 unsigned long long
 #ifndef O_BINARY
-        //mingw64 compatiable
         #define O_BINARY 0x0
 #endif
+int string_write(char*, int);
 
 
 
@@ -30,11 +30,7 @@ struct hash
 //
 static int hashfd;
 static int hashlen;
-static struct hash hbuf[0x8000];
-//
-static int charfd;
-static int charlen;
-static u8 sbuf[0x100000];
+static struct hash hashbuf[0x8000];
 
 
 
@@ -72,18 +68,18 @@ void* hash_search(u32* hash)
 		if(left >= hashlen)
 		{
 			if(hashlen >= 0x7fff)return 0;
-			return &hbuf[left];
+			return &hashbuf[left];
 		}
 
 		//lastone
 		if(left >= right)
 		{
-			return &hbuf[left];
+			return &hashbuf[left];
 		}
 
 		//
 		mid = (left+right)/2;
-		xx = *(u64*)(&hbuf[mid]);
+		xx = *(u64*)(&hashbuf[mid]);
 		if(xx < yy)
 		{
 			left = mid+1;
@@ -94,7 +90,7 @@ void* hash_search(u32* hash)
 		}
 		else
 		{
-			return &hbuf[mid];
+			return &hashbuf[mid];
 		}
 	}
 }
@@ -141,7 +137,7 @@ void hash_write(u8* buf, int len)
 	hashlen++;
 
 	//move
-	dst = (void*)hbuf + hashlen*0x20 + 0x1f;
+	dst = (void*)hashbuf + hashlen*0x20 + 0x1f;
 	src = dst - 0x20;
 	while(1)
 	{
@@ -152,18 +148,15 @@ void hash_write(u8* buf, int len)
 		if(src < (u8*)q)break;
 	}
 
+	//insert string
+	if(len <= 8)j = 0;
+	else j = string_write(buf, len);
+
 	//insert hash
 	q->hash0 = hash[0];
 	q->hash1 = hash[1];
-	q->off = charlen;
+	q->off = j;
 	q->len = len;
-
-	//insert string
-	if(len > 8)
-	{
-		for(j=0;j<len;j++)sbuf[charlen+j] = buf[j];
-		charlen += len;
-	}
 }
 void hash_list()
 {
@@ -182,10 +175,7 @@ void hash_create()
 	int j;
 	char* buf;
 
-	buf = (void*)hbuf;
-	for(j=0;j<0x100000;j++)buf[j] = 0;
-
-	buf = (void*)sbuf;
+	buf = (void*)hashbuf;
 	for(j=0;j<0x100000;j++)buf[j] = 0;
 
 	//hash
@@ -195,20 +185,9 @@ void hash_create()
 		S_IRWXU|S_IRWXG|S_IRWXO
 	);
 	hashlen = 0;
-
-	//char
-	charfd = open(
-		".42/42.char",
-		O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
-		S_IRWXU|S_IRWXG|S_IRWXO
-	);
-	charlen = 0;
 }
 void hash_delete()
 {
-	write(hashfd, hbuf, hashlen*0x20);
+	write(hashfd, hashbuf, hashlen*0x20);
 	close(hashfd);
-
-	write(charfd, sbuf, charlen);
-	close(charfd);
 }

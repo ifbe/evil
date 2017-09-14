@@ -1,9 +1,25 @@
 #include<stdio.h>
+#include<stdlib.h>
 #include<string.h>
+#include<fcntl.h>
+#include<unistd.h>
+#include<sys/stat.h>
+#include<sys/types.h>
 #define u8 unsigned char
 #define u16 unsigned short
 #define u32 unsigned int
 #define u64 unsigned long long
+#ifndef O_BINARY
+        #define O_BINARY 0x0
+#endif
+
+
+
+
+//
+static int charfd;
+static int charlen;
+static u8 charbuf[0x100000];
 
 
 
@@ -57,10 +73,6 @@ u64 suffix_value(char* p)
 
 	return *(u64*)ret;
 }
-
-
-
-
 int match(char* first,char* second)
 {
 	int j=0;
@@ -99,9 +111,35 @@ printf("%c,%c\n",first[j],second[k]);
 
 
 
+int string_read(char* buf, int off, int len)
+{
+	//
+}
+int string_write(char* buf, int len)
+{
+	int j;
+	for(j=0;j<len;j++)charbuf[charlen+j] = buf[j];
+	charlen += len;
+	return charlen;
+}
 void string_create()
 {
+	int j;
+	char* buf;
+
+	buf = (void*)charbuf;
+	for(j=0;j<0x100000;j++)buf[j] = 0;
+
+	//char
+	charfd = open(
+		".42/42.char",
+		O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
+		S_IRWXU|S_IRWXG|S_IRWXO
+	);
+	charlen = 0;
 }
 void string_delete()
 {
+	write(charfd, charbuf, charlen);
+	close(charfd);
 }

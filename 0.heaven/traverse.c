@@ -7,6 +7,13 @@
 #include<unistd.h>
 #include<sys/stat.h>
 #include<sys/types.h>
+#define u8 unsigned char
+#define u16 unsigned short
+#define u32 unsigned int
+#define u64 unsigned long long
+#ifndef O_BINARY
+        #define O_BINARY 0x0
+#endif
 struct stack
 {
 	DIR* folder;
@@ -19,6 +26,10 @@ static struct stat statbuf;
 static char path[512];
 //
 static int rsp=0;
+//
+static int travfd;
+static int travlen;
+static u8 travbuf[0x100000];
 
 
 
@@ -138,7 +149,22 @@ void traverse_stop()
 }
 void traverse_create()
 {
+	int j;
+	char* buf;
+
+	buf = (void*)travbuf;
+	for(j=0;j<0x100000;j++)buf[j] = 0;
+
+	//trav
+	travfd = open(
+		".42/42.trav",
+		O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
+		S_IRWXU|S_IRWXG|S_IRWXO
+	);
+	travlen = 0;
 }
 void traverse_delete()
 {
+	write(travfd, travbuf, travlen);
+	close(travfd);
 }

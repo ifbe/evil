@@ -133,27 +133,22 @@ static u8 outbuf[0x100000];
 
 
 
-int worker_write(char* p, int len, int type)
+int worker_write(char* buf, int len, int relation, int detail)
 {
 	int j;
-	if(type == 0)	//file
+	if(relation == 0)	//file
 	{
-		for(j=0;j<256;j++)
-		{
-			if(p[j] == 0)
-			{
-				hash_write(p, j);
-				break;
-			}
-		}
+		hash_write(buf, len);
 	}
-	else if(type == 1)
+	else if(relation == 1)
 	{
-		hash_write(p, len);
+		hash_write(buf, len);
+		//connect(filefd, funcfd, file, line);
 	}
-	else if(type == 2)
+	else if(relation == 2)
 	{
-		hash_write(p, len);
+		hash_write(buf, len);
+		//connect(call, line, filefd, funcfd);
 	}
 }
 int worker_read()
@@ -248,7 +243,14 @@ int worker_start(char* p)
 	ret = snprintf(outbuf, 256, "#size:       %d(0x%x)\n", size, size);
 	printf("%s", outbuf);
 
-	worker_write(p, 0, 0);
+	for(ret=0;ret<256;ret++)
+	{
+		if(p[ret] == 0)
+		{
+			worker_write(p, ret, 0, 0);
+			break;
+		}
+	}
 	return 1;
 }
 int worker_stop()
