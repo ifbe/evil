@@ -24,10 +24,8 @@ struct hash
 	u32 off;
 	u32 len;
 
-	u32 first;
-	u32 pad0;
-	u32 last;
-	u32 pad1;
+	u64 first;
+	u64 last;
 };
 static struct hash hashbuf[0x8000];
 static int hashfd;
@@ -56,13 +54,12 @@ u32 djb2hash(u8* buf, int len)
 	}
 	return hash;
 }
-void* hash_search(u32* hash)
+void* hash_search(u64 hash)
 {
+	u64 xxx;
 	int mid;
 	int left = 0;
 	int right = hashlen;
-	u64 xx;
-	u64 yy = *(u64*)hash;
 	while(1)
 	{
 		//expand
@@ -80,12 +77,12 @@ void* hash_search(u32* hash)
 
 		//
 		mid = (left+right)/2;
-		xx = *(u64*)(&hashbuf[mid]);
-		if(xx < yy)
+		xxx = *(u64*)(&hashbuf[mid]);
+		if(xxx < hash)
 		{
 			left = mid+1;
 		}
-		else if(xx > yy)
+		else if(xxx > hash)
 		{
 			right = mid;
 		}
@@ -99,17 +96,21 @@ void* hash_search(u32* hash)
 
 
 
-void hash_read(u8* buf, int len)
+void* hash_read(u64 hash)
 {
+	struct hash* h = hash_search(hash);
+	if(h == 0)return 0;
+	if(*(u64*)h != hash)return 0;
+	return h;
 }
 void* hash_write(u8* buf, int len)
 {
 	int j;
 	u8* src;
 	u8* dst;
+	u64 temp;
 	u32 this[2];
-	struct hash* q;
-
+	struct hash* h;
 
 	//1.generate hash
 	if(len <= 0)return 0;
@@ -126,13 +127,15 @@ void* hash_write(u8* buf, int len)
 	}
 	//printf("%08x,%08x: %s\n", this[0], this[1], buf);
 
+	//
+	temp = *(u64*)this;
 
 	//no space
-	q = hash_search(this);
-	if(q == 0)return 0;
+	h = hash_search(temp);
+	if(h == 0)return 0;
 
 	//same
-	if(*(u64*)q == *(u64*)this)return q;
+	if(*(u64*)h == temp)return h;
 
 	if(hashlen > 0x7fff)return 0;
 	hashlen++;
@@ -146,7 +149,7 @@ void* hash_write(u8* buf, int len)
 
 		dst--;
 		src--;
-		if(src < (u8*)q)break;
+		if(src < (u8*)h)break;
 	}
 
 	//insert string
@@ -154,12 +157,14 @@ void* hash_write(u8* buf, int len)
 	else j = string_write(buf, len);
 
 	//insert hash
-	q->hash0 = this[0];
-	q->hash1 = this[1];
-	q->off = j;
-	q->len = len;
+	h->hash0 = this[0];
+	h->hash1 = this[1];
+	h->off = j;
+	h->len = len;
+	h->first = 0;
+	h->last = 0;
 
-	return q;
+	return h;
 }
 void hash_list()
 {
