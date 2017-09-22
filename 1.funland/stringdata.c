@@ -5,13 +5,13 @@
 #include<unistd.h>
 #include<sys/stat.h>
 #include<sys/types.h>
+#ifndef O_BINARY
+        #define O_BINARY 0x0
+#endif
 #define u8 unsigned char
 #define u16 unsigned short
 #define u32 unsigned int
 #define u64 unsigned long long
-#ifndef O_BINARY
-        #define O_BINARY 0x0
-#endif
 
 
 
@@ -111,26 +111,29 @@ printf("%c,%c\n",first[j],second[k]);
 
 
 
-int string_read(char* buf, int off, int len)
+int stringdata_read(char* buf, int off, int len)
 {
-	//
 }
-int string_write(char* buf, int len)
+int stringdata_write(char* buf, int len)
 {
 	int j;
+/*
+	//todo: compress string
+	j = search_in_existing_string_memory();
+	if(j > 0)return j;
+*/
 	for(j=0;j<len;j++)charbuf[charlen+j] = buf[j];
 	charlen += len;
 	return charlen;
 }
-void string_start()
+void stringdata_start()
 {
-	lseek(charfd, 0, SEEK_SET);
 	charlen = 0;
 }
-void string_stop()
+void stringdata_stop()
 {
 }
-void string_create()
+void stringdata_create()
 {
 	int j;
 	char* buf;
@@ -140,19 +143,18 @@ void string_create()
 
 	//char
 	charfd = open(
-		".42/42.char",
+		".42/str.data",
 		O_CREAT|O_RDWR|O_BINARY,	//O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
 		S_IRWXU|S_IRWXG|S_IRWXO
 	);
 
 	//
 	charlen = read(charfd, charbuf, 0x100000);
-	printf("char:	%x\n", charlen);
-
-	string_start();
+	printf("str data:	%x\n", charlen);
 }
-void string_delete()
+void stringdata_delete()
 {
+	lseek(charfd, 0, SEEK_SET);
 	write(charfd, charbuf, charlen);
 	close(charfd);
 }

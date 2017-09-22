@@ -7,26 +7,41 @@
 #include<unistd.h>
 #include<sys/stat.h>
 #include<sys/types.h>
+#ifndef O_BINARY
+        #define O_BINARY 0x0
+#endif
 #define u8 unsigned char
 #define u16 unsigned short
 #define u32 unsigned int
 #define u64 unsigned long long
-#ifndef O_BINARY
-        #define O_BINARY 0x0
-#endif
+
+
+
+
 struct stack
 {
 	DIR* folder;
 	unsigned char name[512 - sizeof(char*)];
 };
 static struct stack stack[16];
-//
 static struct stat statbuf;
-//
 static char path[512];
-//
 static int rsp=0;
+
+
+
+
 //
+struct fileindex
+{
+	u32 self;
+	u32 what;
+	u32 off;
+	u32 len;
+
+	u64 first;
+	u64 last;
+};
 static u8 travbuf[0x100000];
 static int travfd;
 static int travlen;
@@ -147,7 +162,33 @@ void traverse_start(char* p)
 void traverse_stop()
 {
 }
-void traverse_create()
+
+
+
+
+void* filetrav_read()
+{
+}
+void* filetrav_write(void* name, u64 size)
+{
+	struct fileindex* addr;
+	printf("%d(0x%x)	%s\n", size, size, name);
+
+	addr = (void*)travbuf + travlen;
+	addr->self = travlen;
+	addr->what = size;
+
+	travlen += 0x20;
+	return addr;
+}
+void filetrav_start()
+{
+	travlen = 0x20;
+}
+void filetrav_stop()
+{
+}
+void filetrav_create()
 {
 	int j;
 	char* buf;
@@ -157,18 +198,18 @@ void traverse_create()
 
 	//trav
 	travfd = open(
-		".42/42.trav",
+		".42/file.index",
 		O_CREAT|O_RDWR|O_BINARY,	//O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
 		S_IRWXU|S_IRWXG|S_IRWXO
 	);
 
 	//
 	travlen = read(travfd, travbuf, 0x100000);
-	printf("trav:	%x\n", travlen);
-	travlen = 0;
+	printf("filetrav:	%x\n", travlen);
 }
-void traverse_delete()
+void filetrav_delete()
 {
+	lseek(travfd, 0, SEEK_SET);
 	write(travfd, travbuf, travlen);
 	close(travfd);
 }

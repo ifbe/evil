@@ -1,16 +1,28 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+//
+void filedata_create();
+void filedata_delete();
+void filetrav_create();
+void filetrav_delete();
+//
+void funcdata_create();
+void funcdata_delete();
+void funcindx_create();
+void funcindx_delete();
+//
+void stringdata_create();
+void stringdata_delete();
+void stringhash_create();
+void stringhash_delete();
+//
 void connect_create();
 void connect_delete();
-void hash_create();
-void hash_delete();
-void string_create();
-void string_delete();
-void traverse_create();
-void traverse_delete();
+//
 void worker_create();
 void worker_delete();
+//
 int learn(int argc,char** argv);
 int check(int argc,char** argv);
 int hash(int argc,char** argv);
@@ -38,7 +50,7 @@ void help()
 	printf("#step4:\n");
 	printf("}\n");
 }
-int main(int argc,char *argv[])  
+int main(int argc, char** argv)
 {
 	//--------------------------help---------------------------
 	if(argc==1)
@@ -52,11 +64,20 @@ int main(int argc,char *argv[])
 
 
 	//-------------------------before--------------------------
+	printf("-----------------------------------------------\n");
+	filetrav_create();
+	filedata_create();
+
+	funcindx_create();
+	funcdata_create();
+
+	stringhash_create();
+	stringdata_create();
+
 	connect_create();
-	hash_create();
-	string_create();
-	traverse_create();
+
 	worker_create();
+	printf("-----------------------------------------------\n");
 	//----------------------------------------------------------
 
 
@@ -71,29 +92,7 @@ int main(int argc,char *argv[])
 	//
 	else if(strcmp(argv[1] , "check") == 0)
 	{
-		printf("@check\n");
-	}
-	else if(strcmp(argv[1] , "hash") == 0)
-	{
-		hash(argc-1 , argv+1);
-	}
-
-	//
-	else if(strcmp(argv[1] , "create") == 0)
-	{
-		printf("@create\n");
-	}
-	else if(strcmp(argv[1] , "delete") == 0)
-	{
-		printf("@delete\n");
-	}
-	else if(strcmp(argv[1] , "search") == 0)
-	{
-		printf("@search\n");
-	}
-	else if(strcmp(argv[1] , "change") == 0)
-	{
-		printf("@change\n");
+		check(argc-1 , argv+1);
 	}
 
 	//
@@ -108,9 +107,16 @@ int main(int argc,char *argv[])
 
 	//-------------------------after---------------------------
 	worker_delete();
-	traverse_delete();
-	string_delete();
-	hash_delete();
+
 	connect_delete();
+
+	stringhash_delete();
+	stringdata_delete();
+
+	funcindx_delete();
+	funcdata_delete();
+
+	filetrav_delete();
+	filedata_delete();
 	//---------------------------------------------------------
 }

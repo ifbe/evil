@@ -1,16 +1,14 @@
 all:
 	gcc main.c \
-	0.heaven/connect.c \
-	0.heaven/hash.c \
-	0.heaven/string.c \
-	0.heaven/traverse.c \
-	1.funland/0.learn.c \
-	1.funland/1.check.c \
-	1.funland/1.hash.c \
-	1.funland/2.create.c \
-	1.funland/2.delete.c \
-	1.funland/2.modify.c \
-	1.funland/2.search.c \
+	0.heaven/0.learn.c \
+	0.heaven/1.check.c \
+	1.funland/connect.c \
+	1.funland/filedata.c \
+	1.funland/filetrav.c \
+	1.funland/funcindx.c \
+	1.funland/funcdata.c \
+	1.funland/stringhash.c \
+	1.funland/stringdata.c \
 	2.nadir/foreman.c \
 	2.nadir/prog/c.c \
 	2.nadir/prog/cpp.c \

@@ -5,13 +5,14 @@
 #include<unistd.h>
 #include<sys/stat.h>
 #include<sys/types.h>
+#ifndef O_BINARY
+	#define O_BINARY 0x0
+#endif
 #define u64 unsigned long long
 #define u32 unsigned int
 #define u16 unsigned short
 #define u8 unsigned char
-#ifndef O_BINARY
-	#define O_BINARY 0x0
-#endif
+#define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
 
 
 
@@ -75,8 +76,10 @@ int include_delete();
 
 
 //
-void* hash_write(void*, int);
-void connect_write(u64, u64, int, int);
+void* filetrav_write(void*, u64);
+void* funcindx_write(u64);
+void* stringhash_write(void*, int);
+void connect_write(void* uchip, u64 ufoot, u64 utype, void* bchip, u64 bfoot, u64 btype);
 //
 //string.c
 u64 suffix_value(char*);
@@ -133,39 +136,78 @@ static u8 outbuf[0x100000];
 
 
 
-static u64 filehash;
-static u64 funchash;
-static u64 callhash;
-int worker_write(char* buf, int len, int relation, int detail)
+static void* fileinfo;
+static void* funcinfo;
+int worker_write(char* buf, int len, int type, int haha)
 {
-	int j;
-	void* ret;
-	if(relation == 0)	//file
+	void* thishash;
+	if(type == 0)		//file
 	{
-		ret = hash_write(buf, len);
-		if(ret != 0)
+		//string hash
+		thishash = stringhash_write(buf, len);
+		if(thishash == 0)
 		{
-			filehash = *(u64*)ret;
-			//printf("filehash = %llx\n", filehash);
+			printf("error@1111\n");
+			return 0;
 		}
+
+		//(name, size, attr, ...)
+		fileinfo = filetrav_write(buf, haha);
+		if(fileinfo == 0)
+		{
+			printf("error@2222\n");
+			return 0;
+		}
+
+		//str <- file (lchip, lfoot, ltype, rchip, rfoot, rtype)
+		connect_write(
+			thishash, '@', hex32('h','a','s','h'),
+			fileinfo, '+', hex32('f','i','l','e')
+		);
 	}
-	else if(relation == 1)
+	else if(type == 1)		//func
 	{
-		ret = hash_write(buf, len);
-		if(ret != 0)
+		thishash = stringhash_write(buf, len);
+		if(thishash == 0)
 		{
-			funchash = *(u64*)ret;
-			connect_write(filehash, funchash, relation, detail);
+			printf("error@3333\n");
+			return 0;
 		}
+
+		//func item
+		funcinfo = funcindx_write(haha);
+		if(funcinfo == 0)
+		{
+			printf("error@4444\n");
+			return 0;
+		}
+
+		//str <- func
+		connect_write(
+			thishash, '@', hex32('h','a','s','h'),
+			fileinfo, '+', hex32('f','u','n','c')
+		);
+
+		//file <- func
+		connect_write(
+			fileinfo, haha, hex32('f','i','l','e'),
+			funcinfo, '+', hex32('f','u','n','c')
+		);
 	}
-	else if(relation == 2)
+	else if(type == 2)
 	{
-		ret = hash_write(buf, len);
-		if(ret != 0)
+		thishash = stringhash_write(buf, len);
+		if(thishash == 0)
 		{
-			callhash = *(u64*)ret;
-			connect_write(funchash, callhash, relation, detail);
+			printf("error@5555\n");
+			return 0;
 		}
+
+		//func <- str
+		connect_write(
+			funcinfo, haha, hex32('f','u','n','c'),
+			thishash, '+', hex32('h','a','s','h')
+		);
 	}
 }
 int worker_read()
@@ -254,13 +296,11 @@ int worker_start(char* p)
 
 //~~~~~~~~~~~~~~~~~~~~~~~3~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	//infomation
-	printf("#name:       %s\n", p);
-	printf("#size:       %d(0x%x)\n", size, size);
 	for(ret=0;ret<256;ret++)
 	{
 		if(p[ret] == 0)
 		{
-			worker_write(p, ret, 0, 0);
+			worker_write(p, ret, 0, size);
 			break;
 		}
 	}
