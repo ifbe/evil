@@ -19,33 +19,29 @@
 
 
 static int ignorecount;
-static int none_write()
+static void none_write()
 {
 }
-static int none_read(int start,int end)
-{
-	return 0;
-}
-static int none_list()
+static void none_read(int start,int end)
 {
 }
-static int none_choose()
+static void none_list()
 {
 }
-static int none_stop(int where)
+static void none_choose()
 {
-	return 0;
 }
-static int none_start(char* thisfile,int size)
+static void none_stop(int where)
+{
+}
+static void none_start(char* thisfile,int size)
 {
 	ignorecount=0;
-	return 0;
 }
-int none_delete()
+void none_delete()
 {
-	return 0;
 }
-int none_create(u64* that, u64* this)
+void none_create(u64* that, u64* this)
 {
 	this[0] = 0x6573726170;
 	this[1] = 0x656e6f6e;
@@ -55,5 +51,4 @@ int none_create(u64* that, u64* this)
 	this[5] = (u64)none_choose;
 	this[6] = (u64)none_read;
 	this[7] = (u64)none_write;
-	return 0;
 }

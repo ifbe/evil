@@ -74,4 +74,5 @@ int learn(int argc,char** argv)
 		}
 		traverse_stop();
 	}//for
+	return 0;
 }

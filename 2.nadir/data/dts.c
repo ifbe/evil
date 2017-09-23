@@ -31,7 +31,7 @@ static int lastname=0;
 static int thisname=0;
 
 //
-static int signal=0;
+static int dtssig=0;
 static u8 strbuf[256];
 
 //count
@@ -201,7 +201,7 @@ static int dts_read(int start,int end)
 				( (datahome[i+1]==' ') && (datahome[i+2]=='{') ) |
 				  (datahome[i+1]=='{') )
 			{
-				signal=1;
+				dtssig=1;
 
 				for(ret=0;ret<inleaf;ret++)strbuf[ret]=0x9;
 				ret=snprintf(strbuf+inleaf,200,"/\n");
@@ -250,7 +250,7 @@ static int dts_read(int start,int end)
 			if(infunc>9)continue;
 			if(thisname<0)continue;
 
-			signal=1;
+			dtssig=1;
 
 			for(ret=0;ret<inleaf;ret++)
 			{
@@ -277,7 +277,7 @@ static int dts_read(int start,int end)
 			if(innote>0|instr>0)continue;
 			if(infunc>0)continue;
 
-			signal=1;
+			dtssig=1;
 			i++;
 			for(ret=0;ret<inleaf;ret++)
 			{
@@ -304,9 +304,9 @@ static int dts_read(int start,int end)
 			if(innote>0|instr>0)continue;
 			if(infunc>9)continue;
 
-			if(signal==1)
+			if(dtssig==1)
 			{
-				signal=0;
+				dtssig=0;
 
 				for(ret=0;ret<inleaf;ret++)
 				{
