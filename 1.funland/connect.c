@@ -72,7 +72,32 @@ static int wirelen;
 //funcinfo, funcofst, 'func', hashinfo, 0, 'hash'
 //wininfo,  position, 'win',  actor,    0, 'act'
 //actinfo,  which,    'act',  userinfo, what,     'user'
-void connect_write(void* uchip, u64 ufoot, u64 utype, void* bchip, u64 bfoot, u64 btype)
+void* connect_write_new(struct hash* chip, u64 foot, u64 dest, u64 self)
+{
+	struct wire* w;
+	if(wirelen > 0xfffe0)return 0;
+
+	w = (void*)wirebuf + wirelen;
+	wirelen += 0x20;
+
+	w->desttype = dest;
+	w->selftype = self;
+
+	if(self == 0)self = dest;
+	if(self == hex32('h','a','s','h'))
+	{
+		w->chipinfo = chip->hash0;
+		w->footinfo = chip->hash1;
+	}
+	else
+	{
+		w->chipinfo = *(u32*)chip;
+		w->footinfo = foot;
+	}
+
+	return w;
+}
+int connect_write(void* uchip, u64 ufoot, u64 utype, void* bchip, u64 bfoot, u64 btype)
 {
 	struct hash* h1;
 	struct hash* h2;
@@ -85,36 +110,24 @@ void connect_write(void* uchip, u64 ufoot, u64 utype, void* bchip, u64 bfoot, u6
 
 	//dest wire
 	h1 = uchip;
-	if(h1->first != 0)
+	if(h1->first == 0)
 	{
-		//not necessary, because it should be first pin
-		//check for (desttype == utype) && (selftype == 0)
-		w1 = (void*)wirebuf + (h1->first);
+		w1 = connect_write_new(h1, ufoot, utype, 0);
+		h1->first = (void*)w1 - (void*)wirebuf;
+		//h1->last = 0;
 	}
 	else
 	{
-		if(wirelen > 0xfffe0)return;
-
-		w1 = (void*)wirebuf + wirelen;
-		wirelen += 0x20;
-
-		w1->desttype = utype;
-		w1->selftype = 0;
-
-		if(utype == hex32('h','a','s','h'))
+		w1 = (void*)wirebuf + (h1->first);
+		if( (w1->desttype != utype) | (w1->selftype != 0) )
 		{
-			w1->chipinfo = h1->hash0;
-			w1->footinfo = h1->hash1;
-		}
-		else
-		{
-			w1->chipinfo = *(u32*)h1;
-			w1->footinfo = ufoot;
-		}
+			wc = w1;
+			w1 = connect_write_new(h1, ufoot, utype, 0);
+			h1->first = (void*)w1 - (void*)wirebuf;
 
-		h1->first = (void*)w1 - (void*)wirebuf;
-		h1->last = 0;
-		//printf("first=%llx\n",h1->first);
+			wc->samechipnextpin = (void*)w1 - (void*)wirebuf;
+			w1->samechipprevpin = (void*)wc - (void*)wirebuf;
+		}
 	}
 
 
@@ -122,25 +135,7 @@ void connect_write(void* uchip, u64 ufoot, u64 utype, void* bchip, u64 bfoot, u6
 
 	//src wire
 	h2 = bchip;
-	if(wirelen >= 0xfffc0)return;
-
-	w2 = (void*)wirebuf + wirelen;
-	wirelen += 0x20;
-
-	w2->desttype = utype;
-	w2->selftype = btype;
-
-	if(btype == hex32('h','a','s','h'))
-	{
-		w2->chipinfo = h2->hash0;
-		w2->footinfo = h2->hash1;
-	}
-	else
-	{
-		w2->chipinfo = *(u32*)h2;
-		w2->footinfo = ufoot;
-	}
-
+	w2 = connect_write_new(h2, bfoot, utype, btype);
 	if(h2->first == 0)
 	{
 		h2->first = (void*)w2 - (void*)wirebuf;
@@ -163,6 +158,10 @@ void connect_write(void* uchip, u64 ufoot, u64 utype, void* bchip, u64 bfoot, u6
 	w2->samepinprevchip = (void*)wc - (void*)wirebuf;
 	w2->samepinnextchip = 0;		//certainly
 
+
+
+
+
 	wc = (void*)wirebuf + (h2->first);
 	while(wc->samechipnextpin != 0)
 	{
@@ -174,9 +173,12 @@ void connect_write(void* uchip, u64 ufoot, u64 utype, void* bchip, u64 bfoot, u6
 		w2->samechipprevpin = (void*)wc - (void*)wirebuf;
 		w2->samechipnextpin = 0;
 	}
+
+	return 1;
 }
-void connect_read()
+void* connect_read(int offset)
 {
+	return (void*)wirebuf + offset;
 }
 void connect_list()
 {

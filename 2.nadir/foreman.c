@@ -161,8 +161,8 @@ int worker_write(char* buf, int len, int type, int haha)
 
 		//str <- file (lchip, lfoot, ltype, rchip, rfoot, rtype)
 		connect_write(
-			thishash, '@', hex32('h','a','s','h'),
-			fileinfo, '+', hex32('f','i','l','e')
+			thishash, 0, hex32('h','a','s','h'),
+			fileinfo, 0, hex32('f','i','l','e')
 		);
 	}
 	else if(type == 1)		//func
@@ -184,14 +184,14 @@ int worker_write(char* buf, int len, int type, int haha)
 
 		//str <- func
 		connect_write(
-			thishash, '@', hex32('h','a','s','h'),
-			fileinfo, '+', hex32('f','u','n','c')
+			thishash, 0, hex32('h','a','s','h'),
+			funcinfo, 0, hex32('f','u','n','c')
 		);
 
 		//file <- func
 		connect_write(
 			fileinfo, haha, hex32('f','i','l','e'),
-			funcinfo, '+', hex32('f','u','n','c')
+			funcinfo, 0, hex32('f','u','n','c')
 		);
 	}
 	else if(type == 2)
@@ -206,7 +206,7 @@ int worker_write(char* buf, int len, int type, int haha)
 		//func <- str
 		connect_write(
 			funcinfo, haha, hex32('f','u','n','c'),
-			thishash, '+', hex32('h','a','s','h')
+			thishash, 0, hex32('h','a','s','h')
 		);
 	}
 }

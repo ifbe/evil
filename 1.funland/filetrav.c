@@ -166,8 +166,9 @@ void traverse_stop()
 
 
 
-void* filetrav_read()
+void* filetrav_read(int offset)
 {
+	return (void*)travbuf + offset;
 }
 void* filetrav_write(void* name, u64 size)
 {

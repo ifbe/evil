@@ -34,8 +34,9 @@ static int funcindxlen;
 
 
 
-void* funcindx_read()
+void* funcindx_read(int offset)
 {
+	return (void*)funcindxbuf + offset;
 }
 void* funcindx_write(int linenum)
 {
