@@ -10,6 +10,11 @@ u32 bkdrhash(char*, int);
 u32 djb2hash(char*, int);
 u64 stringhash_generate(char*,int);
 void* stringhash_read(u64);
+//
+void* funcindx_read(int);
+//
+void* filetrav_read(int);
+//
 void connect_write(void* uchip, u64 ufoot, u64 utype, void* bchip, u64 bfoot, u64 btype);
 void* connect_read(int);
 
@@ -52,19 +57,81 @@ struct wire
 
 
 
-void checkfunc(int offset)
+void checkfile_printpin(struct wire* w)
 {
-	printf("func%x\n", offset);
 }
 void checkfile(int offset)
 {
-	printf("file%x\n", offset);
+	struct filetrav* f = filetrav_read(offset);
+	printf("func:%x@%x\n", offset, f);
 }
 
 
 
 
-void printpin(struct wire* w)
+void checkfunc_printpin(struct wire* w)
+{
+	u64 t1;
+	u64 t2;
+	u64 temp;
+	u64 temp2 = 0;
+	struct hash* h;
+	while(1)
+	{
+		t1 = w->desttype;
+		t2 = w->selftype;
+
+		if(t2 != 0)
+		{
+			temp = *(u64*)&(w->chipinfo);
+			//printf("		%-8s %-8s ", &t1, &t2);
+			printf("		");
+			stringhash_print(temp);
+		}
+
+		temp = w->samepinnextchip;
+		if(temp == 0)break;
+
+		w = connect_read(temp);
+		if(w == 0)break;
+	}
+}
+void checkfunc(int offset)
+{
+	u64 temp;
+	struct funcindex* f;
+	struct wire* ipin;
+	struct wire* opin;
+
+	f = funcindx_read(offset);
+	printf("func:%x@%x\n", offset, f);
+
+	temp = f->first;
+	if(temp == 0)return;
+
+	ipin = connect_read(temp);
+	if(ipin == 0)return;
+
+	//input
+	if(ipin->selftype == 0)
+	{
+		printf("	input:\n");
+		checkfunc_printpin(ipin);
+
+		temp = ipin->samechipnextpin;
+		if(temp == 0)return;
+
+		opin = connect_read(temp);
+	}
+	else opin = ipin;
+
+	//output
+}
+
+
+
+
+void checkhash_printpin(struct wire* w)
 {
 	u64 t1;
 	u64 t2;
@@ -84,7 +151,7 @@ void printpin(struct wire* w)
 		if(w == 0)break;
 	}
 }
-void printdest(struct wire* base)
+void checkhash_printdest(struct wire* base)
 {
 	u64 t1;
 	u64 t2;
@@ -145,7 +212,7 @@ void checkhash(char* buf, int len)
 	if(ipin->selftype == 0)
 	{
 		printf("	input:\n");
-		printpin(ipin);
+		checkhash_printpin(ipin);
 
 		temp = ipin->samechipnextpin;
 		if(temp == 0)return;
@@ -158,7 +225,7 @@ void checkhash(char* buf, int len)
 	while(1)
 	{
 		printf("	output:\n");
-		printdest(opin);
+		checkhash_printdest(opin);
 
 		temp = opin->samechipnextpin;
 		if(temp == 0)break;

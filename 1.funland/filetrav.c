@@ -184,6 +184,12 @@ void* filetrav_write(void* name, u64 size)
 }
 void filetrav_start()
 {
+	int j;
+	char* buf;
+
+	buf = (void*)travbuf;
+	for(j=0;j<0x100000;j++)buf[j] = 0;
+
 	travlen = 0x20;
 }
 void filetrav_stop()
@@ -193,9 +199,6 @@ void filetrav_create()
 {
 	int j;
 	char* buf;
-
-	buf = (void*)travbuf;
-	for(j=0;j<0x100000;j++)buf[j] = 0;
 
 	//trav
 	travfd = open(
@@ -207,6 +210,9 @@ void filetrav_create()
 	//
 	travlen = read(travfd, travbuf, 0x100000);
 	printf("filetrav:	%x\n", travlen);
+
+	buf = (void*)travbuf;
+	for(j=travlen;j<0x100000;j++)buf[j] = 0;
 }
 void filetrav_delete()
 {

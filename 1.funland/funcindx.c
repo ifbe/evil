@@ -52,6 +52,12 @@ void* funcindx_write(int linenum)
 }
 void funcindx_start()
 {
+	int j;
+	char* buf;
+
+	buf = (void*)funcindxbuf;
+	for(j=0;j<0x100000;j++)buf[j] = 0;
+
 	funcindxlen = 0x20;
 }
 void funcindx_stop()
@@ -61,9 +67,6 @@ void funcindx_create()
 {
 	int j;
 	char* buf;
-
-	buf = (void*)funcindxbuf;
-	for(j=0;j<0x100000;j++)buf[j] = 0;
 
 	//func
 	funcindxfd = open(
@@ -75,6 +78,9 @@ void funcindx_create()
 	//
 	funcindxlen = read(funcindxfd, funcindxbuf, 0x100000);
 	printf("funcindx:	%x\n", funcindxlen);
+
+	buf = (void*)funcindxbuf;
+	for(j=funcindxlen;j<0x100000;j++)buf[j] = 0;
 }
 void funcindx_delete()
 {

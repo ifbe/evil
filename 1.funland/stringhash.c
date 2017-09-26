@@ -12,6 +12,7 @@
 #define u16 unsigned short
 #define u32 unsigned int
 #define u64 unsigned long long
+void stringdata_read(int);
 int stringdata_write(char*, int);
 
 
@@ -113,6 +114,25 @@ void* stringhash_search(u64 hash)
 		}
 	}
 }
+void stringhash_print(u64 hash)
+{
+	char buf[9];
+
+	struct hash* h = stringhash_search(hash);
+	if(h == 0)return;
+	if(*(u64*)h != hash)return;
+
+	if((h->len) > 8)
+	{
+		stringdata_read(h->off);
+	}
+	else
+	{
+		*(u64*)buf = hash;
+		buf[8] = 0;
+		printf("%-8s\n", buf);
+	}
+}
 
 
 
@@ -179,6 +199,12 @@ void stringhash_choose()
 }
 void stringhash_start()
 {
+	int j;
+	char* buf;
+
+	buf = (void*)hashbuf;
+	for(j=0;j<0x100000;j++)buf[j] = 0;
+
 	hashlen = 0;
 }
 void stringhash_stop()
@@ -188,9 +214,6 @@ void stringhash_create()
 {
 	int j;
 	char* buf;
-
-	buf = (void*)hashbuf;
-	for(j=0;j<0x100000;j++)buf[j] = 0;
 
 	//hash
 	hashfd = open(
@@ -202,6 +225,9 @@ void stringhash_create()
 	//
 	hashlen = read(hashfd, hashbuf, 0x100000);
 	printf("str hash:	%x\n", hashlen);
+
+	buf = (void*)hashbuf;
+	for(j=hashlen;j<0x100000;j++)buf[j] = 0;
 }
 void stringhash_delete()
 {
