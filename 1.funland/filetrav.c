@@ -182,37 +182,47 @@ void* filetrav_write(void* name, int size)
 	travlen += 0x20;
 	return addr;
 }
-void filetrav_start()
+void filetrav_start(int flag)
 {
 	int j;
 	char* buf;
+	char* name = ".42/file.index";
 
-	buf = (void*)travbuf;
-	for(j=0;j<0x100000;j++)buf[j] = 0;
+	if(flag == 0)
+	{
+		travfd = open(
+			name,
+			O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
+			S_IRWXU|S_IRWXG|S_IRWXO
+		);
+		travlen = 0x20;
 
-	travlen = 0x20;
+		buf = (void*)travbuf;
+		for(j=0;j<0x100000;j++)buf[j] = 0;
+	}
+	else
+	{
+		//open
+		travfd = open(
+			name,
+			O_CREAT|O_RDWR|O_BINARY,
+			S_IRWXU|S_IRWXG|S_IRWXO
+		);
+
+		//read
+		travlen = read(travfd, travbuf, 0x100000);
+		printf("filetrav:	%x\n", travlen);
+
+		//clean
+		buf = (void*)travbuf;
+		for(j=travlen;j<0x100000;j++)buf[j] = 0;
+	}
 }
 void filetrav_stop()
 {
 }
 void filetrav_create()
 {
-	int j;
-	char* buf;
-
-	//trav
-	travfd = open(
-		".42/file.index",
-		O_CREAT|O_RDWR|O_BINARY,	//O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
-		S_IRWXU|S_IRWXG|S_IRWXO
-	);
-
-	//
-	travlen = read(travfd, travbuf, 0x100000);
-	printf("filetrav:	%x\n", travlen);
-
-	buf = (void*)travbuf;
-	for(j=travlen;j<0x100000;j++)buf[j] = 0;
 }
 void filetrav_delete()
 {

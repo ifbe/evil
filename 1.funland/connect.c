@@ -67,11 +67,6 @@ static int wirelen;
 
 
 
-//hashinfo, hashfoot, 'hash', fileinfo, 0, 'file'
-//fileinfo, fileline, 'file', funcinfo, 0, 'func'
-//funcinfo, funcofst, 'func', hashinfo, 0, 'hash'
-//wininfo,  position, 'win',  actor,    0, 'act'
-//actinfo,  which,    'act',  userinfo, what,     'user'
 void* connect_write_new(struct hash* chip, u64 foot, u64 dest, u64 self)
 {
 	struct wire* w;
@@ -97,6 +92,11 @@ void* connect_write_new(struct hash* chip, u64 foot, u64 dest, u64 self)
 
 	return w;
 }
+//hashinfo, hashfoot, 'hash', fileinfo, 0, 'file'
+//fileinfo, fileline, 'file', funcinfo, 0, 'func'
+//funcinfo, funcofst, 'func', hashinfo, 0, 'hash'
+//wininfo,  position, 'win',  actor,    0, 'act'
+//actinfo,  which,    'act',  userinfo, what,     'user'
 int connect_write(void* uchip, u64 ufoot, u64 utype, void* bchip, u64 bfoot, u64 btype)
 {
 	struct hash* h1;
@@ -125,8 +125,8 @@ int connect_write(void* uchip, u64 ufoot, u64 utype, void* bchip, u64 bfoot, u64
 			w1 = connect_write_new(h1, ufoot, utype, 0);
 			h1->first = (void*)w1 - (void*)wirebuf;
 
-			wc->samechipnextpin = (void*)w1 - (void*)wirebuf;
-			w1->samechipprevpin = (void*)wc - (void*)wirebuf;
+			wc->samechipprevpin = (void*)w1 - (void*)wirebuf;
+			w1->samechipnextpin = (void*)wc - (void*)wirebuf;
 		}
 	}
 
@@ -186,31 +186,43 @@ void connect_list()
 void connect_choose()
 {
 }
-void connect_start()
+void connect_start(int flag)
 {
-	wirelen = 0x20;
+	int j;
+	char* buf;
+	char* name = ".42/42.wire";
+
+	if(flag == 0)
+	{
+		wirefd = open(
+			name,
+			O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
+			S_IRWXU|S_IRWXG|S_IRWXO
+		);
+		wirelen = 0x20;
+	}
+	else
+	{
+		//wire
+		wirefd = open(
+			name,
+			O_CREAT|O_RDWR|O_BINARY,
+			S_IRWXU|S_IRWXG|S_IRWXO
+		);
+
+		//
+		wirelen = read(wirefd, wirebuf, 0x100000);
+		printf("connect :	%x\n", wirelen);
+
+		buf = (void*)wirebuf;
+		for(j=wirelen;j<0x100000;j++)buf[j] = 0;
+	}
 }
 void connect_stop()
 {
 }
 void connect_create()
 {
-	int j;
-	char* buf;
-
-	buf = (void*)wirebuf;
-	for(j=0;j<0x100000;j++)buf[j] = 0;
-
-	//wire
-	wirefd = open(
-		".42/42.wire",
-		O_CREAT|O_RDWR|O_BINARY,	//O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
-		S_IRWXU|S_IRWXG|S_IRWXO
-	);
-
-	//
-	wirelen = read(wirefd, wirebuf, 0x100000);
-	printf("connect :	%x\n", wirelen);
 }
 void connect_delete()
 {

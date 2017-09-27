@@ -129,31 +129,47 @@ int stringdata_write(char* buf, int len)
 	charlen += len+1;
 	return charlen;
 }
-void stringdata_start()
+void stringdata_start(int flag)
 {
-	charlen = 0;
+	int j;
+	char* buf;
+	char* name = ".42/str.data";
+
+	if(flag == 0)
+	{
+		charfd = open(
+			name,
+			O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
+			S_IRWXU|S_IRWXG|S_IRWXO
+		);
+		charlen = 0;
+
+		buf = (void*)charbuf;
+		for(j=0;j<0x100000;j++)buf[j] = 0;
+	}
+	else
+	{
+		//open
+		charfd = open(
+			name,
+			O_CREAT|O_RDWR|O_BINARY,
+			S_IRWXU|S_IRWXG|S_IRWXO
+		);
+
+		//read
+		charlen = read(charfd, charbuf, 0x100000);
+		printf("str data:	%x\n", charlen);
+
+		//clean
+		buf = (void*)charbuf;
+		for(j=charlen;j<0x100000;j++)buf[j] = 0;
+	}
 }
 void stringdata_stop()
 {
 }
 void stringdata_create()
 {
-	int j;
-	char* buf;
-
-	buf = (void*)charbuf;
-	for(j=0;j<0x100000;j++)buf[j] = 0;
-
-	//char
-	charfd = open(
-		".42/str.data",
-		O_CREAT|O_RDWR|O_BINARY,	//O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
-		S_IRWXU|S_IRWXG|S_IRWXO
-	);
-
-	//
-	charlen = read(charfd, charbuf, 0x100000);
-	printf("str data:	%x\n", charlen);
 }
 void stringdata_delete()
 {

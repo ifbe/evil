@@ -17,42 +17,58 @@
 
 
 //
-static u8 filebuf[0x100000];
-static int filefd;
-static int filelen;
+static u8 filedatabuf[0x100000];
+static int filedatafd;
+static int filedatalen;
 
 
 
 
-void filedata_start()
+void filedata_start(int flag)
 {
-	filelen = 0;
+	int j;
+	char* buf;
+	char* name = ".42/file.data";
+
+	if(flag == 0)
+	{
+		filedatafd = open(
+			name,
+			O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
+			S_IRWXU|S_IRWXG|S_IRWXO
+		);
+		filedatalen = 0;
+
+		buf = (void*)filedatabuf;
+		for(j=0;j<0x100000;j++)buf[j] = 0;
+	}
+	else
+	{
+		//open
+		filedatafd = open(
+			name,
+			O_CREAT|O_RDWR|O_BINARY,
+			S_IRWXU|S_IRWXG|S_IRWXO
+		);
+
+		//read
+		filedatalen = read(filedatafd, filedatabuf, 0x100000);
+		printf("filedata:	%x\n", filedatalen);
+
+		//clean
+		buf = (void*)filedatabuf;
+		for(j=filedatalen;j<0x100000;j++)buf[j] = 0;
+	}
 }
 void filedata_stop()
 {
 }
 void filedata_create()
 {
-	int j;
-	char* buf;
-
-	buf = (void*)filebuf;
-	for(j=0;j<0x100000;j++)buf[j] = 0;
-
-	//func
-	filefd = open(
-		".42/file.data",
-		O_CREAT|O_RDWR|O_BINARY,	//O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
-		S_IRWXU|S_IRWXG|S_IRWXO
-	);
-
-	//
-	filelen = read(filefd, filebuf, 0x100000);
-	printf("filedata:	%x\n", filelen);
 }
 void filedata_delete()
 {
-	lseek(filefd, 0, SEEK_SET);
-	write(filefd, filebuf, filelen);
-	close(filefd);
+	lseek(filedatafd, 0, SEEK_SET);
+	write(filedatafd, filedatabuf, filedatalen);
+	close(filedatafd);
 }

@@ -197,37 +197,47 @@ void stringhash_list()
 void stringhash_choose()
 {
 }
-void stringhash_start()
+void stringhash_start(int flag)
 {
 	int j;
 	char* buf;
+	char* name = ".42/str.hash";
 
-	buf = (void*)hashbuf;
-	for(j=0;j<0x100000;j++)buf[j] = 0;
+	if(flag == 0)
+	{
+		hashfd = open(
+			name,
+			O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
+			S_IRWXU|S_IRWXG|S_IRWXO
+		);
+		hashlen = 0;
 
-	hashlen = 0;
+		buf = (void*)hashbuf;
+		for(j=0;j<0x100000;j++)buf[j] = 0;
+	}
+	else
+	{
+		//open
+		hashfd = open(
+			name,
+			O_CREAT|O_RDWR|O_BINARY,
+			S_IRWXU|S_IRWXG|S_IRWXO
+		);
+
+		//read
+		hashlen = read(hashfd, hashbuf, 0x100000);
+		printf("str hash:	%x\n", hashlen);
+
+		//clean
+		buf = (void*)hashbuf;
+		for(j=hashlen;j<0x100000;j++)buf[j] = 0;
+	}
 }
 void stringhash_stop()
 {
 }
 void stringhash_create()
 {
-	int j;
-	char* buf;
-
-	//hash
-	hashfd = open(
-		".42/str.hash",
-		O_CREAT|O_RDWR|O_BINARY,	//O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
-		S_IRWXU|S_IRWXG|S_IRWXO
-	);
-
-	//
-	hashlen = read(hashfd, hashbuf, 0x100000);
-	printf("str hash:	%x\n", hashlen);
-
-	buf = (void*)hashbuf;
-	for(j=hashlen;j<0x100000;j++)buf[j] = 0;
 }
 void stringhash_delete()
 {

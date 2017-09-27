@@ -17,13 +17,13 @@
 
 
 
-void filedata_start();
-void filetrav_start();
-void funcdata_start();
-void funcindx_start();
-void stringdata_start();
-void stringhash_start();
-void connect_start();
+void filedata_start(int);
+void filetrav_start(int);
+void funcdata_start(int);
+void funcindx_start(int);
+void stringdata_start(int);
+void stringhash_start(int);
+void connect_start(int);
 //
 int traverse_start(char* p);
 int traverse_stop();
@@ -40,13 +40,13 @@ int learn(int argc,char** argv)
 {
 	int j,k;
 	char* p;
-	filedata_start();
-	filetrav_start();
-	funcdata_start();
-	funcindx_start();
-	stringdata_start();
-	stringhash_start();
-	connect_start();
+	filedata_start(0);
+	filetrav_start(0);
+	funcdata_start(0);
+	funcindx_start(0);
+	stringdata_start(0);
+	stringhash_start(0);
+	connect_start(0);
 
 	//example:	./a.out 1.c *.c /src/*.c */*.c
 	for(j=1;j<argc;j++)

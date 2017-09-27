@@ -50,37 +50,47 @@ void* funcindx_write(int linenum)
 	funcindxlen += 0x20;
 	return addr;
 }
-void funcindx_start()
+void funcindx_start(int flag)
 {
 	int j;
 	char* buf;
+	char* name = ".42/func.index";
 
-	buf = (void*)funcindxbuf;
-	for(j=0;j<0x100000;j++)buf[j] = 0;
+	if(flag == 0)
+	{
+		funcindxfd = open(
+			name,
+			O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
+			S_IRWXU|S_IRWXG|S_IRWXO
+		);
+		funcindxlen = 0x20;
 
-	funcindxlen = 0x20;
+		buf = (void*)funcindxbuf;
+		for(j=0;j<0x100000;j++)buf[j] = 0;
+	}
+	else
+	{
+		//open
+		funcindxfd = open(
+			name,
+			O_CREAT|O_RDWR|O_BINARY, 
+			S_IRWXU|S_IRWXG|S_IRWXO
+		);
+
+		//read
+		funcindxlen = read(funcindxfd, funcindxbuf, 0x100000);
+		printf("funcindx:	%x\n", funcindxlen);
+
+		//clean
+		buf = (void*)funcindxbuf;
+		for(j=funcindxlen;j<0x100000;j++)buf[j] = 0;
+	}
 }
 void funcindx_stop()
 {
 }
 void funcindx_create()
 {
-	int j;
-	char* buf;
-
-	//func
-	funcindxfd = open(
-		".42/func.index",
-		O_CREAT|O_RDWR|O_BINARY,	//O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
-		S_IRWXU|S_IRWXG|S_IRWXO
-	);
-
-	//
-	funcindxlen = read(funcindxfd, funcindxbuf, 0x100000);
-	printf("funcindx:	%x\n", funcindxlen);
-
-	buf = (void*)funcindxbuf;
-	for(j=funcindxlen;j<0x100000;j++)buf[j] = 0;
 }
 void funcindx_delete()
 {

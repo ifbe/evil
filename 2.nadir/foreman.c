@@ -159,7 +159,7 @@ int worker_write(char* buf, int len, int type, int haha)
 			return 0;
 		}
 
-		//str <- file (lchip, lfoot, ltype, rchip, rfoot, rtype)
+		//hash <- file (lchip, lfoot, ltype, rchip, rfoot, rtype)
 		connect_write(
 			thishash, 0, hex32('h','a','s','h'),
 			fileinfo, 0, hex32('f','i','l','e')
@@ -182,7 +182,7 @@ int worker_write(char* buf, int len, int type, int haha)
 			return 0;
 		}
 
-		//str <- func
+		//hash <- func
 		connect_write(
 			thishash, 0, hex32('h','a','s','h'),
 			funcinfo, 0, hex32('f','u','n','c')
@@ -203,7 +203,7 @@ int worker_write(char* buf, int len, int type, int haha)
 			return 0;
 		}
 
-		//func <- str
+		//func <- hash
 		connect_write(
 			funcinfo, haha, hex32('f','u','n','c'),
 			thishash, 0, hex32('h','a','s','h')

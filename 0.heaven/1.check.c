@@ -11,13 +11,18 @@ u32 djb2hash(char*, int);
 u64 stringhash_generate(char*,int);
 void* stringhash_read(u64);
 void stringhash_print(u64);
-//
 void* funcindx_read(int);
-//
 void* filetrav_read(int);
-//
 void connect_write(void* uchip, u64 ufoot, u64 utype, void* bchip, u64 bfoot, u64 btype);
 void* connect_read(int);
+//
+void filedata_start(int);
+void filetrav_start(int);
+void funcdata_start(int);
+void funcindx_start(int);
+void stringdata_start(int);
+void stringhash_start(int);
+void connect_start(int);
 
 
 
@@ -33,6 +38,16 @@ struct hash
 	u64 last;
 };
 struct funcindex
+{
+	u32 self;
+	u32 what;
+	u32 off;
+	u32 len;
+
+	u64 first;
+	u64 last;
+};
+struct fileindex
 {
 	u32 self;
 	u32 what;
@@ -60,11 +75,106 @@ struct wire
 
 void checkfile_printpin(struct wire* w)
 {
+	u64 t1;
+	u64 t2;
+	u64 temp;
+	u64 temp2 = 0;
+	struct hash* h;
+	while(1)
+	{
+		t1 = w->desttype;
+		t2 = w->selftype;
+
+		if(t2 != 0)
+		{
+			temp = *(u64*)&(w->chipinfo);
+			printf("	%-8s %-8s %x	%x\n",
+				&t1, &t2, w->chipinfo, w->footinfo);
+		}
+
+		temp = w->samepinnextchip;
+		if(temp == 0)break;
+
+		w = connect_read(temp);
+		if(w == 0)break;
+	}
+}
+void checkfile_printdest(struct wire* base)
+{
+	u64 t1;
+	u64 t2;
+	u64 temp;
+	struct wire* w = base;
+	while(1)
+	{
+		if(w == 0)break;
+		if(w->selftype == 0)
+		{
+			t1 = w->desttype;
+			t2 = w->selftype;
+
+			printf("	%-8s %-8s %08x	%08x\n",
+			(void*)&t1, (void*)&t2, w->chipinfo, w->footinfo);
+		}
+
+		temp = w->samepinprevchip;
+		if(temp == 0)break;
+		printf("temp=%x\n",temp);
+
+		w = connect_read(temp);
+		if(w == 0)break;
+		printf("w=%x\n",w);
+	}
+/*
+	t1 = base->desttype;
+	t2 = base->selftype;
+	printf("	%-8s %-8s %08x	%08x\n",
+		&t1, &t2, w->chipinfo, w->footinfo);
+*/
 }
 void checkfile(int offset)
 {
-	struct filetrav* f = filetrav_read(offset);
-	printf("func:%x@%llx\n", offset, (u64)f);
+	u64 temp;
+	struct fileindex* f;
+	struct wire* ipin;
+	struct wire* opin;
+
+	f = filetrav_read(offset);
+	printf("\nfile :%x @%llx\n", offset, (u64)f);
+
+	temp = f->first;
+	if(temp == 0)return;
+
+	ipin = connect_read(temp);
+	if(ipin == 0)return;
+
+	//input
+	if(ipin->selftype == 0)
+	{
+		printf("i:\n");
+		checkfile_printpin(ipin);
+
+		temp = ipin->samechipnextpin;
+		if(temp == 0)return;
+
+		opin = connect_read(temp);
+	}
+	else opin = ipin;
+
+	//output(many)
+	while(1)
+	{
+		printf("o:\n");
+		checkfile_printdest(opin);
+
+		temp = opin->samechipnextpin;
+		if(temp == 0)break;
+		//printf("temp=%x\n",temp);
+
+		opin = connect_read(temp);
+		if(opin == 0)break;
+		//printf("opin=%x\n",temp);
+	}
 }
 
 
@@ -97,6 +207,37 @@ void checkfunc_printpin(struct wire* w)
 		if(w == 0)break;
 	}
 }
+void checkfunc_printdest(struct wire* base)
+{
+	u64 t1;
+	u64 t2;
+	u64 temp;
+	struct wire* w = base;
+	while(1)
+	{
+		if(w == 0)break;
+		if(w->selftype == 0)
+		{
+			t1 = w->desttype;
+			t2 = w->selftype;
+
+			printf("	%-8s %-8s %08x	%08x\n",
+			(void*)&t1, (void*)&t2, w->chipinfo, w->footinfo);
+		}
+
+		temp = w->samepinprevchip;
+		if(temp == 0)break;
+
+		w = connect_read(temp);
+		if(w == 0)break;
+	}
+/*
+	t1 = base->desttype;
+	t2 = base->selftype;
+	printf("	%-8s %-8s %08x	%08x\n",
+		&t1, &t2, w->chipinfo, w->footinfo);
+*/
+}
 void checkfunc(int offset)
 {
 	u64 temp;
@@ -105,7 +246,7 @@ void checkfunc(int offset)
 	struct wire* opin;
 
 	f = funcindx_read(offset);
-	printf("\nfunc: %x @%llx\n", offset, (u64)f);
+	printf("\nfunc :%x @%llx\n", offset, (u64)f);
 
 	temp = f->first;
 	if(temp == 0)return;
@@ -126,7 +267,18 @@ void checkfunc(int offset)
 	}
 	else opin = ipin;
 
-	//output
+	//output(many)
+	while(1)
+	{
+		printf("o:\n");
+		checkfunc_printdest(opin);
+
+		temp = opin->samechipnextpin;
+		if(temp == 0)break;
+
+		opin = connect_read(temp);
+		if(opin == 0)break;
+	}
 }
 
 
@@ -238,6 +390,14 @@ void checkhash(char* buf, int len)
 void check(int argc, char** argv)
 {
 	int j,len,temp;
+	filedata_start(1);
+	filetrav_start(1);
+	funcdata_start(1);
+	funcindx_start(1);
+	stringdata_start(1);
+	stringhash_start(1);
+	connect_start(1);
+
 	for(j=1;j<argc;j++)
 	{
 		len = strlen(argv[j]);

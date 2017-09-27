@@ -64,7 +64,6 @@ int main(int argc, char** argv)
 
 
 	//-------------------------before--------------------------
-	printf("-----------------------------------------------\n");
 	filetrav_create();
 	filedata_create();
 
@@ -75,9 +74,7 @@ int main(int argc, char** argv)
 	stringdata_create();
 
 	connect_create();
-
 	worker_create();
-	printf("-----------------------------------------------\n");
 	//----------------------------------------------------------
 
 
@@ -107,7 +104,6 @@ int main(int argc, char** argv)
 
 	//-------------------------after---------------------------
 	worker_delete();
-
 	connect_delete();
 
 	stringhash_delete();

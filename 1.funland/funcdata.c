@@ -24,31 +24,47 @@ static int funcdatalen;
 
 
 
-void funcdata_start()
+void funcdata_start(int flag)
 {
-	funcdatalen = 0;
+	int j;
+	char* buf;
+	char* name = ".42/func.data";
+
+	if(flag == 0)
+	{
+		funcdatafd = open(
+			name,
+			O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
+			S_IRWXU|S_IRWXG|S_IRWXO
+		);
+		funcdatalen = 0;
+
+		buf = (void*)funcdatabuf;
+		for(j=0;j<0x100000;j++)buf[j] = 0;
+	}
+	else
+	{
+		//open
+		funcdatafd = open(
+			name,
+			O_CREAT|O_RDWR|O_BINARY,
+			S_IRWXU|S_IRWXG|S_IRWXO
+		);
+
+		//read
+		funcdatalen = read(funcdatafd, funcdatabuf, 0x100000);
+		printf("funcdata:	%x\n", funcdatalen);
+
+		//clean
+		buf = (void*)funcdatabuf;
+		for(j=funcdatalen;j<0x100000;j++)buf[j] = 0;
+	}
 }
 void funcdata_stop()
 {
 }
 void funcdata_create()
 {
-	int j;
-	char* buf;
-
-	buf = (void*)funcdatabuf;
-	for(j=0;j<0x100000;j++)buf[j] = 0;
-
-	//func
-	funcdatafd = open(
-		".42/func.data",
-		O_CREAT|O_RDWR|O_BINARY,	//O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
-		S_IRWXU|S_IRWXG|S_IRWXO
-	);
-
-	//
-	funcdatalen = read(funcdatafd, funcdatabuf, 0x100000);
-	printf("funcdata:	%x\n", funcdatalen);
 }
 void funcdata_delete()
 {
