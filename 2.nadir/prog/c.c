@@ -24,9 +24,9 @@ static int countbyte=0;		//统计字节数
 static int countline=0;		//统计行数
 
 //函数名字
-static unsigned char* prophet=0;	//后面可能要用的函数名字
-static unsigned char* insist=0;		//在函数外面碰到了左括号:
-static unsigned char* doubt=0;		//有些人写代码else myfunc ()
+static char* prophet=0;		//后面可能要用的函数名字
+static char* insist=0;		//在函数外面碰到了左括号:
+static char* doubt=0;		//有些人写代码else myfunc ()
 
 //这到底是不是个函数
 static int chance=0;
@@ -53,7 +53,7 @@ static int instr=0;
 
 
 
-static void c_write(u8* p)
+static void c_write(char* p)
 {
 	int j,k;
 	for(j=0;j<256;j++)
@@ -471,13 +471,13 @@ static int c_read(char* src, int count)
 
 	return countbyte;
 }
-static int c_list()
+static void c_list()
 {
 }
-static int c_choose()
+static void c_choose()
 {
 }
-static int c_stop()
+static void c_stop()
 {
 /*
 	printf("@%x@%d -> %d,%d,%d,%d\n\n\n\n\n",
@@ -491,17 +491,17 @@ static int c_stop()
 */
 	//write(outfile,"\n\n\n\n",4);
 }
-static int c_start()
+static void c_start()
 {
 	chance=roundbracket=0;
 	countbyte=countline=0;
 	infunc = inmarco = innote = instr = 0;
 	prophet=insist=doubt=0;
 }
-int c_delete()
+void c_delete()
 {
 }
-int c_create(u64* that, u64* this)
+void c_create(u64* that, u64* this)
 {
 	this[0] = 0x6573726170;
 	this[1] = 0x63;

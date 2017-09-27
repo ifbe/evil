@@ -20,7 +20,8 @@
 
 //
 static int dest=-1;
-static u8* datahome;		//4k+4k
+static char* datahome;		//4k+4k
+static char strbuf[256];
 
 //
 static int inleaf=0;
@@ -29,10 +30,7 @@ static char leafstack[16];
 //
 static int lastname=0;
 static int thisname=0;
-
-//
 static int dtssig=0;
-static u8 strbuf[256];
 
 //count
 static int countbyte=0;		//统计字节数
@@ -281,7 +279,7 @@ static int dts_read(int start,int end)
 			i++;
 			for(ret=0;ret<inleaf;ret++)
 			{
-				strbuf[ret=0x9];
+				strbuf[ret]=0x9;
 			}
 			for(ret=0;ret<99;ret++)
 			{
@@ -346,16 +344,16 @@ static int dts_read(int start,int end)
 	countbyte += 0x100000;
 	return i-end;	//可能多分析了几十几百个字节
 }
-static int dts_write()
+static void dts_write()
 {
 }
-static int dts_list()
+static void dts_list()
 {
 }
-static int dts_choose()
+static void dts_choose()
 {
 }
-static int dts_stop(int where)
+static void dts_stop(int where)
 {
 /*
 	printf("@%x@%d -> %d,%d,%d,%d\n",
@@ -370,7 +368,7 @@ static int dts_stop(int where)
 	write(dest,"\n\n\n\n",4);
 */
 }
-static int dts_start(char* thisfile,int size)
+static void dts_start(char* thisfile,int size)
 {
 	int ret;
 
@@ -388,10 +386,10 @@ static int dts_start(char* thisfile,int size)
 	countbyte=countline=0;
 	infunc = inmarco = innote = instr = 0;
 }
-int dts_delete()
+void dts_delete()
 {
 }
-int dts_create(u64* file,u64* this)
+void dts_create(u64* file,u64* this)
 {
 	this[0] = 0x6573726170;
 	this[1] = 0x737464;

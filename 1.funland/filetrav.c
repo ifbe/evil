@@ -21,7 +21,7 @@
 struct stack
 {
 	DIR* folder;
-	unsigned char name[512 - sizeof(char*)];
+	char name[512 - sizeof(char*)];
 };
 static struct stack stack[16];
 static struct stat statbuf;
@@ -140,7 +140,7 @@ char* traverse_read()
 		rsp++;
 	}
 }
-int traverse_write()
+void traverse_write()
 {
 }
 void traverse_start(char* p)
@@ -170,7 +170,7 @@ void* filetrav_read(int offset)
 {
 	return (void*)travbuf + offset;
 }
-void* filetrav_write(void* name, u64 size)
+void* filetrav_write(void* name, int size)
 {
 	struct fileindex* addr;
 	printf("%d(0x%x)	%s\n", size, size, name);

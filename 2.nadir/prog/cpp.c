@@ -22,14 +22,14 @@
 static int dest=-1;
 
 //destination,source,datahome
-static unsigned char* datahome;	//4k+4k
-static unsigned char strbuf[256];
-static unsigned char backup1[256];
-static unsigned char backup2[256];
+static char* datahome;	//4k+4k
+static char strbuf[256];
+static char backup1[256];
+static char backup2[256];
 
 //the prophets who guide me
-static unsigned char* prophet=0;	//后面可能要用的函数名字
-static unsigned char* prophetinsist=0;	//在函数外面碰到了左括号:
+static char* prophet=0;	//后面可能要用的函数名字
+static char* prophetinsist=0;	//在函数外面碰到了左括号:
 static int doubt=0;		//"疑虑"(想更细致就出错):	else myfunc ()
 static int chance=0;
 
@@ -58,7 +58,7 @@ static int instr=0;
 
 
 
-int cpp_copyname(unsigned char* p,unsigned char* q)
+int cpp_copyname(char* p, char* q)
 {
 	int i=0;
 	unsigned long long temp;
@@ -171,7 +171,7 @@ forcecopy:
 	return i;
 
 }
-void cpp_printprophet(unsigned char* p)
+void cpp_printprophet(char* p)
 {
 	int count=0;
 
@@ -613,16 +613,16 @@ static int cpp_read(int start,int end)
 	countbyte += 0x100000;
 	return i-end;	//可能多分析了几十几百个字节
 }
-static int cpp_write()
+static void cpp_write()
 {
 }
-static int cpp_list()
+static void cpp_list()
 {
 }
-static int cpp_choose()
+static void cpp_choose()
 {
 }
-static int cpp_stop(int where)
+static void cpp_stop(int where)
 {
 /*
 	printf("@%x@%d -> %d,%d,%d,%d\n",
@@ -637,7 +637,7 @@ static int cpp_stop(int where)
 	write(dest,"\n\n\n\n",4);
 */
 }
-static int cpp_start(char* thisfile,int size)
+static void cpp_start(char* thisfile,int size)
 {
 	int ret;
 
@@ -656,10 +656,10 @@ static int cpp_start(char* thisfile,int size)
 	prophet=prophetinsist=0;
 	infunc = inmarco = innote = instr = 0;
 }
-int cpp_delete()
+void cpp_delete()
 {
 }
-int cpp_create(u64* that, u64* this)
+void cpp_create(u64* that, u64* this)
 {
 	this[0] = 0x6573726170;
 	this[1] = 0x707063;

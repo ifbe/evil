@@ -22,9 +22,9 @@
 static int dest=-1;
 
 //
-static unsigned char* datahome;	//4k+4k
-static unsigned char strbuf[256];
-static unsigned char backup[256];
+static char* datahome;	//4k+4k
+static char strbuf[256];
+static char backup[256];
 
 //
 static char* prophet=0;
@@ -55,7 +55,7 @@ static int instr=0;
 
 
 
-static int struct_pickname(unsigned char* p,unsigned char* q)
+static int struct_pickname(char* p, char* q)
 {
 	int i;
 	int o;
@@ -112,7 +112,7 @@ static int struct_pickname(unsigned char* p,unsigned char* q)
 	//printf("out=%d,%s\n\n\n\n",o,q);
 	return o;
 }
-static int struct_printprophet(unsigned char* p)
+static int struct_printprophet(char* p)
 {
 	int i,o;
 	//printf("in=%s\n\n\n\n",p);
@@ -148,7 +148,7 @@ printthis:
 	prophet=0;
 	return 0;
 }
-static int checkprophet(unsigned char* p)
+static int checkprophet(char* p)
 {
 	int i;
 //printf("=%s\n",p);
@@ -539,16 +539,16 @@ static int struct_read(int start,int end)
 	countbyte += 0x100000;
 	return i-end;
 }
-static int struct_write()
+static void struct_write()
 {
 }
-static int struct_list()
+static void struct_list()
 {
 }
-static int struct_choose()
+static void struct_choose()
 {
 }
-static int struct_stop(int where)
+static void struct_stop(int where)
 {
 	printf("@%x@%d -> %d,%d,%d,%d\n",
 		where,
@@ -561,7 +561,7 @@ static int struct_stop(int where)
 	printf("\n\n\n\n");
 	write(dest,"\n\n\n\n",4);
 }
-static int struct_start(char* thisfile,int size)
+static void struct_start(char* thisfile,int size)
 {
 	int ret;
 
@@ -579,10 +579,10 @@ static int struct_start(char* thisfile,int size)
 	countbyte=countline=0;
 	instruct=inmarco=innote=instr=0;
 }
-int struct_delete()
+void struct_delete()
 {
 }
-int struct_create(u64* that, u64* this)
+void struct_create(u64* that, u64* this)
 {
 	this[0] = 0x6573726170;
 	this[1] = 0x746e756f63;

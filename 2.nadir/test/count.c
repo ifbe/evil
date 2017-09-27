@@ -141,16 +141,16 @@ static int count_read(char* datahome, int len)
 	countbyte += len;
 	return i-len;	//可能多分析了几十几百个字节
 }
-static int count_write()
+static void count_write()
 {
 }
-static int count_list()
+static void count_list()
 {
 }
-static int count_choose()
+static void count_choose()
 {
 }
-static int count_stop()
+static void count_stop()
 {
 	printf("@%x@%d -> %d,%d,%d,%d\n",
 		countbyte,
@@ -162,15 +162,15 @@ static int count_stop()
 	);
 	printf("\n\n\n\n");
 }
-static int count_start()
+static void count_start()
 {
 	countbyte=countline=0;
 	infunc = inmarco = innote = instr = 0;
 }
-int count_delete()
+void count_delete()
 {
 }
-int count_create(u64* file, u64* this)
+void count_create(u64* file, u64* this)
 {
 	this[0] = 0x6573726170;
 	this[1] = 0x746e756f63;

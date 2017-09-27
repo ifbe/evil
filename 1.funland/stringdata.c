@@ -114,6 +114,7 @@ printf("%c,%c\n",first[j],second[k]);
 int stringdata_read(int off)
 {
 	printf("%s\n", charbuf + off);
+	return 0;
 }
 int stringdata_write(char* buf, int len)
 {

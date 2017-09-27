@@ -22,8 +22,8 @@
 static int dest=-1;
 
 //
-static unsigned char* datahome;		//4k+4k
-static unsigned char strbuf[256];
+static char* datahome;		//4k+4k
+static char strbuf[256];
 
 //count
 static int countbyte=0;		//统计字节数
@@ -310,16 +310,16 @@ static int include_read(int start,int end)
 	countbyte += 0x100000;
 	return i-end;	//可能多分析了几十几百个字节
 }
-static int include_write()
+static void include_write()
 {
 }
-static int include_list()
+static void include_list()
 {
 }
-static int include_choose()
+static void include_choose()
 {
 }
-static int include_stop(int where)
+static void include_stop(int where)
 {
 /*
 	printf("@%x@%d -> %d,%d,%d,%d\n",
@@ -334,7 +334,7 @@ static int include_stop(int where)
 	write(dest,"\n\n\n\n",4);
 */
 }
-static int include_start(char* thisfile,int size)
+static void include_start(char* thisfile,int size)
 {
 	int ret;
 
@@ -351,10 +351,10 @@ static int include_start(char* thisfile,int size)
 	countbyte=countline=0;
 	infunc = inmarco = innote = instr = 0;
 }
-int include_delete()
+void include_delete()
 {
 }
-int include_create(u64* file, u64* this)
+void include_create(u64* file, u64* this)
 {
 	this[0] = 0x6573726170;
 	this[1] = 0x68;

@@ -35,7 +35,7 @@ static int hashlen;
 
 
 
-u32 bkdrhash(u8* buf, int len)
+u32 bkdrhash(char* buf, int len)
 {
 	int j;
 	u32 hash = 0;
@@ -45,7 +45,7 @@ u32 bkdrhash(u8* buf, int len)
 	}
 	return hash;
 }
-u32 djb2hash(u8* buf, int len)
+u32 djb2hash(char* buf, int len)
 {
 	int j;
 	u32 hash=5381;
@@ -144,7 +144,7 @@ void* stringhash_read(u64 hash)
 	if(*(u64*)h != hash)return 0;
 	return h;
 }
-void* stringhash_write(u8* buf, int len)
+void* stringhash_write(char* buf, int len)
 {
 	int j;
 	struct hash* h;

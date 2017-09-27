@@ -10,6 +10,7 @@ u32 bkdrhash(char*, int);
 u32 djb2hash(char*, int);
 u64 stringhash_generate(char*,int);
 void* stringhash_read(u64);
+void stringhash_print(u64);
 //
 void* funcindx_read(int);
 //
@@ -63,7 +64,7 @@ void checkfile_printpin(struct wire* w)
 void checkfile(int offset)
 {
 	struct filetrav* f = filetrav_read(offset);
-	printf("func:%x@%x\n", offset, f);
+	printf("func:%x@%llx\n", offset, (u64)f);
 }
 
 
@@ -84,8 +85,8 @@ void checkfunc_printpin(struct wire* w)
 		if(t2 != 0)
 		{
 			temp = *(u64*)&(w->chipinfo);
-			//printf("		%-8s %-8s ", &t1, &t2);
-			printf("		");
+			//printf("	%-8s %-8s ", &t1, &t2);
+			printf("	");
 			stringhash_print(temp);
 		}
 
@@ -104,7 +105,7 @@ void checkfunc(int offset)
 	struct wire* opin;
 
 	f = funcindx_read(offset);
-	printf("func:%x@%x\n", offset, f);
+	printf("\nfunc: %x @%llx\n", offset, (u64)f);
 
 	temp = f->first;
 	if(temp == 0)return;
@@ -115,7 +116,7 @@ void checkfunc(int offset)
 	//input
 	if(ipin->selftype == 0)
 	{
-		printf("	input:\n");
+		printf("i:\n");
 		checkfunc_printpin(ipin);
 
 		temp = ipin->samechipnextpin;
@@ -141,8 +142,8 @@ void checkhash_printpin(struct wire* w)
 		t1 = w->desttype;
 		t2 = w->selftype;
 
-		if(t2 != 0)printf("		%-8s %-8s %08x	%08x\n",
-			&t1, &t2, w->chipinfo, w->footinfo);
+		if(t2 != 0)printf("	%-8s %-8s %08x	%08x\n",
+			(void*)&t1, (void*)&t2, w->chipinfo, w->footinfo);
 
 		temp = w->samepinnextchip;
 		if(temp == 0)break;
@@ -165,8 +166,8 @@ void checkhash_printdest(struct wire* base)
 			t1 = w->desttype;
 			t2 = w->selftype;
 
-			printf("		%-8s %-8s %08x	%08x\n",
-				&t1, &t2, w->chipinfo, w->footinfo);
+			printf("	%-8s %-8s %08x	%08x\n",
+			(void*)&t1, (void*)&t2, w->chipinfo, w->footinfo);
 		}
 
 		temp = w->samepinprevchip;
@@ -178,7 +179,7 @@ void checkhash_printdest(struct wire* base)
 /*
 	t1 = base->desttype;
 	t2 = base->selftype;
-	printf("		%-8s %-8s %08x	%08x\n",
+	printf("	%-8s %-8s %08x	%08x\n",
 		&t1, &t2, w->chipinfo, w->footinfo);
 */
 }
@@ -197,8 +198,8 @@ void checkhash(char* buf, int len)
 		printf("notfound: %s\n", buf);
 		return;
 	}
-	printf("%s\n", buf);
-	printf("	(@0x%08x), (=0x%08x%08x)\n", h, h->hash1, h->hash0);
+	printf("\nhash: %08x%08x @0x%08llx(%s)\n",
+		h->hash1, h->hash0, (u64)h, buf);
 
 
 	//samepin
@@ -211,7 +212,7 @@ void checkhash(char* buf, int len)
 	//input(only one)
 	if(ipin->selftype == 0)
 	{
-		printf("	input:\n");
+		printf("i:\n");
 		checkhash_printpin(ipin);
 
 		temp = ipin->samechipnextpin;
@@ -224,7 +225,7 @@ void checkhash(char* buf, int len)
 	//output(many)
 	while(1)
 	{
-		printf("	output:\n");
+		printf("o:\n");
 		checkhash_printdest(opin);
 
 		temp = opin->samechipnextpin;

@@ -129,9 +129,9 @@ static struct worker w[20];
 static int chosen;
 //
 static int infile = -1;
-static u8 inbuf[0x100000];
+static char inbuf[0x100000];
 static int outfile = -1;
-static u8 outbuf[0x100000];
+static char outbuf[0x100000];
 
 
 
@@ -209,6 +209,7 @@ int worker_write(char* buf, int len, int type, int haha)
 			thishash, 0, hex32('h','a','s','h')
 		);
 	}
+	return 1;
 }
 int worker_read()
 {
@@ -221,7 +222,7 @@ int worker_read()
 	}
 
 	inbuf[ret]=0;
-	w[chosen].read(inbuf, ret, outbuf, 0x100000);
+	return w[chosen].read(inbuf, ret, outbuf, 0x100000);
 }
 int worker_list()
 {
@@ -241,6 +242,7 @@ int worker_list()
 			(u64)w[j].write
 		);
 	}
+	return 0;
 }
 int worker_choose(char* p)
 {
@@ -310,8 +312,7 @@ int worker_stop()
 {
 	w[chosen].stop();
 	close(infile);
-
-	printf("\n\n");
+	return 0;
 }
 void worker_create()
 {
