@@ -8,6 +8,8 @@
 #define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
 u32 bkdrhash(char*, int);
 u32 djb2hash(char*, int);
+int hexstr2data(void* src, void* data);
+//
 u64 stringhash_generate(char*,int);
 void* stringhash_read(u64);
 void stringhash_print(u64);
@@ -113,8 +115,16 @@ void checkfile_printdest(struct wire* base)
 			t1 = w->desttype;
 			t2 = w->selftype;
 
-			printf("	%-8s %-8s %08x	%08x\n",
-			(void*)&t1, (void*)&t2, w->chipinfo, w->footinfo);
+			if(t1 == hex32('h','a','s','h'))
+			{
+				printf("	%-8s %-8s ", (void*)&t1, (void*)&t2);
+				stringhash_print(*(u64*)&(w->chipinfo));
+			}
+			else
+			{
+				printf("	%-8s %-8s %08x	%08x\n",
+				(void*)&t1, (void*)&t2, w->chipinfo, w->footinfo);
+			}
 		}
 
 		temp = w->samepinprevchip;
@@ -221,8 +231,16 @@ void checkfunc_printdest(struct wire* base)
 			t1 = w->desttype;
 			t2 = w->selftype;
 
-			printf("	%-8s %-8s %08x	%08x\n",
-			(void*)&t1, (void*)&t2, w->chipinfo, w->footinfo);
+			if(t1 == hex32('h','a','s','h'))
+			{
+				printf("	%-8s %-8s ", (void*)&t1, (void*)&t2);
+				stringhash_print(*(u64*)&(w->chipinfo));
+			}
+			else
+			{
+				printf("	%-8s %-8s %08x	%08x\n",
+				(void*)&t1, (void*)&t2, w->chipinfo, w->footinfo);
+			}
 		}
 
 		temp = w->samepinprevchip;
@@ -389,7 +407,8 @@ void checkhash(char* buf, int len)
 }
 void check(int argc, char** argv)
 {
-	int j,len,temp;
+	int j,len;
+	u64 temp;
 	filedata_start(1);
 	filetrav_start(1);
 	funcdata_start(1);
@@ -405,12 +424,14 @@ void check(int argc, char** argv)
 		{
 			if(strncmp(argv[j], "file@", 5)==0)
 			{
-				checkfile(atoi(argv[j] + 5));
+				hexstr2data(argv[j] + 5, &temp);
+				checkfile(temp);
 				continue;
 			}
 			if(strncmp(argv[j], "func@", 5)==0)
 			{
-				checkfunc(atoi(argv[j] + 5));
+				hexstr2data(argv[j] + 5, &temp);
+				checkfunc(temp);
 				continue;
 			}
 		}

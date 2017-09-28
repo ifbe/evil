@@ -73,6 +73,33 @@ u64 suffix_value(char* p)
 
 	return *(u64*)ret;
 }
+int hexstr2data(u8* src,u64* data)
+{
+	int j;
+	*data=0;
+	for(j=0;j<16;j++)
+	{
+		//say("%x\n",src[j]);
+		//1.如果小于0x20，那就是结束了
+		if(src[j]<=0x20) return j;
+
+		//2.如果大于0x80，那就返回错误
+		if(src[j]>=0x80) return -1;
+
+		//3.如果是正常值
+		*data=(*data)<<4;
+		if(src[j]>=0x61 && src[j]<=0x66)
+		{
+			*data+=src[j]-0x61+10;
+		}
+		else if(src[j]>=0x30 && src[j]<=0x39)
+		{
+			*data+=src[j]-0x30;
+		}
+		else return -2;
+	}
+	return -999999;	//不会到这里
+}
 int match(char* first,char* second)
 {
 	int j=0;

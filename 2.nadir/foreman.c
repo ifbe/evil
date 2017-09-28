@@ -246,11 +246,13 @@ int worker_list()
 }
 int worker_choose(char* p)
 {
-	int j,k=0;
+	int j,k=-1;
 	u64 x = suffix_value(p);
+	if(x == 0)return -1;
 
 	for(j=0;j<20;j++)
 	{
+		//printf("%x\n",w[j].name);
 		if(w[j].name == x)
 		{
 			k = j;
@@ -266,23 +268,26 @@ int worker_start(char* p)
 	struct stat statbuf;
 	int size;
 	int ret;
+
+	//check name
 	ret = worker_choose(p);
-	if(ret < 0)return 0;
+	if(ret < 0)return -1;
 
 //~~~~~~~~~~~~~~~~~~~~~~~1~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	//stat
 	ret=stat(p, &statbuf);
 	if(ret == -1)
 	{
-		printf("wrong@stat\n");
-		return -1;
+		printf("wrong@stat:%s\n", p);
+		return -2;
 	}
 
 	size = statbuf.st_size;
-	if( (size <= 0) | (size > 0xfffff) )
+	if(size <= 0)return -3;
+	if(size > 0xfffff)
 	{
-		printf("wrong@size\n");
-		return -2;
+		printf("wrong@size:%s\n", p);
+		return -4;
 	}
 
 //~~~~~~~~~~~~~~~~~~~~~~~2~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -290,8 +295,8 @@ int worker_start(char* p)
 	infile = open(p , O_RDONLY|O_BINARY);
 	if(infile < 0)
 	{
-		printf("fail@open\n");
-		return -3;
+		printf("fail@open:%s\n", p);
+		return -5;
 	}
 
 	w[chosen].start();
@@ -333,9 +338,6 @@ void worker_create()
 	j += 0x100;
 
 	dts_create(w, j);
-	j += 0x100;
-
-	include_create(w, j);
 	j += 0x100;
 
 	struct_create(w, j);
