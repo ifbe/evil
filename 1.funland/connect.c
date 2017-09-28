@@ -135,7 +135,7 @@ int connect_write(void* uchip, u64 ufoot, u64 utype, void* bchip, u64 bfoot, u64
 
 	//src wire
 	h2 = bchip;
-	w2 = connect_write_new(h2, bfoot, utype, btype);
+	w2 = connect_write_new(h2, ufoot, utype, btype);
 	if(h2->first == 0)
 	{
 		h2->first = (void*)w2 - (void*)wirebuf;

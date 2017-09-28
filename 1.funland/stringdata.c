@@ -126,8 +126,10 @@ int stringdata_write(char* buf, int len)
 */
 	for(j=0;j<len;j++)charbuf[charlen+j] = buf[j];
 	charbuf[charlen + len] = 0;
+
+	j = charlen;
 	charlen += len+1;
-	return charlen;
+	return j;
 }
 void stringdata_start(int flag)
 {

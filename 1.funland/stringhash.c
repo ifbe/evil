@@ -189,6 +189,7 @@ void* stringhash_write(char* buf, int len)
 	h->first = 0;
 	h->last = 0;
 
+	//printf("%d	%s\n", j, buf);
 	return h;
 }
 void stringhash_list()

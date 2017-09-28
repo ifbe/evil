@@ -119,11 +119,11 @@ void checkfile_printdest(struct wire* base)
 
 		temp = w->samepinprevchip;
 		if(temp == 0)break;
-		printf("temp=%x\n",temp);
+		//printf("temp=%x\n",temp);
 
 		w = connect_read(temp);
 		if(w == 0)break;
-		printf("w=%x\n",w);
+		//printf("w=%x\n",w);
 	}
 /*
 	t1 = base->desttype;
@@ -192,10 +192,10 @@ void checkfunc_printpin(struct wire* w)
 		t1 = w->desttype;
 		t2 = w->selftype;
 
+		//printf("%x %x\n", w->chipinfo, w->footinfo);
 		if(t2 != 0)
 		{
 			temp = *(u64*)&(w->chipinfo);
-			//printf("	%-8s %-8s ", &t1, &t2);
 			printf("	");
 			stringhash_print(temp);
 		}
