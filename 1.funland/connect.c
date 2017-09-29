@@ -48,6 +48,7 @@ struct funcindex
 	u64 first;
 	u64 last;
 };
+/*
 struct wire
 {
 	u32 desttype;		//eg: 'hash', 'dir', 'file', 'func'
@@ -60,6 +61,23 @@ struct wire
 	u32 samechipprevpin;
 	u32 samechipnextpin;
 };
+*/
+struct wire
+{
+	u32 desttype;		//eg: 'hash', 'dir', 'file', 'func'
+	u32 destzero;
+	u32 destchip;
+	u32 destfoot;
+	u32 samepinprevchip;
+	u32 samepinnextchip;
+
+	u32 selftype;		//eg: 'dir', 'file', 'func', 'hash'
+	u32 selfzero;
+	u32 selfchip;
+	u32 selffoot;
+	u32 samechipprevpin;
+	u32 samechipnextpin;
+};
 static u8 wirebuf[0x100000];
 static int wirefd;
 static int wirelen;
@@ -67,27 +85,45 @@ static int wirelen;
 
 
 
-void* connect_write_new(struct hash* chip, u64 foot, u64 dest, u64 self)
+void* connect_write_new(struct hash* uchip, u64 ufoot, u64 utype, struct hash* bchip, u64 bfoot, u64 btype)
 {
 	struct wire* w;
-	if(wirelen > 0xfffe0)return 0;
+	if(wirelen > 0xfff00)return 0;
 
 	w = (void*)wirebuf + wirelen;
-	wirelen += 0x20;
+	wirelen += 0x30;
 
-	w->desttype = dest;
-	w->selftype = self;
-
-	if(self == 0)self = dest;
-	if(self == hex32('h','a','s','h'))
+	//1.dest
+	w->desttype = utype;
+	w->destzero = 0;
+	if(utype == hex32('h','a','s','h'))
 	{
-		w->chipinfo = chip->hash0;
-		w->footinfo = chip->hash1;
+		w->destchip = uchip->hash0;
+		w->destfoot = uchip->hash1;
 	}
 	else
 	{
-		w->chipinfo = *(u32*)chip;
-		w->footinfo = foot;
+		w->destchip = *(u32*)uchip;
+		w->destfoot = ufoot;
+	}
+
+	//2.self
+	w->selftype = btype;
+	w->selfzero = 0;
+	if(btype == 0)
+	{
+		w->selfchip = 0;
+		w->selffoot = 0;
+	}
+	else if(btype == hex32('h','a','s','h'))
+	{
+		w->selfchip = bchip->hash0;
+		w->selffoot = bchip->hash1;
+	}
+	else
+	{
+		w->selfchip = *(u32*)bchip;
+		w->selffoot = bfoot;
 	}
 
 	return w;
@@ -112,7 +148,7 @@ int connect_write(void* uchip, u64 ufoot, u64 utype, void* bchip, u64 bfoot, u64
 	h1 = uchip;
 	if(h1->first == 0)
 	{
-		w1 = connect_write_new(h1, ufoot, utype, 0);
+		w1 = connect_write_new(uchip, ufoot, utype, 0, 0, 0);
 		h1->first = (void*)w1 - (void*)wirebuf;
 		//h1->last = 0;
 	}
@@ -122,7 +158,7 @@ int connect_write(void* uchip, u64 ufoot, u64 utype, void* bchip, u64 bfoot, u64
 		if( (w1->desttype != utype) | (w1->selftype != 0) )
 		{
 			wc = w1;
-			w1 = connect_write_new(h1, ufoot, utype, 0);
+			w1 = connect_write_new(h1, ufoot, utype, 0, 0, 0);
 			h1->first = (void*)w1 - (void*)wirebuf;
 
 			wc->samechipprevpin = (void*)w1 - (void*)wirebuf;
@@ -135,7 +171,7 @@ int connect_write(void* uchip, u64 ufoot, u64 utype, void* bchip, u64 bfoot, u64
 
 	//src wire
 	h2 = bchip;
-	w2 = connect_write_new(h2, ufoot, utype, btype);
+	w2 = connect_write_new(uchip, ufoot, utype, bchip, bfoot, btype);
 	if(h2->first == 0)
 	{
 		h2->first = (void*)w2 - (void*)wirebuf;
@@ -199,7 +235,7 @@ void connect_start(int flag)
 			O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
 			S_IRWXU|S_IRWXG|S_IRWXO
 		);
-		wirelen = 0x20;
+		wirelen = 0x30;
 	}
 	else
 	{
