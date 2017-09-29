@@ -182,15 +182,15 @@ int worker_write(char* buf, int len, int type, int haha)
 			return 0;
 		}
 
-		//hash <- func
-		connect_write(
-			thishash, 0, hex32('h','a','s','h'),
-			funcinfo, 0, hex32('f','u','n','c')
-		);
-
 		//file <- func
 		connect_write(
 			fileinfo, haha, hex32('f','i','l','e'),
+			funcinfo, 0, hex32('f','u','n','c')
+		);
+
+		//hash <- func
+		connect_write(
+			thishash, 0, hex32('h','a','s','h'),
 			funcinfo, 0, hex32('f','u','n','c')
 		);
 	}

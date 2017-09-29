@@ -90,7 +90,7 @@ void checkfile_printpin(struct wire* w)
 		if(t2 != 0)
 		{
 			temp = *(u64*)&(w->chipinfo);
-			printf("	%-8s %-8s %x	%x\n",
+			printf("	%-8s %-8s %x:%d\n",
 				&t1, &t2, w->chipinfo, w->footinfo);
 		}
 
@@ -221,11 +221,14 @@ void checkfunc_printdest(struct wire* base)
 {
 	u64 t1;
 	u64 t2;
+	u64 line;
 	u64 temp;
 	struct wire* w = base;
+	if(w == 0)return;
+
+	line = base->footinfo;
 	while(1)
 	{
-		if(w == 0)break;
 		if(w->selftype == 0)
 		{
 			t1 = w->desttype;
@@ -235,6 +238,11 @@ void checkfunc_printdest(struct wire* base)
 			{
 				printf("	%-8s %-8s ", (void*)&t1, (void*)&t2);
 				stringhash_print(*(u64*)&(w->chipinfo));
+			}
+			else if(t1 == hex32('f','i','l','e'))
+			{
+				printf("	%-8s %-8s %08x:%d\n",
+				(void*)&t1, (void*)&t2, w->chipinfo, line);
 			}
 			else
 			{
@@ -249,12 +257,6 @@ void checkfunc_printdest(struct wire* base)
 		w = connect_read(temp);
 		if(w == 0)break;
 	}
-/*
-	t1 = base->desttype;
-	t2 = base->selftype;
-	printf("	%-8s %-8s %08x	%08x\n",
-		&t1, &t2, w->chipinfo, w->footinfo);
-*/
 }
 void checkfunc(int offset)
 {
