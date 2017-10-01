@@ -170,7 +170,7 @@ void* filetrav_read(int offset)
 {
 	return (void*)travbuf + offset;
 }
-void* filetrav_write(void* name, int size)
+void* filetrav_write(char* name, int size)
 {
 	struct fileindex* addr;
 	printf("%d	%x	%s\n", size, size, name);

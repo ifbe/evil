@@ -102,7 +102,7 @@ void checkfile_printpin(struct wire* w)
 		if(w->selfchip != 0)
 		{
 			printf("	%-8s %-8s %x	%x\n",
-			(void*)&(w->desttype), (void*)&(w->selftype),
+			(char*)&(w->desttype), (char*)&(w->selftype),
 			w->selfchip, w->selffoot);
 		}
 
@@ -150,13 +150,13 @@ void checkfile(int offset)
 		if(opin->desttype == hex32('h','a','s','h'))
 		{
 			printf("	%-8s %-8s ",
-			(void*)&(opin->desttype), (void*)&(opin->selftype));
+			(char*)&(opin->desttype), (char*)&(opin->selftype));
 			stringhash_print(*(u64*)&(opin->destchip));
 		}
 		else
 		{
 			printf("	%-8s %-8s %08x	%08x\n",
-			(void*)&(opin->desttype), (void*)&(opin->selftype),
+			(char*)&(opin->desttype), (char*)&(opin->selftype),
 			opin->destchip, opin->destfoot);
 		}
 
@@ -229,16 +229,16 @@ void checkfunc(int offset)
 		//checkfunc_printdest(opin);
 		if(opin->desttype == hex32('h','a','s','h'))
 		{
-			printf("	%-8s ", (void*)&(opin->desttype));
+			printf("	%-8s ", (char*)&(opin->desttype));
 			stringhash_print(*(u64*)&(opin->destchip));
 		}
 		else if(opin->desttype == hex32('f','i','l','e'))
 		{
-			printf("	%-8s %08x	%d\n", (void*)&(opin->desttype), opin->destchip, opin->destfoot);
+			printf("	%-8s %08x	%d\n", (char*)&(opin->desttype), opin->destchip, opin->destfoot);
 		}
 		else
 		{
-			printf("	%-8s %08x	%08x\n", (void*)&(opin->desttype), opin->destchip, opin->destfoot);
+			printf("	%-8s %08x	%08x\n", (char*)&(opin->desttype), opin->destchip, opin->destfoot);
 		}
 
 
@@ -260,7 +260,7 @@ void checkhash_printpin(struct wire* w)
 	{
 		if(w->selfchip != 0)
 		{
-			printf("	%-8s %08x	%08x\n", (void*)&(w->selftype), w->selfchip, w->selffoot);
+			printf("	%-8s %08x	%08x\n", (char*)&(w->selftype), w->selfchip, w->selffoot);
 		}
 
 		temp = w->samepinnextchip;
@@ -315,7 +315,7 @@ void checkhash(char* buf, int len)
 		printf("o:\n");
 		//checkhash_printdest(opin);
 	
-		printf("	%-8s %08x	%08x\n", (void*)&(opin->desttype), opin->destchip, opin->destfoot);
+		printf("	%-8s %08x	%08x\n", (char*)&(opin->desttype), opin->destchip, opin->destfoot);
 
 		temp = opin->samechipnextpin;
 		if(temp == 0)break;

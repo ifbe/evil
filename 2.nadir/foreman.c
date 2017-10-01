@@ -311,6 +311,7 @@ int worker_start(char* p)
 			break;
 		}
 	}
+	//substr_write(p);
 	return 1;
 }
 int worker_stop()
