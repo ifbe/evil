@@ -71,6 +71,8 @@ int count_delete();
 //include(test)
 int include_create(void*, void*);
 int include_delete();
+//
+int substr_write(void*, int);
 
 
 
@@ -79,6 +81,7 @@ int include_delete();
 void* filetrav_write(void*, u64);
 void* funcindx_write(u64);
 void* stringhash_write(void*, int);
+void* stringhash_read(u64);
 void connect_write(void* uchip, u64 ufoot, u64 utype, void* bchip, u64 bfoot, u64 btype);
 //
 //string.c
@@ -136,24 +139,27 @@ static char outbuf[0x100000];
 
 
 
-static void* fileinfo;
-static void* funcinfo;
+static u64 pathhash;
+static void* fileobj;
+static void* funcobj;
 int worker_write(char* buf, int len, int type, int haha)
 {
-	void* thishash;
+	void* thisobj;
+	void* thatobj;
 	if(type == 0)		//file
 	{
 		//string hash
-		thishash = stringhash_write(buf, len);
-		if(thishash == 0)
+		thisobj = stringhash_write(buf, len);
+		if(thisobj == 0)
 		{
 			printf("error@1111\n");
 			return 0;
 		}
+		pathhash = *(u64*)thisobj;
 
 		//(name, size, attr, ...)
-		fileinfo = filetrav_write(buf, haha);
-		if(fileinfo == 0)
+		fileobj = filetrav_write(buf, haha);
+		if(fileobj == 0)
 		{
 			printf("error@2222\n");
 			return 0;
@@ -161,22 +167,22 @@ int worker_write(char* buf, int len, int type, int haha)
 
 		//hash <- file (lchip, lfoot, ltype, rchip, rfoot, rtype)
 		connect_write(
-			thishash, 0, hex32('h','a','s','h'),
-			fileinfo, 0, hex32('f','i','l','e')
+			thisobj, 0, hex32('h','a','s','h'),
+			fileobj, 0, hex32('f','i','l','e')
 		);
 	}
 	else if(type == 1)		//func
 	{
-		thishash = stringhash_write(buf, len);
-		if(thishash == 0)
+		thisobj = stringhash_write(buf, len);
+		if(thisobj == 0)
 		{
 			printf("error@3333\n");
 			return 0;
 		}
 
 		//func item
-		funcinfo = funcindx_write(haha);
-		if(funcinfo == 0)
+		funcobj = funcindx_write(haha);
+		if(funcobj == 0)
 		{
 			printf("error@4444\n");
 			return 0;
@@ -184,20 +190,20 @@ int worker_write(char* buf, int len, int type, int haha)
 
 		//file <- func
 		connect_write(
-			fileinfo, haha, hex32('f','i','l','e'),
-			funcinfo, 0, hex32('f','u','n','c')
+			fileobj, haha, hex32('f','i','l','e'),
+			funcobj, 0, hex32('f','u','n','c')
 		);
 
 		//hash <- func
 		connect_write(
-			thishash, 0, hex32('h','a','s','h'),
-			funcinfo, 0, hex32('f','u','n','c')
+			thisobj, 0, hex32('h','a','s','h'),
+			funcobj, 0, hex32('f','u','n','c')
 		);
 	}
 	else if(type == 2)
 	{
-		thishash = stringhash_write(buf, len);
-		if(thishash == 0)
+		thisobj = stringhash_write(buf, len);
+		if(thisobj == 0)
 		{
 			printf("error@5555\n");
 			return 0;
@@ -205,8 +211,31 @@ int worker_write(char* buf, int len, int type, int haha)
 
 		//func <- hash
 		connect_write(
-			funcinfo, haha, hex32('f','u','n','c'),
-			thishash, 0, hex32('h','a','s','h')
+			funcobj, haha, hex32('f','u','n','c'),
+			thisobj, 0, hex32('h','a','s','h')
+		);
+	}
+	else if(type == 3)
+	{
+		//printf("here:%s\n", buf);
+		thisobj = stringhash_write(buf, len);
+		if(thisobj == 0)
+		{
+			printf("error@6666\n");
+			return 0;
+		}
+
+		thatobj = stringhash_read(pathhash);
+		if(thisobj == 0)
+		{
+			printf("error@7777\n");
+			return 0;
+		}
+
+		//hash <- hash
+		connect_write(
+			thatobj, 0, hex32('h','a','s','h'),
+			thisobj, 0, hex32('h','a','s','h')
 		);
 	}
 	return 1;
@@ -311,7 +340,7 @@ int worker_start(char* p)
 			break;
 		}
 	}
-	//substr_write(p);
+	substr_write(p, ret);
 	return 1;
 }
 int worker_stop()

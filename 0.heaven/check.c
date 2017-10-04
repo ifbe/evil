@@ -314,8 +314,17 @@ void checkhash(char* buf, int len)
 	{
 		printf("o:\n");
 		//checkhash_printdest(opin);
-	
-		printf("	%-8s %08x	%08x\n", (char*)&(opin->desttype), opin->destchip, opin->destfoot);
+
+		if(opin->desttype == hex32('h','a','s','h'))
+		{
+			printf("	%-8s ", (char*)&(opin->desttype));
+			stringhash_print(*(u64*)&(opin->destchip));
+		}
+		else
+		{
+			printf("	%-8s %08x	%08x\n",
+				(char*)&(opin->desttype), opin->destchip, opin->destfoot);
+		}
 
 		temp = opin->samechipnextpin;
 		if(temp == 0)break;
