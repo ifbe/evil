@@ -1,7 +1,9 @@
 all:
 	gcc main.c \
-	0.heaven/learn.c \
+	0.heaven/analyse.c \
 	0.heaven/check.c \
+	0.heaven/learn.c \
+	0.heaven/search.c \
 	1.funland/connect.c \
 	1.funland/filedata.c \
 	1.funland/filetrav.c \
