@@ -61,58 +61,22 @@ struct fileindex
 };
 struct wire
 {
-	u32 desttype;		//eg: 'hash', 'dir', 'file', 'func'
-	u32 destzero;
-	u32 destchip;
-	u32 destfoot;
+	u64 desttype;		//eg: 'hash', 'dir', 'file', 'func'
+	u64 destchip;
+	u64 destfoot;
 	u32 samepinprevchip;
 	u32 samepinnextchip;
 
-	u32 selftype;		//eg: 'dir', 'file', 'func', 'hash'
-	u32 selfzero;
-	u32 selfchip;
-	u32 selffoot;
+	u64 selftype;		//eg: 'dir', 'file', 'func', 'hash'
+	u64 selfchip;
+	u64 selffoot;
 	u32 samechipprevpin;
 	u32 samechipnextpin;
 };
-/*
-struct wire
-{
-	u32 desttype;		//eg: 'hash', 'dir', 'file', 'func'
-	u32 selftype;		//eg: 'dir', 'file', 'func', 'hash'
-	u32 samepinprevchip;
-	u32 samepinnextchip;
-
-	u32 chipinfo;
-	u32 footinfo;
-	u32 samechipprevpin;
-	u32 samechipnextpin;
-};
-*/
 
 
 
 
-void searchfile_printpin(struct wire* w)
-{
-	u64 temp;
-	struct hash* h;
-	while(1)
-	{
-		if(w->selfchip != 0)
-		{
-			printf("	%-8s %-8s %x	%x\n",
-			(char*)&(w->desttype), (char*)&(w->selftype),
-			w->selfchip, w->selffoot);
-		}
-
-		temp = w->samepinnextchip;
-		if(temp == 0)break;
-
-		w = connect_read(temp);
-		if(w == 0)break;
-	}
-}
 void searchfile(int offset)
 {
 	u64 temp;
@@ -129,34 +93,54 @@ void searchfile(int offset)
 	ipin = connect_read(temp);
 	if(ipin == 0)return;
 
-	//input
 	if(ipin->selftype == 0)
 	{
-		printf("i:\n");
-		searchfile_printpin(ipin);
-
 		temp = ipin->samechipnextpin;
-		if(temp == 0)return;
-
-		opin = connect_read(temp);
+		if(temp != 0)opin = connect_read(temp);
 	}
-	else opin = ipin;
+	else
+	{
+		opin = ipin;
+		ipin = 0;
+	}
+
+	//input
+	if(ipin != 0)printf("i:\n");
+	while(ipin != 0)
+	{
+		if(ipin->selftype == hex32('h','a','s','h'))
+		{
+			printf("	");
+			stringhash_print(ipin->selfchip);
+		}
+		else if(ipin->selfchip != 0)
+		{
+			printf("	%-8s %08llx	%08llx	(@%lld)\n",
+			(char*)&(ipin->selftype),
+			ipin->selfchip, ipin->selffoot, ipin->destfoot);
+		}
+
+		temp = ipin->samepinnextchip;
+		if(temp == 0)break;
+
+		ipin = connect_read(temp);
+		if(ipin == 0)break;
+	}
 
 	//output(many)
-	while(1)
+	while(opin != 0)
 	{
 		printf("o:\n");
 		//searchfile_printdest(opin);
 		if(opin->desttype == hex32('h','a','s','h'))
 		{
-			printf("	%-8s %-8s ",
-			(char*)&(opin->desttype), (char*)&(opin->selftype));
-			stringhash_print(*(u64*)&(opin->destchip));
+			printf("	%-8s ", (char*)&(opin->desttype));
+			stringhash_print(opin->destchip);
 		}
 		else
 		{
-			printf("	%-8s %-8s %08x	%08x\n",
-			(char*)&(opin->desttype), (char*)&(opin->selftype),
+			printf("	%-8s %08llx	%08llx\n",
+			(char*)&(opin->desttype),
 			opin->destchip, opin->destfoot);
 		}
 
@@ -173,26 +157,6 @@ void searchfile(int offset)
 
 
 
-void searchfunc_printpin(struct wire* w)
-{
-	u64 temp;
-	struct hash* h;
-	while(1)
-	{
-		if(w->selftype != 0)
-		{
-			temp = *(u64*)&(w->selfchip);
-			printf("	");
-			stringhash_print(temp);
-		}
-
-		temp = w->samepinnextchip;
-		if(temp == 0)break;
-
-		w = connect_read(temp);
-		if(w == 0)break;
-	}
-}
 void searchfunc(int offset)
 {
 	u64 temp;
@@ -209,21 +173,36 @@ void searchfunc(int offset)
 	ipin = connect_read(temp);
 	if(ipin == 0)return;
 
-	//input
 	if(ipin->selftype == 0)
 	{
-		printf("i:\n");
-		searchfunc_printpin(ipin);
-
 		temp = ipin->samechipnextpin;
-		if(temp == 0)return;
-
-		opin = connect_read(temp);
+		if(temp != 0)opin = connect_read(temp);
 	}
-	else opin = ipin;
+	else
+	{
+		opin = ipin;
+		ipin = 0;
+	}
+
+	//input
+	if(ipin != 0)printf("i:\n");
+	while(ipin != 0)
+	{
+		if(ipin->selftype == hex32('h','a','s','h'))
+		{
+			printf("	");
+			stringhash_print(*(u64*)&(ipin->selfchip));
+		}
+
+		temp = ipin->samepinnextchip;
+		if(temp == 0)break;
+
+		ipin = connect_read(temp);
+		if(ipin == 0)break;
+	}
 
 	//output(many)
-	while(1)
+	while(opin != 0)
 	{
 		printf("o:\n");
 		//searchfunc_printdest(opin);
@@ -234,11 +213,15 @@ void searchfunc(int offset)
 		}
 		else if(opin->desttype == hex32('f','i','l','e'))
 		{
-			printf("	%-8s %08x	%d\n", (char*)&(opin->desttype), opin->destchip, opin->destfoot);
+			printf("	%-8s %08llx	%lld\n",
+			(char*)&(opin->desttype),
+			opin->destchip, opin->destfoot);
 		}
 		else
 		{
-			printf("	%-8s %08x	%08x\n", (char*)&(opin->desttype), opin->destchip, opin->destfoot);
+			printf("	%-8s %08llx	%08llx\n",
+			(char*)&(opin->desttype),
+			opin->destchip, opin->destfoot);
 		}
 
 
@@ -253,23 +236,6 @@ void searchfunc(int offset)
 
 
 
-void searchhash_printpin(struct wire* w)
-{
-	u64 temp;
-	while(1)
-	{
-		if(w->selfchip != 0)
-		{
-			printf("	%-8s %08x	%08x\n", (char*)&(w->selftype), w->selfchip, w->selffoot);
-		}
-
-		temp = w->samepinnextchip;
-		if(temp == 0)break;
-
-		w = connect_read(temp);
-		if(w == 0)break;
-	}
-}
 void searchhash(char* buf, int len)
 {
 	u64 haha;
@@ -296,24 +262,44 @@ void searchhash(char* buf, int len)
 	ipin = connect_read(temp);
 	if(ipin == 0)return;
 
-	//input(only one)
 	if(ipin->selftype == 0)
 	{
-		printf("i:\n");
-		searchhash_printpin(ipin);
-
 		temp = ipin->samechipnextpin;
-		if(temp == 0)return;
-
-		opin = connect_read(temp);
+		if(temp != 0)opin = connect_read(temp);
 	}
-	else opin = ipin;
+	else
+	{
+		opin = ipin;
+		ipin = 0;
+	}
+
+	//input(only one)
+	if(ipin != 0)printf("i:\n");
+	while(ipin != 0)
+	{
+		if(ipin->selftype == hex32('h','a','s','h'))
+		{
+			printf("	");
+			stringhash_print(*(u64*)&(ipin->selfchip));
+		}
+		else if(ipin->selftype != 0)
+		{
+			printf("	%-8s %08llx	%08llx\n",
+			(char*)&(ipin->selftype),
+			ipin->selfchip, ipin->selffoot);
+		}
+
+		temp = ipin->samepinnextchip;
+		if(temp == 0)break;
+
+		ipin = connect_read(temp);
+		if(ipin == 0)break;
+	}
 
 	//output(many)
-	while(1)
+	while(opin != 0)
 	{
 		printf("o:\n");
-		//searchhash_printdest(opin);
 
 		if(opin->desttype == hex32('h','a','s','h'))
 		{
@@ -322,8 +308,9 @@ void searchhash(char* buf, int len)
 		}
 		else
 		{
-			printf("	%-8s %08x	%08x\n",
-				(char*)&(opin->desttype), opin->destchip, opin->destfoot);
+			printf("	%-8s %08llx	%08llx\n",
+			(char*)&(opin->desttype),
+			opin->destchip, opin->destfoot);
 		}
 
 		temp = opin->samechipnextpin;

@@ -48,33 +48,17 @@ struct funcindex
 	u64 first;
 	u64 last;
 };
-/*
 struct wire
 {
-	u32 desttype;		//eg: 'hash', 'dir', 'file', 'func'
-	u32 selftype;		//eg: 'dir', 'file', 'func', 'hash'
+	u64 desttype;		//eg: 'hash', 'dir', 'file', 'func'
+	u64 destchip;
+	u64 destfoot;
 	u32 samepinprevchip;
 	u32 samepinnextchip;
 
-	u32 chipinfo;
-	u32 footinfo;
-	u32 samechipprevpin;
-	u32 samechipnextpin;
-};
-*/
-struct wire
-{
-	u32 desttype;		//eg: 'hash', 'dir', 'file', 'func'
-	u32 destzero;
-	u32 destchip;
-	u32 destfoot;
-	u32 samepinprevchip;
-	u32 samepinnextchip;
-
-	u32 selftype;		//eg: 'dir', 'file', 'func', 'hash'
-	u32 selfzero;
-	u32 selfchip;
-	u32 selffoot;
+	u64 selftype;		//eg: 'dir', 'file', 'func', 'hash'
+	u64 selfchip;
+	u64 selffoot;
 	u32 samechipprevpin;
 	u32 samechipnextpin;
 };
@@ -91,39 +75,34 @@ void* connect_write_new(struct hash* uchip, u64 ufoot, u64 utype, struct hash* b
 	if(wirelen > 0xfff00)return 0;
 
 	w = (void*)wirebuf + wirelen;
-	wirelen += 0x30;
+	wirelen += sizeof(struct wire);
 
 	//1.dest
 	w->desttype = utype;
-	w->destzero = 0;
+	w->destfoot = ufoot;
 	if(utype == hex32('h','a','s','h'))
 	{
-		w->destchip = uchip->hash0;
-		w->destfoot = uchip->hash1;
+		w->destchip = *(u64*)uchip;
 	}
 	else
 	{
 		w->destchip = *(u32*)uchip;
-		w->destfoot = ufoot;
 	}
 
 	//2.self
 	w->selftype = btype;
-	w->selfzero = 0;
+	w->selffoot = bfoot;
 	if(btype == 0)
 	{
 		w->selfchip = 0;
-		w->selffoot = 0;
 	}
 	else if(btype == hex32('h','a','s','h'))
 	{
-		w->selfchip = bchip->hash0;
-		w->selffoot = bchip->hash1;
+		w->selfchip = *(u64*)bchip;
 	}
 	else
 	{
 		w->selfchip = *(u32*)bchip;
-		w->selffoot = bfoot;
 	}
 
 	return w;
@@ -235,7 +214,7 @@ void connect_start(int flag)
 			O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
 			S_IRWXU|S_IRWXG|S_IRWXO
 		);
-		wirelen = 0x30;
+		wirelen = sizeof(struct wire);
 	}
 	else
 	{
