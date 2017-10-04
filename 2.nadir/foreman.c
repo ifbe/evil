@@ -297,8 +297,18 @@ int worker_start(char* p)
 	struct stat statbuf;
 	int size;
 	int ret;
+	if(p == 0)return -1;
 
-	//check name
+	//filter dir
+	if(p[0] == '.')
+	{
+		if(p[1] == '4')
+		{
+			if(p[2] == '2')return -1;
+		}
+	}
+
+	//get suffix
 	ret = worker_choose(p);
 	if(ret < 0)return -1;
 

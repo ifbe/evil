@@ -83,6 +83,7 @@ void searchfile(int offset)
 	struct fileindex* f;
 	struct wire* ipin;
 	struct wire* opin;
+	if(offset%0x20 != 0)printf("\nnotfound: file@%x",offset);
 
 	f = filetrav_read(offset);
 	printf("\nfile :%x @%llx\n", offset, (u64)f);
@@ -96,7 +97,8 @@ void searchfile(int offset)
 	if(ipin->selftype == 0)
 	{
 		temp = ipin->samechipnextpin;
-		if(temp != 0)opin = connect_read(temp);
+		if(temp == 0)opin = 0;
+		else opin = connect_read(temp);
 	}
 	else
 	{
@@ -110,7 +112,7 @@ void searchfile(int offset)
 	{
 		if(ipin->selftype == hex32('h','a','s','h'))
 		{
-			printf("	");
+			printf("	hash	");
 			stringhash_print(ipin->selfchip);
 		}
 		else if(ipin->selfchip != 0)
@@ -134,12 +136,12 @@ void searchfile(int offset)
 		//searchfile_printdest(opin);
 		if(opin->desttype == hex32('h','a','s','h'))
 		{
-			printf("	%-8s ", (char*)&(opin->desttype));
+			printf("	hash	");
 			stringhash_print(opin->destchip);
 		}
 		else
 		{
-			printf("	%-8s %08llx	%08llx\n",
+			printf("	%-s %08llx	%08llx\n",
 			(char*)&(opin->desttype),
 			opin->destchip, opin->destfoot);
 		}
@@ -163,6 +165,7 @@ void searchfunc(int offset)
 	struct funcindex* f;
 	struct wire* ipin;
 	struct wire* opin;
+	if(offset%0x20 != 0)printf("\nnotfound: func@%x",offset);
 
 	f = funcindx_read(offset);
 	printf("\nfunc :%x @%llx\n", offset, (u64)f);
@@ -176,7 +179,8 @@ void searchfunc(int offset)
 	if(ipin->selftype == 0)
 	{
 		temp = ipin->samechipnextpin;
-		if(temp != 0)opin = connect_read(temp);
+		if(temp == 0)opin = 0;
+		else opin = connect_read(temp);
 	}
 	else
 	{
@@ -191,7 +195,7 @@ void searchfunc(int offset)
 		if(ipin->selftype == hex32('h','a','s','h'))
 		{
 			printf("	");
-			stringhash_print(*(u64*)&(ipin->selfchip));
+			stringhash_print(ipin->selfchip);
 		}
 
 		temp = ipin->samepinnextchip;
@@ -208,18 +212,17 @@ void searchfunc(int offset)
 		//searchfunc_printdest(opin);
 		if(opin->desttype == hex32('h','a','s','h'))
 		{
-			printf("	%-8s ", (char*)&(opin->desttype));
-			stringhash_print(*(u64*)&(opin->destchip));
+			printf("	hash	");
+			stringhash_print(opin->destchip);
 		}
 		else if(opin->desttype == hex32('f','i','l','e'))
 		{
-			printf("	%-8s %08llx	%lld\n",
-			(char*)&(opin->desttype),
+			printf("	file	%08llx	%lld\n",
 			opin->destchip, opin->destfoot);
 		}
 		else
 		{
-			printf("	%-8s %08llx	%08llx\n",
+			printf("	%-s	%08llx	%08llx\n",
 			(char*)&(opin->desttype),
 			opin->destchip, opin->destfoot);
 		}
@@ -248,7 +251,7 @@ void searchhash(char* buf, int len)
 	h = stringhash_read(haha);
 	if(h == 0)
 	{
-		printf("notfound: %s\n", buf);
+		printf("\nnotfound: %s\n", buf);
 		return;
 	}
 	printf("\nhash: %08x%08x @0x%08llx(%s)\n",
@@ -265,13 +268,15 @@ void searchhash(char* buf, int len)
 	if(ipin->selftype == 0)
 	{
 		temp = ipin->samechipnextpin;
-		if(temp != 0)opin = connect_read(temp);
+		if(temp == 0)opin = 0;
+		else opin = connect_read(temp);
 	}
 	else
 	{
 		opin = ipin;
 		ipin = 0;
 	}
+	//printf("temp=%llx,ipin=%llx,opin=%llx\n",temp,ipin,opin);
 
 	//input(only one)
 	if(ipin != 0)printf("i:\n");
@@ -279,12 +284,12 @@ void searchhash(char* buf, int len)
 	{
 		if(ipin->selftype == hex32('h','a','s','h'))
 		{
-			printf("	");
-			stringhash_print(*(u64*)&(ipin->selfchip));
+			printf("	hash	");
+			stringhash_print(ipin->selfchip);
 		}
 		else if(ipin->selftype != 0)
 		{
-			printf("	%-8s %08llx	%08llx\n",
+			printf("	%-s	%08llx	%08llx\n",
 			(char*)&(ipin->selftype),
 			ipin->selfchip, ipin->selffoot);
 		}
@@ -303,12 +308,12 @@ void searchhash(char* buf, int len)
 
 		if(opin->desttype == hex32('h','a','s','h'))
 		{
-			printf("	%-8s ", (char*)&(opin->desttype));
-			stringhash_print(*(u64*)&(opin->destchip));
+			printf("	hash	");
+			stringhash_print(opin->destchip);
 		}
 		else
 		{
-			printf("	%-8s %08llx	%08llx\n",
+			printf("	%-s	%08llx	%08llx\n",
 			(char*)&(opin->desttype),
 			opin->destchip, opin->destfoot);
 		}
