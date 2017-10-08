@@ -72,7 +72,10 @@ int count_delete();
 int include_create(void*, void*);
 int include_delete();
 //
-int substr_write(void*, int);
+int utf8_create(void*, void*);
+int utf8_delete();
+//
+int name_write(void*, int);
 
 
 
@@ -139,7 +142,7 @@ static char outbuf[0x100000];
 
 
 
-static u64 pathhash;
+static u64 strhash;
 static void* fileobj;
 static void* funcobj;
 int worker_write(char* buf, int len, int type, int haha)
@@ -148,20 +151,19 @@ int worker_write(char* buf, int len, int type, int haha)
 	void* thatobj;
 	if(type == 0)		//file
 	{
-		//string hash
-		thisobj = stringhash_write(buf, len);
-		if(thisobj == 0)
-		{
-			printf("error@1111\n");
-			return 0;
-		}
-		pathhash = *(u64*)thisobj;
-
 		//(name, size, attr, ...)
 		fileobj = filetrav_write(buf, haha);
 		if(fileobj == 0)
 		{
 			printf("error@2222\n");
+			return 0;
+		}
+
+		//string hash
+		thisobj = stringhash_read(strhash);
+		if(thisobj == 0)
+		{
+			printf("error@1111\n");
 			return 0;
 		}
 
@@ -225,7 +227,7 @@ int worker_write(char* buf, int len, int type, int haha)
 			return 0;
 		}
 
-		thatobj = stringhash_read(pathhash);
+		thatobj = stringhash_read(strhash);
 		if(thisobj == 0)
 		{
 			printf("error@7777\n");
@@ -238,10 +240,22 @@ int worker_write(char* buf, int len, int type, int haha)
 			thisobj, 0, hex32('h','a','s','h')
 		);
 	}
+	else if(type == 4)
+	{
+		//string hash
+		thisobj = stringhash_write(buf, len);
+		if(thisobj == 0)
+		{
+			printf("error@1111\n");
+			return 0;
+		}
+		strhash = *(u64*)thisobj;
+	}
 	return 1;
 }
 int worker_read()
 {
+	//read
 	int ret = read(infile, inbuf, 0x100000);
 	if(ret < 0)
 	{
@@ -249,9 +263,20 @@ int worker_read()
 		close(infile);
 		return -4;
 	}
+	inbuf[ret] = 0;
 
-	inbuf[ret]=0;
-	return w[chosen].read(inbuf, ret, outbuf, 0x100000);
+	//hash?
+	worker_write(inbuf, ret, 0, 0);
+
+	//start
+	w[chosen].start();
+
+	//explain
+	ret = w[chosen].read(inbuf, ret, outbuf, 0x100000);
+
+	//stop
+	w[chosen].stop();
+	return ret;
 }
 int worker_list()
 {
@@ -312,7 +337,6 @@ int worker_start(char* p)
 	ret = worker_choose(p);
 	if(ret < 0)return -1;
 
-//~~~~~~~~~~~~~~~~~~~~~~~1~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	//stat
 	ret=stat(p, &statbuf);
 	if(ret == -1)
@@ -329,7 +353,6 @@ int worker_start(char* p)
 		return -4;
 	}
 
-//~~~~~~~~~~~~~~~~~~~~~~~2~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	//open
 	infile = open(p , O_RDONLY|O_BINARY);
 	if(infile < 0)
@@ -338,24 +361,14 @@ int worker_start(char* p)
 		return -5;
 	}
 
-	w[chosen].start();
-
-//~~~~~~~~~~~~~~~~~~~~~~~3~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	//infomation
-	for(ret=0;ret<256;ret++)
-	{
-		if(p[ret] == 0)
-		{
-			worker_write(p, ret, 0, size);
-			break;
-		}
-	}
-	substr_write(p, ret);
+	//parent str, child str
+	printf("%d	%x	%s\n", size, size, p);
+	name_write(p, 0);
 	return 1;
 }
 int worker_stop()
 {
-	w[chosen].stop();
+	//close
 	close(infile);
 	return 0;
 }
@@ -383,6 +396,8 @@ void worker_create()
 	struct_create(w, j);
 	j += 0x100;
 
+	utf8_create(w,j);
+	j += 0x100;
 	//worker_list();
 }
 void worker_delete()

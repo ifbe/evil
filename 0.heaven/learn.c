@@ -60,16 +60,16 @@ int learn(int argc,char** argv)
 			if(p == 0)break;
 			//printf("file=%s\n",p);
 
-			//choose worker
+			//check
 			k = worker_start(p);
 			if(k <= 0)continue;
 			//printf("worker=%d\n",k);
 
-			//do it
+			//parse
 			k = worker_read();
 			//worker_write(k);
 
-			//
+			//close
 			worker_stop();
 		}
 		traverse_stop();

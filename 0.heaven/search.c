@@ -251,7 +251,7 @@ void searchhash(char* buf, int len)
 	h = stringhash_read(haha);
 	if(h == 0)
 	{
-		printf("\nnotfound: %s\n", buf);
+		printf("\nnotfound: (%llx)%s\n", haha, buf);
 		return;
 	}
 	printf("\nhash: %08x%08x @0x%08llx(%s)\n",
