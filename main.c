@@ -1,6 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#if (defined(_WIN32) || defined(__WIN32__))
+#define mkdir(A, B) mkdir(A)
+#endif
 //
 void filedata_create();
 void filedata_delete();
@@ -50,6 +55,20 @@ int main(int argc, char** argv)
 	{
 		help();
 		return 0;
+	}
+	//---------------------------------------------------------
+
+
+
+
+	//--------------------------.42 dir check------------------
+	{
+		struct stat s;
+		int err=stat(".42",&s);
+		if((-1==err) || !S_ISDIR(s.st_mode))
+		{
+			mkdir(".42", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+		}
 	}
 	//---------------------------------------------------------
 
