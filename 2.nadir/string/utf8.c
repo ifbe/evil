@@ -49,7 +49,7 @@ void utf8_read(u8* buf, int len)
 		}
 
 		k++;
-		if(k >= 0x8000)break;
+		if(k >= len)break;
 	}
 }
 void utf8_write()

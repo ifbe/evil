@@ -12,7 +12,7 @@
 #define u16 unsigned short
 #define u32 unsigned int
 #define u64 unsigned long long
-void stringdata_read(int);
+void stringdata_read(int, int);
 int stringdata_write(char*, int);
 
 
@@ -28,7 +28,8 @@ struct hash
 	u64 first;
 	u64 last;
 };
-static struct hash hashbuf[0x8000];
+#define maxlen 0x1000000
+static u8 hashbuf[maxlen];
 static int hashfd;
 static int hashlen;
 
@@ -87,19 +88,19 @@ void* stringhash_search(u64 hash)
 		//expand
 		if(left >= hashlen/0x20)
 		{
-			if(hashlen >= 0xfffe0)return 0;
-			return &hashbuf[left];
+			if(hashlen >= maxlen - 0x20)return 0;
+			return hashbuf + (left*0x20);
 		}
 
 		//lastone
 		if(left >= right)
 		{
-			return &hashbuf[left];
+			return hashbuf + (left*0x20);
 		}
 
 		//
 		mid = (left+right)/2;
-		xxx = *(u64*)(&hashbuf[mid]);
+		xxx = *(u64*)(hashbuf + (mid*0x20));
 		if(xxx < hash)
 		{
 			left = mid+1;
@@ -110,7 +111,7 @@ void* stringhash_search(u64 hash)
 		}
 		else
 		{
-			return &hashbuf[mid];
+			return hashbuf + (mid*0x20);
 		}
 	}
 }
@@ -124,7 +125,7 @@ void stringhash_print(u64 hash)
 
 	if((h->len) > 8)
 	{
-		stringdata_read(h->off);
+		stringdata_read(h->off, h->len);
 	}
 	else
 	{
@@ -162,11 +163,11 @@ void* stringhash_write(char* buf, int len)
 	//same
 	if(*(u64*)h == temp)return h;
 
-	if(hashlen > 0xfffe0)return 0;
+	if(hashlen > maxlen - 0x20)return 0;
 	hashlen += 0x20;
 
 	//move
-	dst = (void*)hashbuf + hashlen + 0x1f;
+	dst = hashbuf + hashlen + 0x1f;
 	src = dst - 0x20;
 	while(1)
 	{
@@ -201,7 +202,6 @@ void stringhash_choose()
 void stringhash_start(int flag)
 {
 	int j;
-	char* buf;
 	char* name = ".42/str.hash";
 
 	if(flag == 0)
@@ -213,8 +213,7 @@ void stringhash_start(int flag)
 		);
 		hashlen = 0;
 
-		buf = (void*)hashbuf;
-		for(j=0;j<0x100000;j++)buf[j] = 0;
+		for(j=0;j<maxlen;j++)hashbuf[j] = 0;
 	}
 	else
 	{
@@ -226,12 +225,11 @@ void stringhash_start(int flag)
 		);
 
 		//read
-		hashlen = read(hashfd, hashbuf, 0x100000);
+		hashlen = read(hashfd, hashbuf, maxlen);
 		printf("str hash:	%x\n", hashlen);
 
 		//clean
-		buf = (void*)hashbuf;
-		for(j=hashlen;j<0x100000;j++)buf[j] = 0;
+		for(j=hashlen;j<maxlen;j++)hashbuf[j] = 0;
 	}
 }
 void stringhash_stop()

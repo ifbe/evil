@@ -138,9 +138,9 @@ printf("%c,%c\n",first[j],second[k]);
 
 
 
-int stringdata_read(int off)
+int stringdata_read(int off, int len)
 {
-	printf("%s\n", charbuf + off);
+	printf("%.*s\n", len, charbuf + off);
 	return 0;
 }
 int stringdata_write(char* buf, int len)
@@ -152,10 +152,11 @@ int stringdata_write(char* buf, int len)
 	if(j > 0)return j;
 */
 	for(j=0;j<len;j++)charbuf[charlen+j] = buf[j];
-	charbuf[charlen + len] = 0;
 
 	j = charlen;
-	charlen += len+1;
+
+	charlen += len;
+
 	return j;
 }
 void stringdata_start(int flag)
