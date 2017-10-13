@@ -28,10 +28,10 @@ struct hash
 	u64 first;
 	u64 last;
 };
-#define maxlen 0x1000000
-static u8 hashbuf[maxlen];
-static int hashfd;
-static int hashlen;
+#define maxlen 0x100000
+static u8* hashbuf[256];
+static int hashfd[256];
+static int hashlen[256];
 
 
 
@@ -77,30 +77,29 @@ u64 strhash_generate(char* buf, int len)
 
 	return *(u64*)this;
 }
+
+
+
+
 void* strhash_search(u64 hash)
 {
 	u64 xxx;
-	int mid;
-	int left = 0;
-	int right = hashlen/0x20;
+	int index, mid, left, right;
+	index = (hash >> 56);// & 0xf0;
+
+	left = 0;
+	right = hashlen[index]/0x20;
 	while(1)
 	{
-		//expand
-		if(left >= hashlen/0x20)
-		{
-			if(hashlen >= maxlen - 0x20)return 0;
-			return hashbuf + (left*0x20);
-		}
-
 		//lastone
 		if(left >= right)
 		{
-			return hashbuf + (left*0x20);
+			return hashbuf[index] + (left*0x20);
 		}
 
 		//
 		mid = (left+right)/2;
-		xxx = *(u64*)(hashbuf + (mid*0x20));
+		xxx = *(u64*)(hashbuf[index] + (mid*0x20));
 		if(xxx < hash)
 		{
 			left = mid+1;
@@ -111,14 +110,12 @@ void* strhash_search(u64 hash)
 		}
 		else
 		{
-			return hashbuf + (mid*0x20);
+			return hashbuf[index] + (mid*0x20);
 		}
 	}
 }
 void strhash_print(u64 hash)
 {
-	char buf[9];
-
 	struct hash* h = strhash_search(hash);
 	if(h == 0)return;
 	if(*(u64*)h != hash)return;
@@ -129,25 +126,18 @@ void strhash_print(u64 hash)
 	}
 	else
 	{
-		*(u64*)buf = hash;
-		buf[8] = 0;
-		printf("%-8s\n", buf);
+		printf("%-8.8s\n", (char*)h);
 	}
 }
 
 
 
 
-void* strhash_read(u64 hash)
-{
-	struct hash* h = strhash_search(hash);
-	if(h == 0)return 0;
-	if(*(u64*)h != hash)return 0;
-	return h;
-}
+void stoplearn();
 void* strhash_write(char* buf, int len)
 {
 	int j;
+	int index;
 	struct hash* h;
 	u8* src;
 	u8* dst;
@@ -156,18 +146,26 @@ void* strhash_write(char* buf, int len)
 	//
 	temp = strhash_generate(buf, len);
 
-	//no space
+	//notfound
 	h = strhash_search(temp);
 	if(h == 0)return 0;
 
-	//same
+	//repeat
 	if(*(u64*)h == temp)return h;
 
-	if(hashlen > maxlen - 0x20)return 0;
-	hashlen += 0x20;
+	//
+	index = (temp >> 56);// & 0xf0;
+	hashlen[index] += 0x20;
+	if(	((index == 0) && (hashlen[index] >= 0x1000000 - 0x20))
+	|	((index != 0) && (hashlen[index] >= maxlen - 0x20)) )
+	{
+		printf("err@strhash");
+		stoplearn();
+		return 0;
+	}
 
 	//move
-	dst = hashbuf + hashlen + 0x1f;
+	dst = hashbuf[index] + hashlen[index] + 0x1f;
 	src = dst - 0x20;
 	while(1)
 	{
@@ -193,54 +191,74 @@ void* strhash_write(char* buf, int len)
 	//printf("%d	%s\n", j, buf);
 	return h;
 }
+void* strhash_read(u64 hash)
+{
+	struct hash* h = strhash_search(hash);
+	if(h == 0)return 0;
+	if(*(u64*)h != hash)return 0;
+	return h;
+}
 void strhash_list()
 {
 }
 void strhash_choose()
 {
 }
-void strhash_start(int flag)
+void strhash_start(int type)
 {
-	int j;
-	char* name = ".42/str.hash";
+	int j, k;
+	int flag1, flag2;
+	char name[32];
+	u8* p;
+	if(type != 0)printf("strhash:\n");
 
-	if(flag == 0)
+	for(j=0;j<256;j++)
 	{
-		hashfd = open(
-			name,
-			O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
-			S_IRWXU|S_IRWXG|S_IRWXO
-		);
-		hashlen = 0;
+		//name
+		snprintf(name, 32, ".42/strhash/%02x", j);
+		flag1 = O_CREAT|O_RDWR|O_BINARY;
+		if(type == 0)flag1 |= O_TRUNC;
+		flag2 = S_IRWXU|S_IRWXG|S_IRWXO;
 
-		for(j=0;j<maxlen;j++)hashbuf[j] = 0;
-	}
-	else
-	{
 		//open
-		hashfd = open(
-			name,
-			O_CREAT|O_RDWR|O_BINARY,
-			S_IRWXU|S_IRWXG|S_IRWXO
-		);
+		hashfd[j] = open(name, flag1, flag2);
+		if(hashfd[j] <= 0)
+		{
+			printf("error@hashfd%02x\n", j);
+			exit(-1);
+		}
+
+		//malloc
+		if(j == 0)p = malloc(0x1000000);
+		else p = malloc(maxlen);
+		hashbuf[j] = p;
 
 		//read
-		hashlen = read(hashfd, hashbuf, maxlen);
-		printf("strhash:	%x\n", hashlen);
+		if(type == 0)k = 0;
+		else
+		{
+			k = read(hashfd[j], p, maxlen);
+			//printf("	%02x:	%x\n", j, k);
+		}
+		hashlen[j] = k;
 
 		//clean
-		for(j=hashlen;j<maxlen;j++)hashbuf[j] = 0;
+		for(;k<maxlen;k++)p[k] = 0;
 	}
 }
 void strhash_stop()
 {
+	int j;
+	for(j=0;j<256;j++)
+	{
+		lseek(hashfd[j], 0, SEEK_SET);
+		write(hashfd[j], hashbuf[j], hashlen[j]);
+		close(hashfd[j]);
+	}
 }
 void strhash_create()
 {
 }
 void strhash_delete()
 {
-	lseek(hashfd, 0, SEEK_SET);
-	write(hashfd, hashbuf, hashlen);
-	close(hashfd);
 }

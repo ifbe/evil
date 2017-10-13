@@ -17,7 +17,8 @@
 
 
 //
-static u8 charbuf[0x100000];
+#define maxlen 0x1000000
+static u8 charbuf[maxlen];
 static int charfd;
 static int charlen;
 
@@ -138,11 +139,7 @@ printf("%c,%c\n",first[j],second[k]);
 
 
 
-int strdata_read(int off, int len)
-{
-	printf("%.*s\n", len, charbuf + off);
-	return 0;
-}
+void stoplearn();
 int strdata_write(char* buf, int len)
 {
 	int j;
@@ -156,14 +153,25 @@ int strdata_write(char* buf, int len)
 
 	j = charlen;
 	charlen += len+1;
+	if(charlen >= maxlen)
+	{
+		printf("err@strdata\n");
+		stoplearn();
+		return 0;
+	}
 
 	return j;
+}
+int strdata_read(int off, int len)
+{
+	printf("%.*s\n", len, charbuf + off);
+	return 0;
 }
 void strdata_start(int flag)
 {
 	int j;
 	char* buf;
-	char* name = ".42/str.data";
+	char* name = ".42/strdata/00";
 
 	if(flag == 0)
 	{
@@ -175,7 +183,7 @@ void strdata_start(int flag)
 		charlen = 0;
 
 		buf = (void*)charbuf;
-		for(j=0;j<0x100000;j++)buf[j] = 0;
+		for(j=0;j<maxlen;j++)buf[j] = 0;
 	}
 	else
 	{
@@ -187,23 +195,23 @@ void strdata_start(int flag)
 		);
 
 		//read
-		charlen = read(charfd, charbuf, 0x100000);
+		charlen = read(charfd, charbuf, maxlen);
 		printf("strdata:	%x\n", charlen);
 
 		//clean
 		buf = (void*)charbuf;
-		for(j=charlen;j<0x100000;j++)buf[j] = 0;
+		for(j=charlen;j<maxlen;j++)buf[j] = 0;
 	}
 }
 void strdata_stop()
 {
+	lseek(charfd, 0, SEEK_SET);
+	write(charfd, charbuf, charlen);
+	close(charfd);
 }
 void strdata_create()
 {
 }
 void strdata_delete()
 {
-	lseek(charfd, 0, SEEK_SET);
-	write(charfd, charbuf, charlen);
-	close(charfd);
 }

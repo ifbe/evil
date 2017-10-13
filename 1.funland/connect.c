@@ -62,7 +62,7 @@ struct wire
 	u32 samechipprevpin;
 	u32 samechipnextpin;
 };
-#define maxlen 0x1000000
+#define maxlen 0x20000000
 static u8 wirebuf[maxlen];
 static int wirefd;
 static int wirelen;
@@ -70,10 +70,16 @@ static int wirelen;
 
 
 
+void stoplearn();
 void* connect_write_new(struct hash* uchip, u64 ufoot, u64 utype, struct hash* bchip, u64 bfoot, u64 btype)
 {
 	struct wire* w;
-	if(wirelen > maxlen-0x40)return 0;
+	if(wirelen > maxlen-0x40)
+	{
+		printf("err@wire\n");
+		stoplearn();
+		return 0;
+	}
 
 	w = (void*)wirebuf + wirelen;
 	wirelen += sizeof(struct wire);
@@ -205,7 +211,7 @@ void connect_choose()
 void connect_start(int flag)
 {
 	int j;
-	char* name = ".42/42.wire";
+	char* name = ".42/wire/00";
 
 	if(flag == 0)
 	{
@@ -234,13 +240,13 @@ void connect_start(int flag)
 }
 void connect_stop()
 {
+	lseek(wirefd, 0, SEEK_SET);
+	write(wirefd, wirebuf, wirelen);
+	close(wirefd);
 }
 void connect_create()
 {
 }
 void connect_delete()
 {
-	lseek(wirefd, 0, SEEK_SET);
-	write(wirefd, wirebuf, wirelen);
-	close(wirefd);
 }

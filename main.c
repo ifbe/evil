@@ -14,8 +14,8 @@ void filemd5_delete();
 //
 void funcdata_create();
 void funcdata_delete();
-void funcindx_create();
-void funcindx_delete();
+void funcindex_create();
+void funcindex_delete();
 //
 void strdata_create();
 void strdata_delete();
@@ -62,14 +62,21 @@ int main(int argc, char** argv)
 
 
 	//--------------------------.42 dir check------------------
-	{
-		struct stat s;
-		int err=stat(".42",&s);
-		if((-1==err) || !S_ISDIR(s.st_mode))
-		{
-			mkdir(".42", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-		}
-	}
+	//{
+	//struct stat s;
+	//int err=stat(".42",&s);
+	//if((-1==err) || !S_ISDIR(s.st_mode))
+	//{
+	//}
+	//}
+	mkdir(".42", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
+	mkdir(".42/wire", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
+	mkdir(".42/filemd5", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
+	mkdir(".42/funcindex", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
+	mkdir(".42/strhash", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
+	mkdir(".42/filedata", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
+	mkdir(".42/funcdata", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
+	mkdir(".42/strdata", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
 	//---------------------------------------------------------
 
 
@@ -79,7 +86,7 @@ int main(int argc, char** argv)
 	filemd5_create();
 	filedata_create();
 
-	funcindx_create();
+	funcindex_create();
 	funcdata_create();
 
 	strhash_create();
@@ -121,7 +128,7 @@ int main(int argc, char** argv)
 	strhash_delete();
 	strdata_delete();
 
-	funcindx_delete();
+	funcindex_delete();
 	funcdata_delete();
 
 	filemd5_delete();

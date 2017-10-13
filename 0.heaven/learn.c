@@ -18,12 +18,19 @@
 
 
 void filedata_start(int);
+void filedata_stop();
 void filemd5_start(int);
+void filemd5_stop();
 void funcdata_start(int);
-void funcindx_start(int);
+void funcdata_stop();
+void funcindex_start(int);
+void funcindex_stop();
 void strdata_start(int);
+void strdata_stop();
 void strhash_start(int);
+void strhash_stop();
 void connect_start(int);
+void connect_stop();
 //
 int traverse_start(char* p);
 int traverse_stop();
@@ -36,6 +43,17 @@ int worker_read();
 
 
 
+void stoplearn()
+{
+	filedata_stop();
+	filemd5_stop();
+	funcdata_stop();
+	funcindex_stop();
+	strdata_stop();
+	strhash_stop();
+	connect_stop();
+	exit(-1);
+}
 int learn(int argc,char** argv)
 {
 	int j,k;
@@ -43,7 +61,7 @@ int learn(int argc,char** argv)
 	filedata_start(0);
 	filemd5_start(0);
 	funcdata_start(0);
-	funcindx_start(0);
+	funcindex_start(0);
 	strdata_start(0);
 	strhash_start(0);
 	connect_start(0);
@@ -74,5 +92,7 @@ int learn(int argc,char** argv)
 		}
 		traverse_stop();
 	}//for
+
+	stoplearn();
 	return 0;
 }

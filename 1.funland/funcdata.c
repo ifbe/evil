@@ -28,7 +28,7 @@ void funcdata_start(int flag)
 {
 	int j;
 	char* buf;
-	char* name = ".42/func.data";
+	char* name = ".42/funcdata/00";
 
 	if(flag == 0)
 	{
@@ -62,13 +62,13 @@ void funcdata_start(int flag)
 }
 void funcdata_stop()
 {
+	lseek(funcdatafd, 0, SEEK_SET);
+	write(funcdatafd, funcdatabuf, funcdatalen);
+	close(funcdatafd);
 }
 void funcdata_create()
 {
 }
 void funcdata_delete()
 {
-	lseek(funcdatafd, 0, SEEK_SET);
-	write(funcdatafd, funcdatabuf, funcdatalen);
-	close(funcdatafd);
 }

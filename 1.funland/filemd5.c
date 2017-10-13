@@ -42,7 +42,8 @@ struct fileindex
 	u64 first;
 	u64 last;
 };
-static u8 md5buf[0x100000];
+#define maxlen 0x100000
+static u8 md5buf[maxlen];
 static int md5fd;
 static int md5len;
 
@@ -166,10 +167,7 @@ void traverse_stop()
 
 
 
-void* filemd5_read(int offset)
-{
-	return (void*)md5buf + offset;
-}
+void stoplearn();
 void* filemd5_write(char* buf, int len)
 {
 	struct fileindex* addr;
@@ -179,13 +177,23 @@ void* filemd5_write(char* buf, int len)
 	addr->what = len;
 
 	md5len += 0x20;
+	if(md5len >= maxlen)
+	{
+		printf("err@filemd5\n");
+		stoplearn();
+		return 0;
+	}
 	return addr;
+}
+void* filemd5_read(int offset)
+{
+	return (void*)md5buf + offset;
 }
 void filemd5_start(int flag)
 {
 	int j;
 	char* buf;
-	char* name = ".42/file.md5";
+	char* name = ".42/filemd5/00";
 
 	if(flag == 0)
 	{
@@ -197,7 +205,7 @@ void filemd5_start(int flag)
 		md5len = 0x20;
 
 		buf = (void*)md5buf;
-		for(j=0;j<0x100000;j++)buf[j] = 0;
+		for(j=0;j<maxlen;j++)buf[j] = 0;
 	}
 	else
 	{
@@ -209,23 +217,23 @@ void filemd5_start(int flag)
 		);
 
 		//read
-		md5len = read(md5fd, md5buf, 0x100000);
+		md5len = read(md5fd, md5buf, maxlen);
 		printf("filemd5:	%x\n", md5len);
 
 		//clean
 		buf = (void*)md5buf;
-		for(j=md5len;j<0x100000;j++)buf[j] = 0;
+		for(j=md5len;j<maxlen;j++)buf[j] = 0;
 	}
 }
 void filemd5_stop()
 {
+	lseek(md5fd, 0, SEEK_SET);
+	write(md5fd, md5buf, md5len);
+	close(md5fd);
 }
 void filemd5_create()
 {
 }
 void filemd5_delete()
 {
-	lseek(md5fd, 0, SEEK_SET);
-	write(md5fd, md5buf, md5len);
-	close(md5fd);
 }

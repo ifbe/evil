@@ -82,7 +82,7 @@ int name_write(void*, int);
 
 //
 void* filemd5_write(void*, u64);
-void* funcindx_write(u64);
+void* funcindex_write(u64);
 void* strhash_write(void*, int);
 void* strhash_read(u64);
 void connect_write(void* uchip, u64 ufoot, u64 utype, void* bchip, u64 bfoot, u64 btype);
@@ -183,7 +183,7 @@ int worker_write(char* buf, int len, int type, int haha)
 		}
 
 		//func item
-		funcobj = funcindx_write(haha);
+		funcobj = funcindex_write(haha);
 		if(funcobj == 0)
 		{
 			printf("error@4444\n");
@@ -204,6 +204,18 @@ int worker_write(char* buf, int len, int type, int haha)
 	}
 	else if(type == 2)
 	{
+if(len==2)
+{
+if((buf[0]=='i')&&(buf[1]=='f'))return 0;
+}
+if(len==3)
+{
+if((buf[0]=='f')&&(buf[1]=='o')&&(buf[2]=='r'))return 0;
+}
+if(len==5)
+{
+if((buf[0]=='w')&&(buf[1]=='h')&&(buf[2]=='i')&&(buf[3]=='l')&&(buf[4]=='e'))return 0;
+}
 		thisobj = strhash_write(buf, len);
 		if(thisobj == 0)
 		{
@@ -306,16 +318,10 @@ int worker_choose(char* p)
 
 	for(j=0;j<20;j++)
 	{
-		//printf("%x\n",w[j].name);
-		if(w[j].name == x)
-		{
-			k = j;
-			break;
-		}
+		if(w[j].name == x)return j;
 	}
 
-	if(k > 0)chosen = k;
-	return k;
+	return -1;
 }
 int worker_start(char* p)
 {
@@ -323,19 +329,15 @@ int worker_start(char* p)
 	int size;
 	int ret;
 	if(p == 0)return -1;
-
-	//filter dir
 	if(p[0] == '.')
 	{
-		if(p[1] == '4')
-		{
-			if(p[2] == '2')return -1;
-		}
+		if((p[1] != '/')&&(p[1] != '.'))return -1;
 	}
 
 	//get suffix
 	ret = worker_choose(p);
 	if(ret < 0)return -1;
+	chosen = ret;
 
 	//stat
 	ret=stat(p, &statbuf);
@@ -378,23 +380,23 @@ void worker_create()
 	char* j = (char*)w;
 	for(t=0;t<0x100*20;t++)j[t] = 0;
 
-	none_create(w, j);	//how many file has been ignored
-	j += 0x100;
+	//none_create(w, j);	//how many file has been ignored
+	//j += 0x100;
 
-	count_create(w, j);	//how many bytes and lines in this file
-	j += 0x100;
+	//count_create(w, j);	//how many bytes and lines in this file
+	//j += 0x100;
 
 	c_create(w, j);
 	j += 0x100;
 
-	cpp_create(w, j);
-	j += 0x100;
+	//cpp_create(w, j);
+	//j += 0x100;
 
-	dts_create(w, j);
-	j += 0x100;
+	//dts_create(w, j);
+	//j += 0x100;
 
-	struct_create(w, j);
-	j += 0x100;
+	//struct_create(w, j);
+	//j += 0x100;
 
 	utf8_create(w,j);
 	j += 0x100;

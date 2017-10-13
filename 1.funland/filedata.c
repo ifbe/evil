@@ -28,7 +28,7 @@ void filedata_start(int flag)
 {
 	int j;
 	char* buf;
-	char* name = ".42/file.data";
+	char* name = ".42/filedata/00";
 
 	if(flag == 0)
 	{
@@ -62,13 +62,13 @@ void filedata_start(int flag)
 }
 void filedata_stop()
 {
+	lseek(filedatafd, 0, SEEK_SET);
+	write(filedatafd, filedatabuf, filedatalen);
+	close(filedatafd);
 }
 void filedata_create()
 {
 }
 void filedata_delete()
 {
-	lseek(filedatafd, 0, SEEK_SET);
-	write(filedatafd, filedatabuf, filedatalen);
-	close(filedatafd);
 }

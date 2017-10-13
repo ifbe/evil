@@ -7,7 +7,7 @@ all:
 	1.funland/connect.c \
 	1.funland/filedata.c \
 	1.funland/filemd5.c \
-	1.funland/funcindx.c \
+	1.funland/funcindex.c \
 	1.funland/funcdata.c \
 	1.funland/strhash.c \
 	1.funland/strdata.c \

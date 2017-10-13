@@ -13,7 +13,7 @@ u64 strhash_generate(char*,int);
 void strhash_print(u64);
 void* strhash_read(u64);
 //
-void* funcindx_read(int);
+void* funcindex_read(int);
 void* filemd5_read(int);
 //
 void connect_write(void* uchip, u64 ufoot, u64 utype, void* bchip, u64 bfoot, u64 btype);
@@ -22,7 +22,7 @@ void* connect_read(int);
 void filedata_start(int);
 void filemd5_start(int);
 void funcdata_start(int);
-void funcindx_start(int);
+void funcindex_start(int);
 void strdata_start(int);
 void strhash_start(int);
 void connect_start(int);
@@ -108,7 +108,7 @@ void searchfile(int offset)
 	}
 
 	//input
-	if(ipin != 0)printf("i:\n");
+	if(ipin != 0)printf("i:");
 	while(ipin != 0)
 	{
 		if(ipin->selftype == hex32('h','a','s','h'))
@@ -133,7 +133,7 @@ void searchfile(int offset)
 	//output(many)
 	while(opin != 0)
 	{
-		printf("o:\n");
+		printf("o:");
 		//searchfile_printdest(opin);
 		if(opin->desttype == hex32('h','a','s','h'))
 		{
@@ -168,7 +168,7 @@ void searchfunc(int offset)
 	struct wire* opin;
 	if(offset%0x20 != 0)printf("\nnotfound: func@%x",offset);
 
-	f = funcindx_read(offset);
+	f = funcindex_read(offset);
 	printf("\nfunc :%x @%llx\n", offset, (u64)f);
 
 	temp = f->first;
@@ -190,7 +190,7 @@ void searchfunc(int offset)
 	}
 
 	//input
-	if(ipin != 0)printf("i:\n");
+	if(ipin != 0)printf("i:");
 	while(ipin != 0)
 	{
 		if(ipin->selftype == hex32('h','a','s','h'))
@@ -209,7 +209,7 @@ void searchfunc(int offset)
 	//output(many)
 	while(opin != 0)
 	{
-		printf("o:\n");
+		printf("o:");
 		//searchfunc_printdest(opin);
 		if(opin->desttype == hex32('h','a','s','h'))
 		{
@@ -280,7 +280,7 @@ void searchhash(char* buf, int len)
 	//printf("temp=%llx,ipin=%llx,opin=%llx\n",temp,ipin,opin);
 
 	//input(only one)
-	if(ipin != 0)printf("i:\n");
+	if(ipin != 0)printf("i:");
 	while(ipin != 0)
 	{
 		if(ipin->selftype == hex32('h','a','s','h'))
@@ -305,7 +305,7 @@ void searchhash(char* buf, int len)
 	//output(many)
 	while(opin != 0)
 	{
-		printf("o:\n");
+		printf("o:");
 
 		if(opin->desttype == hex32('h','a','s','h'))
 		{
@@ -333,7 +333,7 @@ void search(int argc, char** argv)
 	filedata_start(1);
 	filemd5_start(1);
 	funcdata_start(1);
-	funcindx_start(1);
+	funcindex_start(1);
 	strdata_start(1);
 	strhash_start(1);
 	connect_start(1);
