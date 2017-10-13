@@ -50,15 +50,15 @@ struct funcindex
 };
 struct wire
 {
-	u64 desttype;		//eg: 'hash', 'dir', 'file', 'func'
 	u64 destchip;
 	u64 destfoot;
+	u64 desttype;		//eg: 'hash', 'dir', 'file', 'func'
 	u32 samepinprevchip;
 	u32 samepinnextchip;
 
-	u64 selftype;		//eg: 'dir', 'file', 'func', 'hash'
 	u64 selfchip;
 	u64 selffoot;
+	u64 selftype;		//eg: 'dir', 'file', 'func', 'hash'
 	u32 samechipprevpin;
 	u32 samechipnextpin;
 };

@@ -9,18 +9,18 @@
 //
 void filedata_create();
 void filedata_delete();
-void filetrav_create();
-void filetrav_delete();
+void filemd5_create();
+void filemd5_delete();
 //
 void funcdata_create();
 void funcdata_delete();
 void funcindx_create();
 void funcindx_delete();
 //
-void stringdata_create();
-void stringdata_delete();
-void stringhash_create();
-void stringhash_delete();
+void strdata_create();
+void strdata_delete();
+void strhash_create();
+void strhash_delete();
 //
 void connect_create();
 void connect_delete();
@@ -76,14 +76,14 @@ int main(int argc, char** argv)
 
 
 	//-------------------------before--------------------------
-	filetrav_create();
+	filemd5_create();
 	filedata_create();
 
 	funcindx_create();
 	funcdata_create();
 
-	stringhash_create();
-	stringdata_create();
+	strhash_create();
+	strdata_create();
 
 	connect_create();
 	worker_create();
@@ -118,13 +118,13 @@ int main(int argc, char** argv)
 	worker_delete();
 	connect_delete();
 
-	stringhash_delete();
-	stringdata_delete();
+	strhash_delete();
+	strdata_delete();
 
 	funcindx_delete();
 	funcdata_delete();
 
-	filetrav_delete();
+	filemd5_delete();
 	filedata_delete();
 	//---------------------------------------------------------
 }

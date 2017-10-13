@@ -81,10 +81,10 @@ int name_write(void*, int);
 
 
 //
-void* filetrav_write(void*, u64);
+void* filemd5_write(void*, u64);
 void* funcindx_write(u64);
-void* stringhash_write(void*, int);
-void* stringhash_read(u64);
+void* strhash_write(void*, int);
+void* strhash_read(u64);
 void connect_write(void* uchip, u64 ufoot, u64 utype, void* bchip, u64 bfoot, u64 btype);
 //
 //string.c
@@ -152,7 +152,7 @@ int worker_write(char* buf, int len, int type, int haha)
 	if(type == 0)		//file
 	{
 		//(name, size, attr, ...)
-		fileobj = filetrav_write(buf, haha);
+		fileobj = filemd5_write(buf, haha);
 		if(fileobj == 0)
 		{
 			printf("error@2222\n");
@@ -160,7 +160,7 @@ int worker_write(char* buf, int len, int type, int haha)
 		}
 
 		//string hash
-		thisobj = stringhash_read(strhash);
+		thisobj = strhash_read(strhash);
 		if(thisobj == 0)
 		{
 			printf("error@1111\n");
@@ -175,7 +175,7 @@ int worker_write(char* buf, int len, int type, int haha)
 	}
 	else if(type == 1)		//func
 	{
-		thisobj = stringhash_write(buf, len);
+		thisobj = strhash_write(buf, len);
 		if(thisobj == 0)
 		{
 			printf("error@3333\n");
@@ -204,7 +204,7 @@ int worker_write(char* buf, int len, int type, int haha)
 	}
 	else if(type == 2)
 	{
-		thisobj = stringhash_write(buf, len);
+		thisobj = strhash_write(buf, len);
 		if(thisobj == 0)
 		{
 			printf("error@5555\n");
@@ -220,14 +220,14 @@ int worker_write(char* buf, int len, int type, int haha)
 	else if(type == 3)
 	{
 		//printf("here:%s\n", buf);
-		thisobj = stringhash_write(buf, len);
+		thisobj = strhash_write(buf, len);
 		if(thisobj == 0)
 		{
 			printf("error@6666\n");
 			return 0;
 		}
 
-		thatobj = stringhash_read(strhash);
+		thatobj = strhash_read(strhash);
 		if(thisobj == 0)
 		{
 			printf("error@7777\n");
@@ -243,7 +243,7 @@ int worker_write(char* buf, int len, int type, int haha)
 	else if(type == 4)
 	{
 		//string hash
-		thisobj = stringhash_write(buf, len);
+		thisobj = strhash_write(buf, len);
 		if(thisobj == 0)
 		{
 			printf("error@1111\n");

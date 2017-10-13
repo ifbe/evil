@@ -42,9 +42,9 @@ struct fileindex
 	u64 first;
 	u64 last;
 };
-static u8 travbuf[0x100000];
-static int travfd;
-static int travlen;
+static u8 md5buf[0x100000];
+static int md5fd;
+static int md5len;
 
 
 
@@ -166,66 +166,66 @@ void traverse_stop()
 
 
 
-void* filetrav_read(int offset)
+void* filemd5_read(int offset)
 {
-	return (void*)travbuf + offset;
+	return (void*)md5buf + offset;
 }
-void* filetrav_write(char* buf, int len)
+void* filemd5_write(char* buf, int len)
 {
 	struct fileindex* addr;
 
-	addr = (void*)travbuf + travlen;
-	addr->self = travlen;
+	addr = (void*)md5buf + md5len;
+	addr->self = md5len;
 	addr->what = len;
 
-	travlen += 0x20;
+	md5len += 0x20;
 	return addr;
 }
-void filetrav_start(int flag)
+void filemd5_start(int flag)
 {
 	int j;
 	char* buf;
-	char* name = ".42/file.index";
+	char* name = ".42/file.md5";
 
 	if(flag == 0)
 	{
-		travfd = open(
+		md5fd = open(
 			name,
 			O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
 			S_IRWXU|S_IRWXG|S_IRWXO
 		);
-		travlen = 0x20;
+		md5len = 0x20;
 
-		buf = (void*)travbuf;
+		buf = (void*)md5buf;
 		for(j=0;j<0x100000;j++)buf[j] = 0;
 	}
 	else
 	{
 		//open
-		travfd = open(
+		md5fd = open(
 			name,
 			O_CREAT|O_RDWR|O_BINARY,
 			S_IRWXU|S_IRWXG|S_IRWXO
 		);
 
 		//read
-		travlen = read(travfd, travbuf, 0x100000);
-		printf("filetrav:	%x\n", travlen);
+		md5len = read(md5fd, md5buf, 0x100000);
+		printf("filemd5:	%x\n", md5len);
 
 		//clean
-		buf = (void*)travbuf;
-		for(j=travlen;j<0x100000;j++)buf[j] = 0;
+		buf = (void*)md5buf;
+		for(j=md5len;j<0x100000;j++)buf[j] = 0;
 	}
 }
-void filetrav_stop()
+void filemd5_stop()
 {
 }
-void filetrav_create()
+void filemd5_create()
 {
 }
-void filetrav_delete()
+void filemd5_delete()
 {
-	lseek(travfd, 0, SEEK_SET);
-	write(travfd, travbuf, travlen);
-	close(travfd);
+	lseek(md5fd, 0, SEEK_SET);
+	write(md5fd, md5buf, md5len);
+	close(md5fd);
 }

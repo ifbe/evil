@@ -138,12 +138,12 @@ printf("%c,%c\n",first[j],second[k]);
 
 
 
-int stringdata_read(int off, int len)
+int strdata_read(int off, int len)
 {
 	printf("%.*s\n", len, charbuf + off);
 	return 0;
 }
-int stringdata_write(char* buf, int len)
+int strdata_write(char* buf, int len)
 {
 	int j;
 /*
@@ -152,14 +152,14 @@ int stringdata_write(char* buf, int len)
 	if(j > 0)return j;
 */
 	for(j=0;j<len;j++)charbuf[charlen+j] = buf[j];
+	charbuf[charlen+len] = 0xa;
 
 	j = charlen;
-
-	charlen += len;
+	charlen += len+1;
 
 	return j;
 }
-void stringdata_start(int flag)
+void strdata_start(int flag)
 {
 	int j;
 	char* buf;
@@ -188,20 +188,20 @@ void stringdata_start(int flag)
 
 		//read
 		charlen = read(charfd, charbuf, 0x100000);
-		printf("str data:	%x\n", charlen);
+		printf("strdata:	%x\n", charlen);
 
 		//clean
 		buf = (void*)charbuf;
 		for(j=charlen;j<0x100000;j++)buf[j] = 0;
 	}
 }
-void stringdata_stop()
+void strdata_stop()
 {
 }
-void stringdata_create()
+void strdata_create()
 {
 }
-void stringdata_delete()
+void strdata_delete()
 {
 	lseek(charfd, 0, SEEK_SET);
 	write(charfd, charbuf, charlen);

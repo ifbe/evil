@@ -12,8 +12,8 @@
 #define u16 unsigned short
 #define u32 unsigned int
 #define u64 unsigned long long
-void stringdata_read(int, int);
-int stringdata_write(char*, int);
+void strdata_read(int, int);
+int strdata_write(char*, int);
 
 
 
@@ -56,7 +56,7 @@ u32 djb2hash(char* buf, int len)
 	}
 	return hash;
 }
-u64 stringhash_generate(char* buf, int len)
+u64 strhash_generate(char* buf, int len)
 {
 	int j;
 	u32 this[2];
@@ -77,7 +77,7 @@ u64 stringhash_generate(char* buf, int len)
 
 	return *(u64*)this;
 }
-void* stringhash_search(u64 hash)
+void* strhash_search(u64 hash)
 {
 	u64 xxx;
 	int mid;
@@ -115,17 +115,17 @@ void* stringhash_search(u64 hash)
 		}
 	}
 }
-void stringhash_print(u64 hash)
+void strhash_print(u64 hash)
 {
 	char buf[9];
 
-	struct hash* h = stringhash_search(hash);
+	struct hash* h = strhash_search(hash);
 	if(h == 0)return;
 	if(*(u64*)h != hash)return;
 
 	if((h->len) > 8)
 	{
-		stringdata_read(h->off, h->len);
+		strdata_read(h->off, h->len);
 	}
 	else
 	{
@@ -138,14 +138,14 @@ void stringhash_print(u64 hash)
 
 
 
-void* stringhash_read(u64 hash)
+void* strhash_read(u64 hash)
 {
-	struct hash* h = stringhash_search(hash);
+	struct hash* h = strhash_search(hash);
 	if(h == 0)return 0;
 	if(*(u64*)h != hash)return 0;
 	return h;
 }
-void* stringhash_write(char* buf, int len)
+void* strhash_write(char* buf, int len)
 {
 	int j;
 	struct hash* h;
@@ -154,10 +154,10 @@ void* stringhash_write(char* buf, int len)
 	u64 temp;
 
 	//
-	temp = stringhash_generate(buf, len);
+	temp = strhash_generate(buf, len);
 
 	//no space
-	h = stringhash_search(temp);
+	h = strhash_search(temp);
 	if(h == 0)return 0;
 
 	//same
@@ -180,7 +180,7 @@ void* stringhash_write(char* buf, int len)
 
 	//insert string
 	if(len <= 8)j = 0;
-	else j = stringdata_write(buf, len);
+	else j = strdata_write(buf, len);
 
 	//insert hash
 	h->hash0 = temp & 0xffffffff;
@@ -193,13 +193,13 @@ void* stringhash_write(char* buf, int len)
 	//printf("%d	%s\n", j, buf);
 	return h;
 }
-void stringhash_list()
+void strhash_list()
 {
 }
-void stringhash_choose()
+void strhash_choose()
 {
 }
-void stringhash_start(int flag)
+void strhash_start(int flag)
 {
 	int j;
 	char* name = ".42/str.hash";
@@ -226,19 +226,19 @@ void stringhash_start(int flag)
 
 		//read
 		hashlen = read(hashfd, hashbuf, maxlen);
-		printf("str hash:	%x\n", hashlen);
+		printf("strhash:	%x\n", hashlen);
 
 		//clean
 		for(j=hashlen;j<maxlen;j++)hashbuf[j] = 0;
 	}
 }
-void stringhash_stop()
+void strhash_stop()
 {
 }
-void stringhash_create()
+void strhash_create()
 {
 }
-void stringhash_delete()
+void strhash_delete()
 {
 	lseek(hashfd, 0, SEEK_SET);
 	write(hashfd, hashbuf, hashlen);

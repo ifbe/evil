@@ -6,11 +6,11 @@ all:
 	0.heaven/search.c \
 	1.funland/connect.c \
 	1.funland/filedata.c \
-	1.funland/filetrav.c \
+	1.funland/filemd5.c \
 	1.funland/funcindx.c \
 	1.funland/funcdata.c \
-	1.funland/stringhash.c \
-	1.funland/stringdata.c \
+	1.funland/strhash.c \
+	1.funland/strdata.c \
 	2.nadir/foreman.c \
 	2.nadir/circuit/dsn.c \
 	2.nadir/circuit/brd.c \
