@@ -62,10 +62,10 @@ struct wire
 	u32 samechipprevpin;
 	u32 samechipnextpin;
 };
-#define maxlen 0x20000000
-static u8 wirebuf[maxlen];
+static u8* wirebuf;
 static int wirefd;
 static int wirelen;
+static int maxlen;
 
 
 
@@ -73,15 +73,7 @@ static int wirelen;
 void stoplearn();
 void* connect_write_new(struct hash* uchip, u64 ufoot, u64 utype, struct hash* bchip, u64 bfoot, u64 btype)
 {
-	struct wire* w;
-	if(wirelen > maxlen-0x40)
-	{
-		printf("err@wire\n");
-		stoplearn();
-		return 0;
-	}
-
-	w = (void*)wirebuf + wirelen;
+	struct wire* w = (void*)wirebuf + wirelen;
 	wirelen += sizeof(struct wire);
 
 	//1.dest
@@ -126,6 +118,15 @@ int connect_write(void* uchip, u64 ufoot, u64 utype, void* bchip, u64 bfoot, u64
 	struct wire* w1;
 	struct wire* w2;
 	struct wire* wc;
+	if(wirelen >= maxlen-0x100)
+	{
+		lseek(wirefd, 0, SEEK_SET);
+		write(wirefd, wirebuf, wirelen);
+
+		maxlen *= 2;
+		wirebuf = realloc(wirebuf, maxlen);
+		printf("wirebuf realloc: %x/%x\n", wirelen, maxlen);
+	}
 
 
 
@@ -208,33 +209,49 @@ void connect_list()
 void connect_choose()
 {
 }
-void connect_start(int flag)
+void connect_start(int type)
 {
 	int j;
+	int flag1, flag2;
 	char* name = ".42/wire/00";
 
-	if(flag == 0)
+	//name
+	flag1 = O_CREAT|O_RDWR|O_BINARY;
+	if(type == 0)flag1 |= O_TRUNC;
+	flag2 = S_IRWXU|S_IRWXG|S_IRWXO;
+
+	//open
+	wirefd = open(name, flag1, flag2);
+	if(wirefd <= 0)
 	{
-		wirefd = open(
-			name,
-			O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
-			S_IRWXU|S_IRWXG|S_IRWXO
-		);
-		wirelen = sizeof(struct wire);
+		printf("error@wirefd\n");
+		exit(-1);
 	}
+
+	//malloc
+	maxlen = 0x100000;
+	wirebuf = malloc(maxlen);
+
+	//read
+	if(type == 0)wirelen = sizeof(struct wire);
 	else
 	{
-		//wire
-		wirefd = open(
-			name,
-			O_CREAT|O_RDWR|O_BINARY,
-			S_IRWXU|S_IRWXG|S_IRWXO
-		);
+		wirelen = 0;
+		while(1)
+		{
+			j = read(wirefd, wirebuf+wirelen, maxlen-wirelen);
+			if(j != maxlen-wirelen)
+			{
+				wirelen += j;
+				break;
+			}
 
-		//
-		wirelen = read(wirefd, wirebuf, maxlen);
-		printf("connect :	%x\n", wirelen);
+			wirelen = maxlen;
+			maxlen *= 2;
+			wirebuf = realloc(wirebuf, maxlen);
+		}
 
+		printf("wirelen:	%x\n", wirelen);
 		for(j=wirelen;j<maxlen;j++)wirebuf[j] = 0;
 	}
 }

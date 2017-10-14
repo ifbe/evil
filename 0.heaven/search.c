@@ -113,7 +113,7 @@ void searchfile(int offset)
 	{
 		if(ipin->selftype == hex32('h','a','s','h'))
 		{
-			printf("	hash	");
+			printf("	str	");
 			strhash_print(ipin->selfchip);
 		}
 		else if(ipin->selfchip != 0)
@@ -137,7 +137,7 @@ void searchfile(int offset)
 		//searchfile_printdest(opin);
 		if(opin->desttype == hex32('h','a','s','h'))
 		{
-			printf("	hash	");
+			printf("	str	");
 			strhash_print(opin->destchip);
 		}
 		else
@@ -213,7 +213,7 @@ void searchfunc(int offset)
 		//searchfunc_printdest(opin);
 		if(opin->desttype == hex32('h','a','s','h'))
 		{
-			printf("	hash	");
+			printf("	str	");
 			strhash_print(opin->destchip);
 		}
 		else if(opin->desttype == hex32('f','i','l','e'))
@@ -285,7 +285,7 @@ void searchhash(char* buf, int len)
 	{
 		if(ipin->selftype == hex32('h','a','s','h'))
 		{
-			printf("	hash	");
+			printf("	str	");
 			strhash_print(ipin->selfchip);
 		}
 		else if(ipin->selftype != 0)
@@ -309,7 +309,7 @@ void searchhash(char* buf, int len)
 
 		if(opin->desttype == hex32('h','a','s','h'))
 		{
-			printf("	hash	");
+			printf("	str	");
 			strhash_print(opin->destchip);
 		}
 		else
