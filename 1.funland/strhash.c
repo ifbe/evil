@@ -12,7 +12,7 @@
 #define u16 unsigned short
 #define u32 unsigned int
 #define u64 unsigned long long
-void strdata_read(int, int);
+void* strdata_read(int);
 int strdata_write(char*, int);
 
 
@@ -214,6 +214,8 @@ void* strhash_search(void* buf, int len, u64 hash)
 }
 void strhash_print(u64 hash)
 {
+	int len;
+	char* addr;
 	struct tree* t;
 	struct hash* h;
 	t = tree_search(hash);
@@ -223,14 +225,17 @@ void strhash_print(u64 hash)
 	if(h == 0)return;
 	if(*(u64*)h != hash)return;
 
-	if((h->len) > 8)
+	if((h->len) <= 8)
 	{
-		strdata_read(h->off, h->len);
+		addr = (char*)h;
+		len = 8;
 	}
 	else
 	{
-		printf("%-8.8s\n", (char*)h);
+		addr = strdata_read(h->off);
+		len = h->len;
 	}
+	printf("%-8.*s\n", len, addr);
 }
 
 

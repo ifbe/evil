@@ -29,24 +29,18 @@ void worker_create();
 void worker_delete();
 //
 int learn(int argc,char** argv);
-int check(int argc,char** argv);
-int hash(int argc,char** argv);
 int search(int argc,char** argv);
-int change(int argc,char** argv);
-int create(int argc,char** argv);
-int delete(int argc,char** argv);
+int think(int argc,char** argv);
 
 
 
 
 void help()
 {
-	printf("a.exe\n{\n");
-	printf("#step1: learn\n");
-	printf("	a.exe learn aaa.c /some/dir/bbb.cpp /my/folder/haha*\n\n");
-	printf("#step2: search\n");
-	printf("	a.exe search string func@c0 file@20\n");
-	printf("}\n");
+	printf("usage:\n");
+	printf("a.exe learn aaa.c /some/dir/bbb.cpp /my/folder/haha*\n");
+	printf("a.exe search string func@c0 file@20\n");
+	printf("a.exe think\n");
 }
 int main(int argc, char** argv)
 {
@@ -99,19 +93,19 @@ int main(int argc, char** argv)
 
 
 
-	//auto mode
+	//
 	if(strcmp(argv[1] , "learn") == 0)
 	{
 		learn(argc-1 , argv+1);
 	}
-
-	//
 	else if(strcmp(argv[1] , "search") == 0)
 	{
 		search(argc-1 , argv+1);
 	}
-
-	//
+	else if(strcmp(argv[1] , "think") == 0)
+	{
+		search(argc-1 , argv+1);
+	}
 	else
 	{
 		help();

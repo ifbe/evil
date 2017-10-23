@@ -41,9 +41,15 @@ void utf8_read(u8* buf, int len)
 		{
 			if(j < k)
 			{
-				//printf("%.*s\n", k-j, buf+j);
-				worker_write(buf+j, k-j, 4, 0);
-				utf8_read_one(buf+j, k-j);
+				if(buf[j] == '#')
+				{
+				}
+				else
+				{
+					//printf("%.*s\n", k-j, buf+j);
+					worker_write(buf+j, k-j, 4, 0);
+					utf8_read_one(buf+j, k-j);
+				}
 			}
 			j = k+1;
 		}

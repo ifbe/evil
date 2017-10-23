@@ -162,10 +162,9 @@ int strdata_write(char* buf, int len)
 
 	return j;
 }
-int strdata_read(int off, int len)
+void* strdata_read(int off)
 {
-	printf("%.*s\n", len, charbuf + off);
-	return 0;
+	return charbuf + off;
 }
 void strdata_start(int flag)
 {
