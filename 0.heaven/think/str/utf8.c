@@ -9,27 +9,6 @@ int worker_write(char* buf, int len, int type, int haha);
 
 
 
-
-void utf8_read_one(u8* buf, int len)
-{
-	int j=0,k;
-	while(1)
-	{
-		if(buf[j] < 0x80)k=1;
-		else if(buf[j] > 0xfc)k=6;
-		else if(buf[j] > 0xf8)k=5;
-		else if(buf[j] > 0xf0)k=4;
-		else if(buf[j] > 0xe0)k=3;
-		else if(buf[j] > 0xc0)k=2;
-		else break;
-
-		//printf("%.*s\n", k, buf+j);
-		worker_write(buf+j, k, 3, 0);
-
-		j += k;
-		if(j >= len)break;
-	}
-}
 void utf8_read(u8* buf, int len)
 {
 	int j=0;	//line head
@@ -48,7 +27,6 @@ void utf8_read(u8* buf, int len)
 				{
 					//printf("%.*s\n", k-j, buf+j);
 					worker_write(buf+j, k-j, 4, 0);
-					utf8_read_one(buf+j, k-j);
 				}
 			}
 			j = k+1;

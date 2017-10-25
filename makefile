@@ -11,8 +11,8 @@ all:
 	0.heaven/learn/test/none.c \
 	0.heaven/learn/test/traverse.c \
 	0.heaven/learn/learn.c \
-	0.heaven/think/string/utf8.c \
-	0.heaven/think/string/string.c \
+	0.heaven/think/str/utf8.c \
+	0.heaven/think/str/str.c \
 	0.heaven/think/think.c \
 	0.heaven/foreman.c \
 	1.funland/insert/insert.c \

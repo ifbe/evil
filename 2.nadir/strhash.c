@@ -51,11 +51,6 @@ struct tree
 };
 static struct tree btnode[0x100];
 static int btlen = 0;
-//
-#define maxlen 0x100000
-static u8* hashbuf[256];
-static int hashfd[256];
-static int hashlen[256];
 
 
 
@@ -237,6 +232,40 @@ void strhash_print(u64 hash)
 	}
 	printf("%-8.*s\n", len, addr);
 }
+int strhash_export(u8* dst, u64* part)
+{
+	int j,k,ret,len;
+	u8* buf;
+	u8* addr;
+	struct tree* t;
+	struct hash* h;
+	t = tree_search(*part);
+	if(t == 0)return 0;
+
+	ret = 0;
+	len = t->cur;
+	buf = t->buf;
+	for(j=0; j<len; j+=sizeof(struct hash))
+	{
+		h = (void*)(buf+j);
+		//printf("%llx\n", *(u64*)h);
+
+		if((h->len) <= 8)
+		{
+			addr = (char*)h;
+			k = 8;
+		}
+		else
+		{
+			addr = strdata_read(h->off);
+			k = h->len;
+		}
+		ret += snprintf(dst+ret, 0xf0000-ret, "%.*s\n", k, addr);
+	}
+
+	*part = t->end;
+	return ret;
+}
 
 
 
@@ -305,12 +334,6 @@ void* strhash_read(u64 hash)
 	if(h == 0)return 0;
 	if(*(u64*)h != hash)return 0;
 	return h;
-}
-void strhash_list()
-{
-}
-void strhash_choose()
-{
 }
 void strhash_start(int type)
 {
