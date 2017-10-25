@@ -29,8 +29,10 @@ void worker_create();
 void worker_delete();
 //
 int learn(int argc,char** argv);
-int search(int argc,char** argv);
 int think(int argc,char** argv);
+//
+int search(int argc,char** argv);
+int delete(int argc,char** argv);
 
 
 
@@ -98,13 +100,17 @@ int main(int argc, char** argv)
 	{
 		learn(argc-1 , argv+1);
 	}
+	else if(strcmp(argv[1] , "think") == 0)
+	{
+		think(argc-1 , argv+1);
+	}
 	else if(strcmp(argv[1] , "search") == 0)
 	{
 		search(argc-1 , argv+1);
 	}
-	else if(strcmp(argv[1] , "think") == 0)
+	else if(strcmp(argv[1] , "delete") == 0)
 	{
-		search(argc-1 , argv+1);
+		delete(argc-1 , argv+1);
 	}
 	else
 	{

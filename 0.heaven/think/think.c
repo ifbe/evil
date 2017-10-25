@@ -6,3 +6,15 @@
 #define u32 unsigned int
 #define u64 unsigned long long
 #define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
+
+
+
+
+void think(int argc, char** argv)
+{
+	int j;
+	for(j=1;j<argc;j++)
+	{
+		printf("%s\n", argv[j]);
+	}
+}
