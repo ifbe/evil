@@ -204,18 +204,6 @@ int worker_write(char* buf, int len, int type, int haha)
 	}
 	else if(type == 2)
 	{
-if(len==2)
-{
-if((buf[0]=='i')&&(buf[1]=='f'))return 0;
-}
-if(len==3)
-{
-if((buf[0]=='f')&&(buf[1]=='o')&&(buf[2]=='r'))return 0;
-}
-if(len==5)
-{
-if((buf[0]=='w')&&(buf[1]=='h')&&(buf[2]=='i')&&(buf[3]=='l')&&(buf[4]=='e'))return 0;
-}
 		thisobj = strhash_write(buf, len);
 		if(thisobj == 0)
 		{
@@ -310,40 +298,45 @@ int worker_list()
 	}
 	return 0;
 }
-int worker_choose(char* p)
+int worker_choose(char* name)
 {
-	int j,k=-1;
-	u64 x = suffix_value(p);
+	int j;
+	chosen = -1;
+
+	u64 x = suffix_value(name);
 	if(x == 0)return -1;
 
 	for(j=0;j<20;j++)
 	{
-		if(w[j].name == x)return j;
+		if(w[j].name == x)
+		{
+			chosen = j;
+			break;
+		}
 	}
-
-	return -1;
+	return chosen;
 }
-int worker_start(char* p)
+int worker_start(char* name)
 {
 	struct stat statbuf;
 	int size;
 	int ret;
-	if(p == 0)return -1;
-	if(p[0] == '.')
+	if(name == 0)return -1;
+	if(name[0] == '.')
 	{
-		if((p[1] != '/')&&(p[1] != '.'))return -1;
+		if((name[1] != '/')&&(name[1] != '.'))return -1;
 	}
+	worker_write(name, strlen(name), 4, 0);
 
 	//get suffix
-	ret = worker_choose(p);
-	if(ret < 0)return -1;
-	chosen = ret;
+	chosen = worker_choose(name);
+	if(chosen < 0)return -1;
 
 	//stat
-	ret=stat(p, &statbuf);
+	ret=stat(name, &statbuf);
 	if(ret == -1)
 	{
-		printf("wrong@stat:%s\n", p);
+		printf("wrong@stat:%s\n", name);
 		return -2;
 	}
 
@@ -351,21 +344,20 @@ int worker_start(char* p)
 	if(size <= 0)return -3;
 	if(size > 0xfffff)
 	{
-		printf("wrong@size:%s\n", p);
+		printf("wrong@size:%s\n", name);
 		return -4;
 	}
 
 	//open
-	infile = open(p , O_RDONLY|O_BINARY);
+	infile = open(name , O_RDONLY|O_BINARY);
 	if(infile < 0)
 	{
-		printf("fail@open:%s\n", p);
+		printf("fail@open:%s\n", name);
 		return -5;
 	}
 
-	//parent str, child str
-	printf("%d	%x	%s\n", size, size, p);
-	name_write(p, 0);
+	//
+	printf("%d	%x	%s\n", size, size, name);
 	return 1;
 }
 int worker_stop()

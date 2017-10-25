@@ -64,22 +64,13 @@ static void c_write(char* p)
 			(p[j]=='_') )continue;
 		else break;
 	}
+	if(j == 1)return;
+	if((j == 2)&&(strncmp(p, "if", 2) == 0))return;
+	if((j == 3)&&(strncmp(p, "for", 3) == 0))return;
+	if((j == 5)&&(strncmp(p, "while", 5) == 0))return;
+
 	if(infunc == 0)worker_write(p, j, 1, countline);
 	else worker_write(p, j, 2, countline);
-
-return;
-	//在函数外
-	if(infunc==0)
-	{
-		for(k=0;k<j;k++)printf("%c",p[k]);
-		printf("	@%d\n{\n",	countline);
-	}
-	else
-	{
-		printf("	");
-		for(k=0;k<j;k++)printf("%c",p[k]);
-		printf("\n");
-	}
 }
 static int c_read(char* src, int count)
 {
