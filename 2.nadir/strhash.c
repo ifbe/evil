@@ -79,7 +79,7 @@ u32 djb2hash(char* buf, int len)
 
 
 
-void* tree_split(struct tree* orig)
+void tree_split(struct tree* orig)
 {
 	int j;
 	int begin;
@@ -92,7 +92,7 @@ void* tree_split(struct tree* orig)
 	if(btlen >= 0x100)
 	{
 		printf("error@btlen\n");
-		return 0;
+		return;
 	}
 
 	//alloc
@@ -100,7 +100,7 @@ void* tree_split(struct tree* orig)
 	if(mem == 0)
 	{
 		printf("error@malloc\n");
-		return 0;
+		return;
 	}
 
 	//move node
@@ -252,7 +252,7 @@ int strhash_export(u8* dst, u64* part)
 
 		if((h->len) <= 8)
 		{
-			addr = (char*)h;
+			addr = (u8*)h;
 			k = 8;
 		}
 		else
@@ -260,7 +260,10 @@ int strhash_export(u8* dst, u64* part)
 			addr = strdata_read(h->off);
 			k = h->len;
 		}
-		ret += snprintf(dst+ret, 0xf0000-ret, "%.*s\n", k, addr);
+		ret += snprintf(
+			(void*)dst+ret, 0xf0000-ret,
+			"%.*s\n", k, addr
+		);
 	}
 
 	*part = t->end;

@@ -5,7 +5,7 @@
 #define u16 unsigned short
 #define u32 unsigned int
 #define u64 unsigned long long
-int worker_write(char* buf, int len, int type, int haha);
+int worker_write(void* buf, int len, int type, int haha);
 
 
 
