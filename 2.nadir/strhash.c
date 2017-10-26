@@ -51,6 +51,7 @@ struct tree
 };
 static struct tree btnode[0x100];
 static int btlen = 0;
+#define maxlen 0x40000
 
 
 
@@ -96,7 +97,7 @@ void tree_split(struct tree* orig)
 	}
 
 	//alloc
-	mem = malloc(0x100000);
+	mem = malloc(maxlen);
 	if(mem == 0)
 	{
 		printf("error@malloc\n");
@@ -118,7 +119,7 @@ void tree_split(struct tree* orig)
 	}
 
 	//write
-	this->len = 0x100000;
+	this->len = maxlen;
 	this->buf = mem;
 
 	//move hash
@@ -288,7 +289,7 @@ void* strhash_write(char* buf, int len)
 	if(t == 0)return 0;
 	if((t->cur) >= (t->len))
 	{
-		printf("tree split: %llx,%llx\n", t->cur, t->len);
+		printf("tree split: %x\n", btlen);
 		tree_split(t);
 		t = tree_search(temp);
 	}
@@ -347,7 +348,7 @@ void strhash_start(int type)
 	if(type == 0)
 	{
 		//alloc
-		mem = malloc(0x100000);
+		mem = malloc(maxlen);
 		if(mem == 0)
 		{
 			printf("error@malloc: %s\n", name);
@@ -359,7 +360,7 @@ void strhash_start(int type)
 		t->begin = 0;
 		t->end = 0xffffffffffffffff;
 		t->cur = 0;
-		t->len = 0x100000;
+		t->len = maxlen;
 		t->buf = mem;
 		return;
 	}
@@ -395,14 +396,14 @@ void strhash_start(int type)
 		}
 
 		//alloc
-		mem = malloc(0x100000);
+		mem = malloc(maxlen);
 		if(mem == 0)
 		{
 			printf("error@malloc: %s\n", name);
 			break;
 		}
 		t = &btnode[j];
-		t->len = 0x100000;
+		t->len = maxlen;
 		t->buf = mem;
 
 		//read
