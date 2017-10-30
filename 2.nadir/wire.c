@@ -52,13 +52,15 @@ struct wire
 {
 	u64 destchip;
 	u64 destfoot;
-	u64 desttype;		//eg: 'hash', 'dir', 'file', 'func'
+	u32 desttype;		//eg: 'hash', 'dir', 'file', 'func'
+	u32 destflag;		//eg: 'bad', 'ok'
 	u32 samepinprevchip;
 	u32 samepinnextchip;
 
 	u64 selfchip;
 	u64 selffoot;
-	u64 selftype;		//eg: 'dir', 'file', 'func', 'hash'
+	u32 selftype;		//eg: 'dir', 'file', 'func', 'hash'
+	u32 selfflag;		//eg: 'bad', 'ok'
 	u32 samechipprevpin;
 	u32 samechipnextpin;
 };
@@ -70,8 +72,9 @@ static int maxlen;
 
 
 
-void stoplearn();
-void* connect_write_new(struct hash* uchip, u64 ufoot, u64 utype, struct hash* bchip, u64 bfoot, u64 btype)
+void* connect_write_new(
+	struct hash* uchip, u64 ufoot, u32 utype,
+	struct hash* bchip, u64 bfoot, u32 btype)
 {
 	struct wire* w = (void*)wirebuf + wirelen;
 	wirelen += sizeof(struct wire);
@@ -79,30 +82,15 @@ void* connect_write_new(struct hash* uchip, u64 ufoot, u64 utype, struct hash* b
 	//1.dest
 	w->desttype = utype;
 	w->destfoot = ufoot;
-	if(utype == hex32('h','a','s','h'))
-	{
-		w->destchip = *(u64*)uchip;
-	}
-	else
-	{
-		w->destchip = *(u32*)uchip;
-	}
+	if(utype == hex32('h','a','s','h'))w->destchip = *(u64*)uchip;
+	else w->destchip = *(u32*)uchip;
 
 	//2.self
 	w->selftype = btype;
 	w->selffoot = bfoot;
-	if(btype == 0)
-	{
-		w->selfchip = 0;
-	}
-	else if(btype == hex32('h','a','s','h'))
-	{
-		w->selfchip = *(u64*)bchip;
-	}
-	else
-	{
-		w->selfchip = *(u32*)bchip;
-	}
+	if(btype == 0)w->selfchip = 0;
+	else if(btype == hex32('h','a','s','h'))w->selfchip = *(u64*)bchip;
+	else w->selfchip = *(u32*)bchip;
 
 	return w;
 }
@@ -111,7 +99,9 @@ void* connect_write_new(struct hash* uchip, u64 ufoot, u64 utype, struct hash* b
 //funcinfo, funcofst, 'func', hashinfo, 0, 'hash'
 //wininfo,  position, 'win',  actor,    0, 'act'
 //actinfo,  which,    'act',  userinfo, what,     'user'
-int connect_write(void* uchip, u64 ufoot, u64 utype, void* bchip, u64 bfoot, u64 btype)
+int connect_write(
+	void* uchip, u64 ufoot, u32 utype,
+	void* bchip, u64 bfoot, u32 btype)
 {
 	struct hash* h1;
 	struct hash* h2;
@@ -173,10 +163,8 @@ int connect_write(void* uchip, u64 ufoot, u64 utype, void* bchip, u64 bfoot, u64
 
 	//w1->samepinprevchip = 0;		//certainly
 	wc = w1;
-	while(wc->samepinnextchip != 0)
-	{
-		wc = (void*)wirebuf + (wc->samepinnextchip);
-	}
+	while(wc->samepinnextchip != 0)wc = (void*)wirebuf + (wc->samepinnextchip);
+
 	wc->samepinnextchip = (void*)w2 - (void*)wirebuf;
 	w2->samepinprevchip = (void*)wc - (void*)wirebuf;
 	w2->samepinnextchip = 0;		//certainly
@@ -186,10 +174,7 @@ int connect_write(void* uchip, u64 ufoot, u64 utype, void* bchip, u64 bfoot, u64
 
 
 	wc = (void*)wirebuf + (h2->first);
-	while(wc->samechipnextpin != 0)
-	{
-		wc = (void*)wirebuf + (wc->samechipnextpin);
-	}
+	while(wc->samechipnextpin != 0)wc = (void*)wirebuf + (wc->samechipnextpin);
 	if(wc != w2)
 	{
 		wc->samechipnextpin = (void*)w2 - (void*)wirebuf;

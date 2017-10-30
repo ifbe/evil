@@ -183,8 +183,8 @@ void funcpath(u64 addr)
 	{
 		if(haha->desttype == hex32('f','i','l','e'))
 		{
-			printf(":%d	", haha->destfoot);
 			filename(haha->destchip);
+			printf(":%d", haha->destfoot);
 		}
 
 		temp = haha->samechipnextpin;
@@ -239,12 +239,15 @@ void searchfile(int offset)
 		{
 			printf("	");
 			strhash_print(ipin->selfchip);
+			printf("\n");
 		}
 		else if(ipin->selftype == hex32('f','u','n','c'))
 		{
-			printf("	func@%08llx	:%d	",
-				ipin->selfchip, ipin->destfoot);
+			printf("	func@%08llx	", ipin->selfchip);
+			funcpath(ipin->selfchip);
+			printf("	");
 			funcname(ipin->selfchip);
+			printf("\n");
 		}
 		else if(ipin->selfchip != 0)
 		{
@@ -269,6 +272,7 @@ void searchfile(int offset)
 		{
 			printf("	");
 			strhash_print(opin->destchip);
+			printf("\n");
 		}
 		else
 		{
@@ -327,6 +331,7 @@ void searchfunc(int offset)
 		{
 			printf("	");
 			strhash_print(ipin->selfchip);
+			printf("\n");
 		}
 
 		temp = ipin->samepinnextchip;
@@ -345,13 +350,13 @@ void searchfunc(int offset)
 		{
 			printf("	");
 			strhash_print(opin->destchip);
+			printf("\n");
 		}
 		else if(opin->desttype == hex32('f','i','l','e'))
 		{
-			printf("	file@%08llx	:%lld	",
-			opin->destchip, opin->destfoot);
-
+			printf("	file@%08llx	", opin->destchip);
 			filename(opin->destchip);
+			printf(":%d\n", opin->destfoot);
 		}
 		else
 		{
@@ -418,11 +423,13 @@ void searchhash(char* buf, int len)
 		{
 			printf("	");
 			strhash_print(ipin->selfchip);
+			printf("\n");
 		}
 		else if(ipin->selftype == hex32('f','u','n','c'))
 		{
 			printf("	func@%08llx	", ipin->selfchip);
 			funcpath(ipin->selfchip);
+			printf("\n");
 		}
 		else if(ipin->selftype != 0)
 		{
@@ -447,11 +454,15 @@ void searchhash(char* buf, int len)
 		{
 			printf("	");
 			strhash_print(opin->destchip);
+			printf("\n");
 		}
 		else if(opin->desttype == hex32('f','u','n','c'))
 		{
 			printf("	func@%08llx	", opin->destchip);
+			funcpath(opin->destchip);
+			printf("	");
 			funcname(opin->destchip);
+			printf("\n");
 		}
 		else
 		{

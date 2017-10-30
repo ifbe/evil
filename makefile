@@ -19,13 +19,17 @@ all:
 	1.funland/delete/delete.c \
 	1.funland/modify/modify.c \
 	1.funland/search/search.c \
-	2.nadir/connect.c \
+	2.nadir/pindata.c \
+	2.nadir/pinid.c \
 	2.nadir/filedata.c \
 	2.nadir/filemd5.c \
 	2.nadir/funcindex.c \
 	2.nadir/funcdata.c \
+	2.nadir/pindata.c \
+	2.nadir/pinid.c \
 	2.nadir/strhash.c \
 	2.nadir/strdata.c \
+	2.nadir/wire.c \
 	-o a.exe
 clean:
 	rm -f *.exe *.out

@@ -231,7 +231,7 @@ void strhash_print(u64 hash)
 		addr = strdata_read(h->off);
 		len = h->len;
 	}
-	printf("%-8.*s\n", len, addr);
+	printf("%.*s", len, addr);
 }
 int strhash_export(u8* dst, u64* part)
 {
