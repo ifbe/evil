@@ -56,7 +56,7 @@ void strdata_start(int flag)
 {
 	int j;
 	char* buf;
-	char* name = ".42/strdata/00.txt";
+	char* name = ".42/str/str.txt";
 
 	if(flag == 0)
 	{

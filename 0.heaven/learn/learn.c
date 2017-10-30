@@ -17,6 +17,10 @@
 
 
 
+void chipdata_start(int);
+void chipdata_stop();
+void chipindex_start(int);
+void chipindex_stop();
 void filedata_start(int);
 void filedata_stop();
 void filemd5_start(int);
@@ -25,6 +29,10 @@ void funcdata_start(int);
 void funcdata_stop();
 void funcindex_start(int);
 void funcindex_stop();
+void pindata_start(int);
+void pindata_stop();
+void pinindex_start(int);
+void pinindex_stop();
 void strdata_start(int);
 void strdata_stop();
 void strhash_start(int);
@@ -45,10 +53,14 @@ int worker_read();
 
 void stoplearn()
 {
+	//chipdata_stop();
+	chipindex_stop();
 	filedata_stop();
 	filemd5_stop();
 	funcdata_stop();
 	funcindex_stop();
+	//pindata_stop();
+	pinindex_stop();
 	strdata_stop();
 	strhash_stop();
 	connect_stop();
@@ -58,10 +70,14 @@ int learn(int argc,char** argv)
 {
 	int j,k;
 	char* p;
+	//chipdata_start(0);
+	chipindex_start(0);
 	filedata_start(0);
 	filemd5_start(0);
 	funcdata_start(0);
 	funcindex_start(0);
+	//pindata_start(0);
+	pinindex_start(0);
 	strdata_start(0);
 	strhash_start(0);
 	connect_start(0);

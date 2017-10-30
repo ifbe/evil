@@ -28,7 +28,7 @@ void filedata_start(int flag)
 {
 	int j;
 	char* buf;
-	char* name = ".42/filedata/00";
+	char* name = ".42/file/file.gz";
 
 	if(flag == 0)
 	{

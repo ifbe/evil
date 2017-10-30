@@ -28,7 +28,7 @@ void funcdata_start(int flag)
 {
 	int j;
 	char* buf;
-	char* name = ".42/funcdata/00";
+	char* name = ".42/func/func.gz";
 
 	if(flag == 0)
 	{

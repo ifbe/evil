@@ -75,7 +75,8 @@ int include_delete();
 int utf8_create(void*, void*);
 int utf8_delete();
 //
-int name_write(void*, int);
+int cir_create(void*, void*);
+int utf8_delete();
 
 
 
@@ -85,7 +86,9 @@ void* filemd5_write(void*, u64);
 void* funcindex_write(u64);
 void* strhash_write(void*, int);
 void* strhash_read(u64);
-void connect_write(void* uchip, u64 ufoot, u64 utype, void* bchip, u64 bfoot, u64 btype);
+void connect_write(
+	void* uchip, u64 ufoot, u64 utype,
+	void* bchip, u64 bfoot, u64 btype);
 //
 //string.c
 u64 suffix_value(char*);
@@ -251,6 +254,21 @@ int worker_write(char* buf, int len, int type, int haha)
 		}
 		strhash = *(u64*)thisobj;
 	}
+	else if(type == 5)
+	{
+		thisobj = strhash_write(buf, len);
+		if(thisobj == 0)
+		{
+			printf("error@9999\n");
+			return 0;
+		}
+
+		//file <- func
+		connect_write(
+			fileobj, haha, hex32('f','i','l','e'),
+			thisobj, 0, hex32('h','a','s','h')
+		);
+	}
 	return 1;
 }
 int worker_read()
@@ -384,6 +402,9 @@ void worker_create()
 	//cpp_create(w, j);
 	//j += 0x100;
 
+	cir_create(w, j);
+	j += 0x100;
+
 	//dts_create(w, j);
 	//j += 0x100;
 
@@ -392,6 +413,7 @@ void worker_create()
 
 	utf8_create(w,j);
 	j += 0x100;
+
 	//worker_list();
 }
 void worker_delete()

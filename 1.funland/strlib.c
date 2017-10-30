@@ -59,6 +59,26 @@ u64 suffix_value(char* p)
 
 	return *(u64*)ret;
 }
+int decstr2data(u8* src, void* dst)
+{
+	int j;
+	u64 data=0;
+	for(j=0;j<20;j++)		//64bit的最大数为20个阿拉伯数字
+	{
+		//1.如果<0x20:		//返回取得的总数量
+		if(src[j]<0x30)break;
+		if(src[j]>0x39)break;
+
+		//3.如果是正常值:	//先乘10，再加上这个值，然后搞下一个数
+		data = data*10;
+		data += src[j]-0x30;
+	}
+	//say("data=%llx\n", data);
+
+	if(data>0xffffffff)*(u64*)dst = data;
+	else *(u32*)dst = data&0xffffffff;
+	return j;
+}
 int hexstr2data(u8* src,u64* data)
 {
 	int j;

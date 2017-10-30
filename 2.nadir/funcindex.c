@@ -62,7 +62,7 @@ void funcindex_start(int flag)
 {
 	int j;
 	char* buf;
-	char* name = ".42/funcindex/00";
+	char* name = ".42/func/00";
 
 	if(flag == 0)
 	{

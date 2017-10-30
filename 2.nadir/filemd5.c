@@ -63,7 +63,7 @@ void filemd5_start(int flag)
 {
 	int j;
 	char* buf;
-	char* name = ".42/filemd5/00";
+	char* name = ".42/file/00";
 
 	if(flag == 0)
 	{

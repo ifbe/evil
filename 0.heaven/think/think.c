@@ -151,7 +151,7 @@ void think_part()
 		{
 			if(k < 0)k = j;
 		}
-		else printf("%x@%x\n", sbuf[j], j);
+		//else printf("%x@%x\n", sbuf[j], j);
 	}
 }
 void think(int argc, char** argv)

@@ -66,13 +66,12 @@ int main(int argc, char** argv)
 	//}
 	//}
 	mkdir(".42", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
+	mkdir(".42/chip", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
+	mkdir(".42/file", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
+	mkdir(".42/func", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
+	mkdir(".42/pin", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
+	mkdir(".42/str", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
 	mkdir(".42/wire", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
-	mkdir(".42/filemd5", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
-	mkdir(".42/funcindex", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
-	mkdir(".42/strhash", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
-	mkdir(".42/filedata", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
-	mkdir(".42/funcdata", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
-	mkdir(".42/strdata", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
 	//---------------------------------------------------------
 
 

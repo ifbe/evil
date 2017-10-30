@@ -366,7 +366,7 @@ void strhash_start(int type)
 	}
 
 	//open index
-	snprintf(name, 32, ".42/strhash/index");
+	snprintf(name, 32, ".42/str/index");
 	fd = open(name,
 		O_CREAT|O_RDWR|O_BINARY,
 		S_IRWXU|S_IRWXG|S_IRWXO
@@ -384,7 +384,7 @@ void strhash_start(int type)
 	for(j=0;j<btlen;j++)
 	{
 		//open
-		snprintf(name, 32, ".42/strhash/%02x", j);
+		snprintf(name, 32, ".42/str/%02x", j);
 		fd = open(name,
 			O_CREAT|O_RDWR|O_BINARY,
 			S_IRWXU|S_IRWXG|S_IRWXO
@@ -427,7 +427,7 @@ void strhash_stop()
 	struct tree* t;
 
 	//open index
-	snprintf(name, 32, ".42/strhash/index");
+	snprintf(name, 32, ".42/str/index");
 	fd = open(name,
 		O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
 		S_IRWXU|S_IRWXG|S_IRWXO
@@ -452,7 +452,7 @@ void strhash_stop()
 	for(j=0;j<btlen;j++)
 	{
 		//open data
-		snprintf(name, 32, ".42/strhash/%02x", j);
+		snprintf(name, 32, ".42/str/%02x", j);
 		fd = open(name,
 			O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
 			S_IRWXU|S_IRWXG|S_IRWXO
