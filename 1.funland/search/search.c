@@ -240,7 +240,7 @@ void searchpin(int offset)
 	struct fileindex* pin;
 	struct wire* irel;
 	struct wire* orel;
-	if(offset%0x20 != 0)printf("\nnotfound: pin@%x",offset);
+	if(offset%0x20 != 0)printf("notfound: pin@%x",offset);
 
 	pin = pin_read(offset);
 	printf("pin@%08x	@%llx\n", offset, (u64)pin);
@@ -328,7 +328,7 @@ void searchchip(int offset)
 	struct chipindex* chip;
 	struct wire* irel;
 	struct wire* orel;
-	if(offset%0x20 != 0)printf("\nnotfound: chip@%x",offset);
+	if(offset%0x20 != 0)printf("notfound: chip@%x",offset);
 
 	chip = chipindex_read(offset);
 	printf("chip@%08x	@%llx\n", offset, (u64)chip);
@@ -408,7 +408,7 @@ void searchfile(int offset)
 	struct fileindex* file;
 	struct wire* irel;
 	struct wire* orel;
-	if(offset%0x20 != 0)printf("\nnotfound: file@%x",offset);
+	if(offset%0x20 != 0)printf("notfound: file@%x",offset);
 
 	file = filemd5_read(offset);
 	printf("file@%08x	@%llx\n", offset, (u64)file);
@@ -424,7 +424,7 @@ fileirel:
 	{
 		if(irel->selftype == hex32('h','a','s','h'))
 		{
-			printf("i:	hash=%016llx	", irel->selfchip);
+			printf("i:	:%lld	", irel->destfoot);
 			strhash_print(irel->selfchip);
 			printf("\n");
 		}
@@ -492,7 +492,7 @@ void searchfunc(int offset)
 	struct funcindex* f;
 	struct wire* irel;
 	struct wire* orel;
-	if(offset%0x20 != 0)printf("\nnotfound: func@%x",offset);
+	if(offset%0x20 != 0)printf("notfound: func@%x",offset);
 
 	f = funcindex_read(offset);
 	printf("func@%08x	@%llx\n", offset, (u64)f);
@@ -571,7 +571,7 @@ void searchhash(char* buf, int len)
 	h = strhash_read(haha);
 	if(h == 0)
 	{
-		printf("\nnotfound: (%llx)%s\n", haha, buf);
+		printf("notfound: (%llx)%s\n", haha, buf);
 		return;
 	}
 	printf("hash: %08x%08x @0x%08llx(%s)\n", h->hash1, h->hash0, (u64)h, buf);
