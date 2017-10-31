@@ -118,7 +118,7 @@ int connect_write(
 	struct hash* h2;
 	struct wire* ww;
 	struct wire* wc;
-	if(wirecur >= wirelen-0x100)
+	if(wirecur >= wirelen)
 	{
 		lseek(wirefd, 0, SEEK_SET);
 		write(wirefd, wirebuf, wirecur);

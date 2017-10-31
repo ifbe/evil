@@ -36,7 +36,7 @@ int strdata_write(char* buf, int len)
 
 		charlen *= 2;
 		charbuf = realloc(charbuf, charlen);
-		printf("charbuf realloc: %x/%x\n", charbuf, charlen);
+		printf("charbuf realloc: %x/%x\n", charcur, charlen);
 	}
 
 	for(j=0;j<len;j++)charbuf[charcur+j] = buf[j];
