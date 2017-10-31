@@ -433,7 +433,7 @@ static int c_read(char* buf, int len)
 			{
 				if(inmarco==0)
 				{
-					inmarco == 'i';
+					inmarco = 'i';
 					countbyte += 7;
 				}
 			}
