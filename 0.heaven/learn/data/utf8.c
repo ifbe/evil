@@ -5,7 +5,7 @@
 #define u16 unsigned short
 #define u32 unsigned int
 #define u64 unsigned long long
-int worker_write(void* buf, int len, int type, int haha);
+void* strhash_write(void* buf, int len);
 
 
 
@@ -26,7 +26,7 @@ void utf8_read(u8* buf, int len)
 				else
 				{
 					//printf("%.*s\n", k-j, buf+j);
-					worker_write(buf+j, k-j, 4, 0);
+					strhash_write(buf+j, k-j);
 				}
 			}
 			j = k+1;

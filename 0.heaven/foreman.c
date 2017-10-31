@@ -13,6 +13,7 @@
 #define u16 unsigned short
 #define u8 unsigned char
 #define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
+#define hex64(a,b,c,d,e,f,g,h) (hex32(a,b,c,d) | (((u64)hex32(e,f,g,h))<<32))
 
 
 
@@ -217,7 +218,7 @@ int worker_write(char* buf, int len, int type, int haha)
 		//func <- hash
 		connect_write(
 			funcobj, haha, hex32('f','u','n','c'),
-			thisobj, 0, hex32('h','a','s','h')
+			thisobj, 0, hex64('h','a','s','h','f','u','n','c')
 		);
 	}
 	else if(type == 3)
@@ -266,7 +267,22 @@ int worker_write(char* buf, int len, int type, int haha)
 		//file <- func
 		connect_write(
 			fileobj, haha, hex32('f','i','l','e'),
-			thisobj, 0, hex32('h','a','s','h')
+			thisobj, 0, hex64('h','a','s','h','s','t','r',0)
+		);
+	}
+	else if(type == 6)
+	{
+		thisobj = strhash_write(buf, len);
+		if(thisobj == 0)
+		{
+			printf("error@5555\n");
+			return 0;
+		}
+
+		//func <- hash
+		connect_write(
+			funcobj, haha, hex32('f','u','n','c'),
+			thisobj, 0, hex64('h','a','s','h','s','t','r',0)
 		);
 	}
 	return 1;

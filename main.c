@@ -71,6 +71,7 @@ int main(int argc, char** argv)
 	mkdir(".42/func", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
 	mkdir(".42/pin", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
 	mkdir(".42/str", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
+	mkdir(".42/wav", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
 	mkdir(".42/wire", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
 	//---------------------------------------------------------
 

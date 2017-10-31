@@ -4,14 +4,15 @@ all:
 	0.heaven/learn/circuit/dsn.c \
 	0.heaven/learn/circuit/brd.c \
 	0.heaven/learn/data/dts.c \
-	0.heaven/learn/data/struct.c \
+	0.heaven/learn/data/utf8.c \
 	0.heaven/learn/prog/c.c \
 	0.heaven/learn/prog/cpp.c \
+	0.heaven/learn/prog/h.c \
+	0.heaven/learn/prog/hpp.c \
 	0.heaven/learn/test/none.c \
 	0.heaven/learn/test/count.c \
 	0.heaven/learn/test/include.c \
 	0.heaven/learn/learn.c \
-	0.heaven/think/str/utf8.c \
 	0.heaven/think/think.c \
 	0.heaven/foreman.c \
 	1.funland/insert/insert.c \

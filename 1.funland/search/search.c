@@ -80,13 +80,15 @@ struct wire
 {
 	u64 destchip;
 	u64 destfoot;
-	u64 desttype;		//eg: 'hash', 'dir', 'file', 'func'
+	u32 desttype;		//eg: 'hash', 'dir', 'file', 'func'
+	u32 destflag;
 	u32 samepinprevchip;
 	u32 samepinnextchip;
 
 	u64 selfchip;
 	u64 selffoot;
-	u64 selftype;		//eg: 'dir', 'file', 'func', 'hash'
+	u32 selftype;		//eg: 'dir', 'file', 'func', 'hash'
+	u32 selfflag;
 	u32 samechipprevpin;
 	u32 samechipnextpin;
 };
@@ -424,13 +426,13 @@ fileirel:
 	{
 		if(irel->selftype == hex32('h','a','s','h'))
 		{
-			printf("i:	:%lld	str~@%08llx	", irel->destfoot, (irel->selfchip)>>32);
+			printf("i:	str	:%lld	", irel->destfoot);
 			strhash_print(irel->selfchip);
 			printf("\n");
 		}
 		else if(irel->selftype == hex32('f','u','n','c'))
 		{
-			printf("i:	:%lld	func@%08llx	", irel->destfoot, irel->selfchip);
+			printf("i:	func@%08llx	:%lld	", irel->selfchip, irel->destfoot);
 			funcname(irel->selfchip);
 			printf("\n");
 		}
@@ -506,7 +508,14 @@ funcirel:
 	{
 		if(irel->selftype == hex32('h','a','s','h'))
 		{
-			printf("i:	");
+			if(irel->selfflag == hex32('s','t','r',0))
+			{
+				printf("i:	str	:%lld	", irel->destfoot);
+			}
+			else
+			{
+				printf("i:	func	:%lld	", irel->destfoot);
+			}
 			strhash_print(irel->selfchip);
 			printf("\n");
 		}
@@ -606,7 +615,7 @@ hashirel:
 		}
 		else if(irel->selftype != 0)
 		{
-			printf("i:	%llx@%llx\n", irel->selftype, (u64)irel);
+			printf("i:	%x@%llx\n", irel->selftype, (u64)irel);
 		}
 
 		temp = irel->samepinnextchip;
@@ -634,10 +643,10 @@ hashorel:
 		else if(orel->desttype == hex32('f','u','n','c'))
 		{
 			printf("o:	func@%08llx	", orel->destchip);
-			funcname(orel->destchip);
-			printf(":%lld	", orel->destfoot);
 			funcpath(orel->destchip);
-			printf("\n");
+			printf("	");
+			funcname(orel->destchip);
+			printf(":%lld	\n", orel->destfoot);
 		}
 		else if(orel->desttype == hex32('f','i','l','e'))
 		{
@@ -647,7 +656,7 @@ hashorel:
 		}
 		else
 		{
-			printf("o:	%llx@%llx\n", irel->selftype, (u64)irel);
+			printf("o:	%x@%llx\n", irel->selftype, (u64)irel);
 		}
 
 		temp = orel->samechipnextpin;

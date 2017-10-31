@@ -73,31 +73,31 @@ static int wirelen;
 
 
 void* connect_generate(
-	struct hash* uchip, u64 ufoot, u32 utype,
-	struct hash* bchip, u64 bfoot, u32 btype)
+	struct hash* uchip, u64 ufoot, u64 utype,
+	struct hash* bchip, u64 bfoot, u64 btype)
 {
 	struct wire* w = (void*)wirebuf + wirecur;
 	wirecur += sizeof(struct wire);
 
 	//1.dest
-	if(utype == hex32('h','a','s','h'))w->destchip = *(u64*)uchip;
-	else w->destchip = *(u32*)uchip;
-	w->destfoot = ufoot;
-
-	w->desttype = utype;
-	w->destflag = 0;
+	w->desttype = utype&0xffffffff;
+	w->destflag = utype>>32;
 	w->samepinprevchip = 0;
 	w->samepinnextchip = 0;
 
-	//2.self
-	if(btype == hex32('h','a','s','h'))w->selfchip = *(u64*)bchip;
-	else w->selfchip = *(u32*)bchip;
-	w->selffoot = bfoot;
+	if(w->desttype == hex32('h','a','s','h'))w->destchip = *(u64*)uchip;
+	else w->destchip = *(u32*)uchip;
+	w->destfoot = ufoot;
 
-	w->selftype = btype;
-	w->selfflag = 0;
+	//2.self
+	w->selftype = btype&0xffffffff;
+	w->selfflag = btype>>32;
 	w->samechipprevpin = 0;
 	w->samechipnextpin = 0;
+
+	if(w->selftype == hex32('h','a','s','h'))w->selfchip = *(u64*)bchip;
+	else w->selfchip = *(u32*)bchip;
+	w->selffoot = bfoot;
 
 	return w;
 }
@@ -111,8 +111,8 @@ void* connect_generate(
 //wininfo,  position, 'win',  actor,    0, 'act'
 //actinfo,  which,    'act',  userinfo, what,     'user'
 int connect_write(
-	void* uchip, u64 ufoot, u32 utype,
-	void* bchip, u64 bfoot, u32 btype)
+	void* uchip, u64 ufoot, u64 utype,
+	void* bchip, u64 bfoot, u64 btype)
 {
 	struct hash* h1;
 	struct hash* h2;
@@ -158,58 +158,6 @@ int connect_write(
 		ww->samechipprevpin = (void*)wc - (void*)wirebuf;
 	}
 
-	return 1;
-
-/*
-	//dest wire
-	h1 = uchip;
-	if(h1->irel == 0)
-	{
-		w1 = connect_generate(uchip, ufoot, utype, 0, 0, 0);
-		h1->irel = (void*)w1 - (void*)wirebuf;
-		//h1->orel = 0;
-	}
-	else
-	{
-		w1 = (void*)wirebuf + (h1->irel);
-		if( (w1->desttype != utype) | (w1->selftype != 0) )
-		{
-			wc = w1;
-			w1 = connect_generate(h1, ufoot, utype, 0, 0, 0);
-			h1->irel = (void*)w1 - (void*)wirebuf;
-
-			wc->samechipprevpin = (void*)w1 - (void*)wirebuf;
-			w1->samechipnextpin = (void*)wc - (void*)wirebuf;
-		}
-	}
-
-
-
-
-	//w1->samechipprevpin = ?;		//unchanged
-	//w1->samechipnextpin = ?;		//unchanged
-
-	//w1->samepinprevchip = 0;		//certainly
-	wc = w1;
-	while(wc->samepinnextchip != 0)wc = (void*)wirebuf + (wc->samepinnextchip);
-
-	wc->samepinnextchip = (void*)w2 - (void*)wirebuf;
-	w2->samepinprevchip = (void*)wc - (void*)wirebuf;
-	w2->samepinnextchip = 0;		//certainly
-
-
-
-
-
-	wc = (void*)wirebuf + (h2->irel);
-	while(wc->samechipnextpin != 0)wc = (void*)wirebuf + (wc->samechipnextpin);
-	if(wc != w2)
-	{
-		wc->samechipnextpin = (void*)w2 - (void*)wirebuf;
-		w2->samechipprevpin = (void*)wc - (void*)wirebuf;
-		w2->samechipnextpin = 0;
-	}
-*/
 	return 1;
 }
 void* connect_read(int offset)
