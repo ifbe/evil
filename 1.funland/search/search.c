@@ -424,16 +424,14 @@ fileirel:
 	{
 		if(irel->selftype == hex32('h','a','s','h'))
 		{
-			printf("i:	:%lld	", irel->destfoot);
+			printf("i:	:%lld	str~@%08llx	", irel->destfoot, (irel->selfchip)>>32);
 			strhash_print(irel->selfchip);
 			printf("\n");
 		}
 		else if(irel->selftype == hex32('f','u','n','c'))
 		{
-			printf("i:	func@%08llx	", irel->selfchip);
+			printf("i:	:%lld	func@%08llx	", irel->destfoot, irel->selfchip);
 			funcname(irel->selfchip);
-			printf("	");
-			funcpath(irel->selfchip);
 			printf("\n");
 		}
 		else if(irel->selfchip != 0)
