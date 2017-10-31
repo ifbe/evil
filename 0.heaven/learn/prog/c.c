@@ -77,6 +77,8 @@ static void purec_str(char* buf, int len)
 {
 	int j;
 	int score = 0;
+	if(len <= 2)return;
+
 	for(j=0;j<len;j++)
 	{
 		if(buf[j] == '%')score -= 2;

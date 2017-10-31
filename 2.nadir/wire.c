@@ -66,8 +66,8 @@ struct wire
 };
 static u8* wirebuf;
 static int wirefd;
+static int wirecur;
 static int wirelen;
-static int maxlen;
 
 
 
@@ -76,8 +76,8 @@ void* connect_generate(
 	struct hash* uchip, u64 ufoot, u32 utype,
 	struct hash* bchip, u64 bfoot, u32 btype)
 {
-	struct wire* w = (void*)wirebuf + wirelen;
-	wirelen += sizeof(struct wire);
+	struct wire* w = (void*)wirebuf + wirecur;
+	wirecur += sizeof(struct wire);
 
 	//1.dest
 	if(utype == hex32('h','a','s','h'))w->destchip = *(u64*)uchip;
@@ -118,14 +118,14 @@ int connect_write(
 	struct hash* h2;
 	struct wire* ww;
 	struct wire* wc;
-	if(wirelen >= maxlen-0x100)
+	if(wirecur >= wirelen-0x100)
 	{
 		lseek(wirefd, 0, SEEK_SET);
-		write(wirefd, wirebuf, wirelen);
+		write(wirefd, wirebuf, wirecur);
 
-		maxlen *= 2;
-		wirebuf = realloc(wirebuf, maxlen);
-		printf("wirebuf realloc: %x/%x\n", wirelen, maxlen);
+		wirelen *= 2;
+		wirebuf = realloc(wirebuf, wirelen);
+		printf("wirebuf realloc: %x/%x\n", wirecur, wirelen);
 	}
 
 	//
@@ -242,36 +242,36 @@ void connect_start(int type)
 	}
 
 	//malloc
-	maxlen = 0x100000;
-	wirebuf = malloc(maxlen);
+	wirelen = 0x100000;
+	wirebuf = malloc(wirelen);
 
 	//read
-	if(type == 0)wirelen = sizeof(struct wire);
+	if(type == 0)wirecur = sizeof(struct wire);
 	else
 	{
-		wirelen = 0;
+		wirecur = 0;
 		while(1)
 		{
-			j = read(wirefd, wirebuf+wirelen, maxlen-wirelen);
-			if(j != maxlen-wirelen)
+			j = read(wirefd, wirebuf+wirecur, wirelen-wirecur);
+			if(j != wirelen-wirecur)
 			{
-				wirelen += j;
+				wirecur += j;
 				break;
 			}
 
-			wirelen = maxlen;
-			maxlen *= 2;
-			wirebuf = realloc(wirebuf, maxlen);
+			wirecur = wirelen;
+			wirelen *= 2;
+			wirebuf = realloc(wirebuf, wirelen);
 		}
 
-		printf("wirelen:	%x\n", wirelen);
-		for(j=wirelen;j<maxlen;j++)wirebuf[j] = 0;
+		printf("wirecur:	%x\n", wirecur);
+		for(j=wirecur;j<wirelen;j++)wirebuf[j] = 0;
 	}
 }
 void connect_stop()
 {
 	lseek(wirefd, 0, SEEK_SET);
-	write(wirefd, wirebuf, wirelen);
+	write(wirefd, wirebuf, wirecur);
 	close(wirefd);
 }
 void connect_create()

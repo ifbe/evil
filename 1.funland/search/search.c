@@ -562,6 +562,7 @@ void searchhash(char* buf, int len)
 {
 	u64 haha;
 	u64 temp;
+	u64 special=0;
 	struct hash* h;
 	struct wire* irel;
 	struct wire* orel;
@@ -598,7 +599,8 @@ hashirel:
 		}
 		else if(irel->selftype == hex32('f','i','l','e'))
 		{
-			searchfile(irel->selfchip);
+			special = irel->selfchip;
+			printf("i:	file@%08llx\n", irel->selfchip);
 		}
 		else if(irel->selftype == hex32('c','h','i','p'))
 		{
@@ -618,10 +620,10 @@ hashirel:
 
 hashorel:
 	temp = h->orel;
-	if(temp == 0)return;
+	if(temp == 0)goto theend;
 
 	orel = connect_read(temp);
-	if(orel == 0)return;
+	if(orel == 0)goto theend;
 
 	while(orel != 0)
 	{
@@ -635,7 +637,7 @@ hashorel:
 		{
 			printf("o:	func@%08llx	", orel->destchip);
 			funcname(orel->destchip);
-			printf("	");
+			printf(":%lld	", orel->destfoot);
 			funcpath(orel->destchip);
 			printf("\n");
 		}
@@ -656,6 +658,10 @@ hashorel:
 		orel = connect_read(temp);
 		if(orel == 0)break;
 	}
+
+theend:
+	//thisis filename, search filename
+	if(special != 0)searchfile(special);
 }
 void search(int argc, char** argv)
 {
