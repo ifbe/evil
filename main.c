@@ -30,6 +30,7 @@ void worker_delete();
 //
 int learn(int argc,char** argv);
 int think(int argc,char** argv);
+int kirchhoff(int argc,char** argv);
 //
 int search(int argc,char** argv);
 int delete(int argc,char** argv);
@@ -103,6 +104,10 @@ int main(int argc, char** argv)
 	else if(strcmp(argv[1] , "think") == 0)
 	{
 		think(argc-1 , argv+1);
+	}
+	else if(strcmp(argv[1] , "kirchhoff") == 0)
+	{
+		kirchhoff(argc-1 , argv+1);
 	}
 	else if(strcmp(argv[1] , "search") == 0)
 	{

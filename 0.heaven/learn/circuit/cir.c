@@ -5,6 +5,7 @@
 #define u32 unsigned int
 #define u64 unsigned long long
 #define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
+#define hex64(a,b,c,d,e,f,g,h) (hex32(a,b,c,d) | (((u64)hex32(e,f,g,h))<<32))
 void* pin_write(void*, int);
 void* chip_write(void*, int);
 void* strhash_write(void*, int);
@@ -24,6 +25,7 @@ static int inname = 0;
 
 static void* chip = 0;
 static u64 foot = 0;
+static u64 type = 0;
 void throwall(u8* buf, int len)
 {
 	void* pin;
@@ -33,12 +35,15 @@ void throwall(u8* buf, int len)
 		if(inchip == 0)
 		{
 			//printf("chip:%.*s\n", len, buf);
-			chip = chip_write(buf, len);
 			hash = strhash_write(buf, len);
+			chip = chip_write(buf, len);
+			if(buf[0] == 'N')type = hex64('c','h','i','p','N','M','O','S');
+			else if(buf[0] == 'R')type = hex64('c','h','i','p','R',0,0,0);
+			else if(buf[0] == 'V')type = hex64('c','h','i','p','V',0,0,0);
+			else type = hex32('c','h','i','p');
 			connect_write(
 				hash, 0, hex32('h','a','s','h'),
-				chip, 0, hex32('c','h','i','p')
-			);
+				chip, 0, type);
 		}
 		else
 		{
@@ -53,8 +58,7 @@ void throwall(u8* buf, int len)
 				pin = pin_write(buf, len);
 				connect_write(
 					pin, 0, hex32('p','i','n',0),
-					chip, foot, hex32('c','h','i','p')
-				);
+					chip, foot, type);
 			}
 			inchip++;
 		}
