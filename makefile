@@ -5,6 +5,8 @@ all:
 	0.heaven/learn/circuit/brd.c \
 	0.heaven/learn/data/dts.c \
 	0.heaven/learn/data/utf8.c \
+	0.heaven/learn/model/3d.c \
+	0.heaven/learn/model/stl.c \
 	0.heaven/learn/prog/c.c \
 	0.heaven/learn/prog/cpp.c \
 	0.heaven/learn/prog/h.c \
@@ -30,6 +32,10 @@ all:
 	2.nadir/funcdata.c \
 	2.nadir/pindata.c \
 	2.nadir/pinid.c \
+	2.nadir/pointdata.c \
+	2.nadir/pointindex.c \
+	2.nadir/shapedata.c \
+	2.nadir/shapeindex.c \
 	2.nadir/strdata.c \
 	2.nadir/strhash.c \
 	2.nadir/wire.c \
