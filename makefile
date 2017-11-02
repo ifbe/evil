@@ -17,7 +17,6 @@ all:
 	0.heaven/learn/learn.c \
 	0.heaven/think/think.c \
 	0.heaven/think/kirchhoff.c \
-	0.heaven/foreman.c \
 	1.funland/insert/insert.c \
 	1.funland/delete/delete.c \
 	1.funland/modify/modify.c \

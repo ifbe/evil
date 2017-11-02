@@ -103,7 +103,7 @@ if(orel->selfflag == hex32('V',0,0,0))
 
 		if(flag == 1)printf(" - ");
 	}
-	printf(" = V(%llx)\n", orel->selfchip);
+	printf(" = V%llx\n", orel->selfchip);
 }//power
 else if(orel->selfflag == hex32('R',0,0,0))
 {
@@ -129,7 +129,7 @@ else if(orel->selfflag == hex32('R',0,0,0))
 
 	temp = chip->orel;
 	orel = connect_read(temp);
-	printf(" = R(%llx) * (", orel->selfchip);
+	printf(" = R%llx * (", orel->selfchip);
 
 	while(orel != 0)
 	{
@@ -137,7 +137,8 @@ else if(orel->selfflag == hex32('R',0,0,0))
 		if(orel->desttype == hex32('p','i','n',0))
 		{
 			flag = 1;
-			printf("I(%llx:%c)", orel->selfchip, (u32)(orel->selffoot));
+			printf("I%llx", temp);
+			//printf("I(%llx:%c)", orel->selfchip, (u32)(orel->selffoot));
 		}
 
 		temp = orel->samechipnextpin;
@@ -154,6 +155,7 @@ else if(orel->selfflag == hex32('R',0,0,0))
 }//resistor
 else if(orel->selfflag == hex32('N','M','O','S'))
 {
+	flag = 0;
 	while(orel != 0)
 	{
 		flag |= 0xfc;
@@ -184,6 +186,40 @@ else if(orel->selfflag == hex32('N','M','O','S'))
 		if((flag == 1)|(flag == 2))printf(" = ");
 	}
 	printf("\n");
+
+	temp = chip->orel;
+	orel = connect_read(temp);
+	flag = 0;
+	while(orel != 0)
+	{
+		flag |= 0xfc;
+		if(orel->desttype == hex32('p','i','n',0))
+		{
+			if(orel->selffoot == 'D')
+			{
+				flag &= 0x3;
+				flag |= 1;
+				printf("I%llx", temp);
+			}
+			else if(orel->selffoot == 'S')
+			{
+				flag &= 0x3;
+				flag |= 2;
+				printf("I%llx", temp);
+			}
+		}
+
+		temp = orel->samechipnextpin;
+		if(temp == 0)break;
+		//printf("temp=%x\n",temp);
+
+		orel = connect_read(temp);
+		if(orel == 0)break;
+		//printf("orel=%x\n",temp);
+
+		if((flag == 1)|(flag == 2))printf(" + ");
+	}
+	printf(" = 0\n");
 }//nmos
 }
 void kirchhoff_pin(int offset)
@@ -208,7 +244,8 @@ void kirchhoff_pin(int offset)
 	{
 		if(irel->selftype == hex32('c','h','i','p'))
 		{
-			printf("I(%llx:%c)", irel->selfchip, (u32)(irel->selffoot));
+			//printf("I(%llx:%c)", irel->selfchip, (u32)(irel->selffoot));
+			printf("I%llx", temp);
 		}
 
 		temp = irel->samepinnextchip;
