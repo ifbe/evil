@@ -15,28 +15,38 @@ all:
 	0.heaven/learn/test/count.c \
 	0.heaven/learn/test/include.c \
 	0.heaven/learn/learn.c \
+	0.heaven/think/mergechip.c \
+	0.heaven/think/substr.c \
 	0.heaven/think/think.c \
-	0.heaven/think/kirchhoff.c \
+	0.heaven/serve/cli.c \
+	0.heaven/graph/cli.c \
 	1.funland/insert/insert.c \
 	1.funland/delete/delete.c \
 	1.funland/modify/modify.c \
 	1.funland/search/search.c \
-	1.funland/filelib.c \
-	1.funland/strlib.c \
-	2.nadir/chipdata.c \
-	2.nadir/chipid.c \
-	2.nadir/filedata.c \
-	2.nadir/filemd5.c \
-	2.nadir/funcindex.c \
-	2.nadir/funcdata.c \
-	2.nadir/pindata.c \
-	2.nadir/pinid.c \
-	2.nadir/pointdata.c \
-	2.nadir/pointindex.c \
-	2.nadir/shapedata.c \
-	2.nadir/shapeindex.c \
-	2.nadir/strdata.c \
-	2.nadir/strhash.c \
+	1.funland/kirchhoff.c \
+	1.funland/mechanics.c \
+	2.nadir/chip/chipdata.c \
+	2.nadir/chip/chipid.c \
+	2.nadir/chip/chiplib.c \
+	2.nadir/file/filedata.c \
+	2.nadir/file/filemd5.c \
+	2.nadir/file/filelib.c \
+	2.nadir/func/funcdata.c \
+	2.nadir/func/funcindex.c \
+	2.nadir/func/funclib.c \
+	2.nadir/pin/pindata.c \
+	2.nadir/pin/pinid.c \
+	2.nadir/pin/pinlib.c \
+	2.nadir/point/pointdata.c \
+	2.nadir/point/pointindex.c \
+	2.nadir/point/pointlib.c \
+	2.nadir/shape/shapedata.c \
+	2.nadir/shape/shapeindex.c \
+	2.nadir/shape/shapelib.c \
+	2.nadir/str/strdata.c \
+	2.nadir/str/strhash.c \
+	2.nadir/str/strlib.c \
 	2.nadir/wire.c \
 	-o a.exe
 clean:

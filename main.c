@@ -30,10 +30,12 @@ void worker_delete();
 //
 int learn(int argc,char** argv);
 int think(int argc,char** argv);
-int kirchhoff(int argc,char** argv);
+int serve(int argc,char** argv);
+int graph(int argc,char** argv);
 //
 int search(int argc,char** argv);
 int delete(int argc,char** argv);
+int kirchhoff(int argc,char** argv);
 
 
 
@@ -41,9 +43,16 @@ int delete(int argc,char** argv);
 void help()
 {
 	printf("usage:\n");
-	printf("a.exe learn aaa.c /some/dir/bbb.cpp /my/folder/haha*\n");
-	printf("a.exe search string func@c0 file@20\n");
-	printf("a.exe think\n");
+	printf("	a.exe learn aaa.c /some/dir/bbb.cpp /my/folder/haha*\n");
+	printf("	a.exe think\n");
+	printf("	a.exe serve port\n");
+	printf("	a.exe graph name\n");
+	printf("debug:\n");
+	printf("	a.exe insert\n");
+	printf("	a.exe delete\n");
+	printf("	a.exe change\n");
+	printf("	a.exe search str func@c0 file@20\n");
+	printf("	a.exe kirchhoff\n");
 }
 int main(int argc, char** argv)
 {
@@ -101,23 +110,33 @@ int main(int argc, char** argv)
 	//
 	if(strcmp(argv[1] , "learn") == 0)
 	{
-		learn(argc-1 , argv+1);
+		learn(argc-1, argv+1);
 	}
 	else if(strcmp(argv[1] , "think") == 0)
 	{
-		think(argc-1 , argv+1);
+		think(argc-1, argv+1);
 	}
-	else if(strcmp(argv[1] , "kirchhoff") == 0)
+	else if(strcmp(argv[1], "serve") == 0)
 	{
-		kirchhoff(argc-1 , argv+1);
+		serve(argc-1, argv+1);
 	}
+	else if(strcmp(argv[1], "graph") == 0)
+	{
+		graph(argc-1, argv+1);
+	}
+
+	//
 	else if(strcmp(argv[1] , "search") == 0)
 	{
-		search(argc-1 , argv+1);
+		search(argc-1, argv+1);
 	}
 	else if(strcmp(argv[1] , "delete") == 0)
 	{
-		delete(argc-1 , argv+1);
+		delete(argc-1, argv+1);
+	}
+	else if(strcmp(argv[1] , "kirchhoff") == 0)
+	{
+		kirchhoff(argc-1, argv+1);
 	}
 	else
 	{

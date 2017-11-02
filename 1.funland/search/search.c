@@ -670,10 +670,12 @@ theend:
 	//thisis filename, search filename
 	if(special != 0)searchfile(special);
 }
-void search(int argc, char** argv)
+
+
+
+
+void search_prepare()
 {
-	int j,len;
-	u64 temp;
 	//chipdata_start(1);
 	chipindex_start(1);
 	filedata_start(1);
@@ -685,38 +687,47 @@ void search(int argc, char** argv)
 	strdata_start(1);
 	strhash_start(1);
 	connect_start(1);
+}
+void search_one(char* buf, int len)
+{
+	u64 temp;
+	if(len > 5)
+	{
+		if(strncmp(buf, "pin@", 4)==0)
+		{
+			hexstr2data(buf + 4, &temp);
+			searchpin(temp);
+			return;
+		}
+		else if(strncmp(buf, "chip@", 5)==0)
+		{
+			hexstr2data(buf + 5, &temp);
+			searchchip(temp);
+			return;
+		}
+		else if(strncmp(buf, "file@", 5)==0)
+		{
+			hexstr2data(buf + 5, &temp);
+			searchfile(temp);
+			return;
+		}
+		else if(strncmp(buf, "func@", 5)==0)
+		{
+			hexstr2data(buf + 5, &temp);
+			searchfunc(temp);
+			return;
+		}
+	}
+	searchhash(buf, len);
+}
+void search(int argc, char** argv)
+{
+	int j;
+	search_prepare();
 
 	for(j=1;j<argc;j++)
 	{
+		search_one(argv[j], strlen(argv[j]));
 		printf("\n");
-		len = strlen(argv[j]);
-		if(len > 5)
-		{
-			if(strncmp(argv[j], "pin@", 4)==0)
-			{
-				hexstr2data(argv[j] + 4, &temp);
-				searchpin(temp);
-				continue;
-			}
-			else if(strncmp(argv[j], "chip@", 5)==0)
-			{
-				hexstr2data(argv[j] + 5, &temp);
-				searchchip(temp);
-				continue;
-			}
-			else if(strncmp(argv[j], "file@", 5)==0)
-			{
-				hexstr2data(argv[j] + 5, &temp);
-				searchfile(temp);
-				continue;
-			}
-			else if(strncmp(argv[j], "func@", 5)==0)
-			{
-				hexstr2data(argv[j] + 5, &temp);
-				searchfunc(temp);
-				continue;
-			}
-		}
-		searchhash(argv[j], len);
 	}
 }

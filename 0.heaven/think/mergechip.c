@@ -1,0 +1,3 @@
+void think_mergechip()
+{
+}
