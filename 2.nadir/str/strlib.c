@@ -59,6 +59,40 @@ u64 suffix_value(char* p)
 
 	return *(u64*)ret;
 }
+int match(char* first,char* second)
+{
+	int j=0;
+	int k=0;
+	while(1)
+	{
+		if( (first[j]==0) && (second[k]==0) )
+		{
+			break;
+		}
+//printf("%c,%c\n",first[j],second[k]);
+		if(first[j]=='*')
+		{
+			j++;
+			if(first[j]==0)return 1;
+		}
+		else if(second[k]=='*')
+		{
+			k++;
+			if(second[k]==0)return 1;
+		}
+		else if(
+			(first[j]=='?') |
+			(second[k]=='?') |
+			(first[j]==second[k]) )
+		{
+			j++;
+			k++;
+		}
+		else return 0;
+	}
+
+	return 1;
+}
 int decstr2data(u8* src, void* dst)
 {
 	int j;
@@ -106,37 +140,7 @@ int hexstr2data(u8* src,u64* data)
 	}
 	return -999999;	//不会到这里
 }
-int match(char* first,char* second)
+int fpstr2data(u8* src, double* data)
 {
-	int j=0;
-	int k=0;
-	while(1)
-	{
-		if( (first[j]==0) && (second[k]==0) )
-		{
-			break;
-		}
-//printf("%c,%c\n",first[j],second[k]);
-		if(first[j]=='*')
-		{
-			j++;
-			if(first[j]==0)return 1;
-		}
-		else if(second[k]=='*')
-		{
-			k++;
-			if(second[k]==0)return 1;
-		}
-		else if(
-			(first[j]=='?') |
-			(second[k]=='?') |
-			(first[j]==second[k]) )
-		{
-			j++;
-			k++;
-		}
-		else return 0;
-	}
-
-	return 1;
+	
 }

@@ -453,6 +453,10 @@ void stoplearn()
 	funcindex_stop();
 	//pindata_stop();
 	pinindex_stop();
+	//pointdata_stop();
+	pointindex_stop();
+	//shapedata_stop();
+	shapeindex_stop();
 	strdata_stop();
 	strhash_stop();
 	connect_stop();
@@ -470,6 +474,10 @@ int learn(int argc,char** argv)
 	funcindex_start(0);
 	//pindata_start(0);
 	pinindex_start(0);
+	//pointdata_start(0);
+	pointindex_start(0);
+	//shapedata_start(0);
+	shapeindex_start(0);
 	strdata_start(0);
 	strhash_start(0);
 	connect_start(0);

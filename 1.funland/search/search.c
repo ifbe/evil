@@ -615,7 +615,7 @@ hashirel:
 		}
 		else if(irel->selftype != 0)
 		{
-			printf("i:	%x@%llx\n", irel->selftype, (u64)irel);
+			printf("i:	%.8s@%llx\n", (void*)&irel->selftype, irel->selfchip);
 		}
 
 		temp = irel->samepinnextchip;
@@ -656,7 +656,7 @@ hashorel:
 		}
 		else
 		{
-			printf("o:	%x@%llx\n", irel->selftype, (u64)irel);
+			printf("i:	%.8s@%llx\n", (void*)&orel->selftype, orel->selfchip);
 		}
 
 		temp = orel->samechipnextpin;
