@@ -20,9 +20,20 @@
 #define u32 unsigned int
 #define u64 unsigned long long
 #define MAXSIZE 4096
+void search_prepare();
+void search_one(char* buf, int len);
+
+
+
+
 static int epollfd;
 static int tcpfd;
 static u8 buffer[0x100000];
+static u8 GET[0x1000];
+static u8 response[] =
+	"HTTP/1.1 200 OK\r\n"
+	"Content-type: text/html\r\n"
+	"\r\n";
 
 
 
@@ -58,6 +69,40 @@ void epoll_mod(u64 fd)
 
 
 
+
+int servesocket(char* buf, int len)
+{
+	int j,ret;
+	char* p;
+	//printf("%.*s\n\n", len, buf);
+
+	if(strncmp(buf, "GET /", 5) != 0)return 0;
+
+	p = buf+5;
+	ret = 0;
+	for(j=0;j<0x1000;j++)
+	{
+		if(p[j] <= 0x20)
+		{
+			p[j] = 0;
+			ret = j;
+			break;
+		}
+	}
+	//printf("%.*s\n", ret, p);
+
+	if(ret == 0)ret = snprintf(GET, 0x80, "index.html");
+	else
+	{
+		for(j=0;j<ret;j++)GET[j] = p[j];
+		GET[ret] = 0;
+
+		search_one(GET, ret);
+	}
+
+	ret = snprintf(buf, 0x80, "%s%s", response, GET);
+	return ret;
+}
 int listensocket()
 {
 	int j, tt, ret;
@@ -69,7 +114,7 @@ int listensocket()
 		tt = epoll_wait(epollfd, epollevent, 16, -1);	//start fetch
 		if(tt <= 0)continue;
 
-		printf("epoll:%d\n", tt);
+		//printf("epoll:%d\n", tt);
 		for(j=0; j<tt; j++)
 		{
 			fd = epollevent[j].data.fd;
@@ -95,7 +140,7 @@ int listensocket()
 						}
 
 						epoll_add(cc);
-						printf("++++ %d\n",cc);
+						//printf("++++ %d\n",cc);
 					}//while
 
 					//reset tcpfd
@@ -105,11 +150,16 @@ int listensocket()
 				//read
 				else
 				{
-					ret = read(fd, buffer, 0x100000);
-					printf("%.*s\n\n", ret, buffer);
-
-					ret = write(fd, "fuck", 4);
-					close(fd);
+ret = read(fd, buffer, 0x100000);
+if(ret > 0)
+{
+	ret = servesocket(buffer, ret);
+	if(ret > 0)
+	{
+		ret = write(fd, buffer, ret);
+	}
+}
+close(fd);
 				}
 			}//EPOLLIN
 		}//for
@@ -170,6 +220,8 @@ void serve(int argc, char** argv)
 	struct sigaction sa;
 	sa.sa_handler = SIG_IGN;
 	sigaction(SIGPIPE, &sa, 0);
+
+	search_prepare();
 
 	epollfd = epoll_create(MAXSIZE);
 	if(epollfd <= 0)printf("%d,%d@epoll_create\n", epollfd, errno);
