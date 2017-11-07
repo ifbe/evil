@@ -14,16 +14,6 @@ GLuint vShader;
 GLuint fShader;
 GLuint programHandle;
 //
-GLuint axisvao;
-GLuint axispositionhandle;
-GLuint axiscolorhandle;
-//
-GLuint samplevao;
-GLuint samplepositionhandle;
-GLuint samplenormalhandle;
-GLuint samplecolorhandle;
-GLuint sampleindexhandle;
-//
 float camerax = 1.0f;
 float cameray = -2.0f;
 float cameraz = 1.0f;
@@ -53,61 +43,11 @@ GLfloat projmatrix[4*4] = {
 	0.0f, 0.0f, -0.2f, 0.0f
 };
 //
-float axispositiondata[] = {
-	-1000.0, 0.0, 0.0,
-	1000.0, 0.0, 0.0,
-	0.0, -1000.0, 0.0,
-	0.0, 1000.0, 0.0,
-	0.0, 0.0, -1000.0,
-	0.0, 0.0, 1000.0
-};
-float axiscolordata[] = {
-	0.0, 0.0, 1.0,
-	0.0, 0.0, 1.0,
-	0.0, 1.0, 0.0,
-	0.0, 1.0, 0.0,
-	1.0, 0.0, 0.0,
-	1.0, 0.0, 0.0
-};
-//
-float samplepositiondata[] = {
-	-0.5, -0.5, -0.5,
-	0.5, -0.5, -0.5,
-	0.5, 0.5, -0.5,
-	-0.5, 0.5, -0.5,
-	-0.5, -0.5, 0.5,
-	0.5, -0.5, 0.5,
-	0.5, 0.5, 0.5,
-	-0.5, 0.5, 0.5,
-};
-float samplenormaldata[] = {
-	-0.5, -0.5, -0.5,
-	0.5, -0.5, -0.5,
-	0.5, 0.5, -0.5,
-	-0.5, 0.5, -0.5,
-	-0.5, -0.5, 0.5,
-	0.5, -0.5, 0.5,
-	0.5, 0.5, 0.5,
-	-0.5, 0.5, 0.5,
-};
-float samplecolordata[] = {
-	0.0, 0.0, 0.0,
-	0.0, 0.0, 0.1f,
-	0.0, 0.1f, 0.0,
-	0.0, 0.1f, 0.1f,
-	0.1f, 0.0, 0.0,
-	0.1f, 0.0, 0.1f,
-	0.1f, 0.1f, 0.0,
-	0.1f, 0.1f, 0.1f
-};
-unsigned short sampleindexdata[] = {
-	0, 1, 2, 3,
-	0, 1, 5, 4,
-	5, 6, 2, 1,
-	5, 6, 7, 4,
-	3, 7, 4, 0,
-	3, 7, 6, 2
-};
+int shapecount[5];
+GLuint vao[5];
+GLuint positionhandle[5];
+GLuint normalhandle[5];
+GLuint colorhandle[5];
 
 
 
@@ -254,58 +194,52 @@ void initshader()
         glUseProgram(programHandle);  
     }  
 }
-void initaxis()  
+void initshape()  
 {
-	//axis vao
-    glGenVertexArrays(1,&axisvao);
-    glBindVertexArray(axisvao);
+	int j,k;
+	//pointdata_start(1);
+	pointindex_start(1);
+	//shapedata_start(1);
+	shapeindex_start(1);
+	strdata_start(1);
+	strhash_start(1);
+	connect_start(1);
 
-	//axis
-    glGenBuffers(1, &axispositionhandle);
-    glBindBuffer(GL_ARRAY_BUFFER, axispositionhandle);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float)*3*6, axispositiondata, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-    glEnableVertexAttribArray(0);
+	void* positiondata = malloc(0x100000);
+	void* normaldata = malloc(0x100000);
+	void* colordata = malloc(0x100000);
 
-    //color
-    glGenBuffers(1, &axiscolorhandle);
-    glBindBuffer(GL_ARRAY_BUFFER, axiscolorhandle);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float)*3*6, axiscolordata, GL_STATIC_DRAW);
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, 0);
-    glEnableVertexAttribArray(2);
+	for(j=1;j<5;j++)
+    {
+		if(j == 1)k = mesh_point(positiondata, normaldata, colordata);
+		else if(j == 2)k = mesh_line(positiondata, normaldata, colordata);
+		else if(j == 3)k = mesh_tri(positiondata, normaldata, colordata);
+		else if(j == 4)k = mesh_rect(positiondata, normaldata, colordata);
+		if(k == 0)continue;
+		shapecount[j] = j*k;
+
+		glGenVertexArrays(1, &vao[j]);
+		glBindVertexArray(vao[j]);
+
+		glGenBuffers(1, &positionhandle[j]);
+		glBindBuffer(GL_ARRAY_BUFFER, positionhandle[j]);
+		glBufferData(GL_ARRAY_BUFFER, 12 * shapecount[j], positiondata, GL_STATIC_DRAW);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+		glEnableVertexAttribArray(0);
+
+		glGenBuffers(1, &normalhandle[j]);
+		glBindBuffer(GL_ARRAY_BUFFER, normalhandle[j]);
+		glBufferData(GL_ARRAY_BUFFER, 12 * shapecount[j], normaldata, GL_STATIC_DRAW);
+		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+		glEnableVertexAttribArray(2);
+
+		glGenBuffers(1, &colorhandle[j]);
+		glBindBuffer(GL_ARRAY_BUFFER, colorhandle[j]);
+		glBufferData(GL_ARRAY_BUFFER, 12 * shapecount[j], colordata, GL_STATIC_DRAW);
+		glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, 0);
+		glEnableVertexAttribArray(2);
+	}
 }
-void initshape()
-{
-	//sample vao
-    glGenVertexArrays(1,&samplevao);
-    glBindVertexArray(samplevao);
-
-    //sample position
-    glGenBuffers(1, &samplepositionhandle);
-    glBindBuffer(GL_ARRAY_BUFFER, samplepositionhandle);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float)*3*8, samplepositiondata, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-    glEnableVertexAttribArray(0);
-
-    //sample common
-    glGenBuffers(1, &samplenormalhandle);
-    glBindBuffer(GL_ARRAY_BUFFER, samplenormalhandle);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float)*3*8, samplenormaldata, GL_STATIC_DRAW);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
-    glEnableVertexAttribArray(1);
-
-    //sample color
-    glGenBuffers(1, &samplecolorhandle);
-    glBindBuffer(GL_ARRAY_BUFFER, samplecolorhandle);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float)*3*8, samplecolordata, GL_STATIC_DRAW);
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, 0);
-    glEnableVertexAttribArray(2);
-
-    //sample index
-    glGenBuffers(1, &sampleindexhandle);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sampleindexhandle);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(short)*4*6, sampleindexdata, GL_STATIC_DRAW);
-}  
 
 
 
@@ -428,7 +362,7 @@ void fixlight()
 {
 	GLfloat ambientcolor[3] = {0.1f, 0.1f, 0.1f};
 	GLfloat diffuseplace[3] = {0.1f, 0.2f, 5.0f};
-	GLfloat diffusecolor[3] = {0.8f, 0.0f, 0.0f};
+	GLfloat diffusecolor[3] = {0.5f, 0.5f, 0.5f};
 
 	GLint ac = glGetUniformLocation(programHandle, "ambientcolor");
 	glUniform3fv(ac, 1, ambientcolor);
@@ -439,8 +373,10 @@ void fixlight()
 	GLint dp = glGetUniformLocation(programHandle, "diffuseplace");
 	glUniform3fv(dp, 1, diffuseplace);
 }
-void display()  
+void callback_display()
 {
+	int j, type;
+
 	//set
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
@@ -449,19 +385,21 @@ void display()
 	fixmatrix();
 	fixlight();
 
-	//axis
-	glBindVertexArray(axisvao);
-	glDrawArrays(GL_LINES, 0, 6);
-
-	//shape
-	//glBindVertexArray(samplevao);
-	//glDrawElements(GL_QUADS, 4*6, GL_UNSIGNED_SHORT, 0);
+	for(j=1;j<=4;j++)
+	{
+		if(j == 1)type = GL_POINTS;
+		else if(j == 2)type = GL_LINES;
+		else if(j == 3)type = GL_TRIANGLES;
+		else if(j == 4)type = GL_QUADS;
+		glBindVertexArray(vao[j]);
+		glDrawArrays(type, 0, shapecount[j]);
+	}
 
 	//write
 	glFlush();
     glutSwapBuffers();
 }
-void keyboard(unsigned char key,int x,int y)  
+void callback_keyboard(unsigned char key,int x,int y)
 {
 	printf("%d\n",key);
 	glutPostRedisplay();
@@ -553,18 +491,16 @@ int graph(int argc,char** argv)
     glutInitWindowPosition(256, 256);
     glutCreateWindow("GLSL Test : Draw a triangle");
 
-    //初始化glew扩展库  
     err = glewInit();
     if( GLEW_OK != err )printf("glewinit: %s\n", glewGetErrorString(err));  
 
 	glViewport(0, 0, 512, 512);
 	glEnable(GL_DEPTH_TEST);
     initshader();
-    initaxis();  
+    initshape();
 
-    glutDisplayFunc(display);
-    glutIdleFunc(display);
-    glutKeyboardFunc(keyboard);
+    glutDisplayFunc(callback_display);
+    glutKeyboardFunc(callback_keyboard);
 	glutReshapeFunc(callback_reshape);
 	glutMouseFunc(callback_mouse);
 	glutMotionFunc(callback_move); 
@@ -572,6 +508,6 @@ int graph(int argc,char** argv)
     glutMainLoop();
 
 	glDeleteShader(vShader);
+	glDeleteShader(fShader);
 	glUseProgram(0);
-    return 0;  
 }
