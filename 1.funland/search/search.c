@@ -6,20 +6,19 @@
 #define u32 unsigned int
 #define u64 unsigned long long
 #define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
-u32 bkdrhash(char*, int);
-u32 djb2hash(char*, int);
-int hexstr2data(void* src, void* data);
-u64 strhash_generate(char*,int);
+int hexstr2data(void*, void*);
 void strhash_print(u64);
+u64 strhash_generate(void*, int);
 void* strhash_read(u64);
+void connect_write(void* uchip, u64 ufoot, u64 utype, void* bchip, u64 bfoot, u64 btype);
+void* connect_read(int);
 //
 void* pin_read(int);
 void* chipindex_read(int);
 void* funcindex_read(int);
 void* filemd5_read(int);
-//
-void connect_write(void* uchip, u64 ufoot, u64 utype, void* bchip, u64 bfoot, u64 btype);
-void* connect_read(int);
+void* point_read(int);
+void* shape_read(int);
 //
 void chipdata_start(int);
 void chipindex_start(int);
@@ -36,6 +35,23 @@ void connect_start(int);
 
 
 
+struct pointindex
+{
+	u32 self;
+	float x;
+	float y;
+	float z;
+
+	u64 irel;
+	u64 orel;
+};
+struct shapeindex
+{
+	u64 self;
+	u64 type;
+	u64 irel;
+	u64 orel;
+};
 struct chipindex
 {
 	u32 self;
@@ -269,7 +285,7 @@ pinirel:
 			chipname(irel->selfchip);
 			printf(":%c\n", (u32)(irel->selffoot));
 		}
-		else if(irel->selfchip != 0)
+		else
 		{
 			printf("i:	%-s@%08llx	%08llx	(@%lld)\n",
 			(char*)&(irel->selftype),
@@ -350,7 +366,7 @@ chipirel:
 			strhash_print(irel->selfchip);
 			printf("\n");
 		}
-		else if(irel->selfchip != 0)
+		else
 		{
 			printf("i:	%-s@%08llx	%08llx	(@%lld)\n",
 			(char*)&(irel->selftype),
@@ -404,6 +420,99 @@ chiporel:
 
 
 
+void searchshape(int offset)
+{
+	u64 temp;
+	struct shapeindex* shape;
+	struct shapeindex* ss;
+	struct pointindex* pp;
+	struct wire* irel;
+	struct wire* orel;
+	if(offset%0x20 != 0)printf("notfound: shape@%x",offset);
+
+	shape = shape_read(offset);
+	printf("shape@%08x	@%llx\n", offset, (u64)shape);
+
+shapeirel:
+	temp = shape->irel;
+	if(temp == 0)goto shapeorel;
+
+	irel = connect_read(temp);
+	if(irel == 0)goto shapeorel;
+
+	while(irel != 0)
+	{
+		if(irel->selftype == hex32('h','a','s','h'))
+		{
+			printf("i:	");
+			strhash_print(irel->selfchip);
+			printf("\n");
+		}
+		else if(irel->selftype == hex32('s','h','a','p'))
+		{
+			ss = shape_read(irel->selfchip);
+			printf("i:	shap@%08llx	%.8s\n",
+			irel->selfchip, &(ss->type));
+		}
+		else if(irel->selftype == hex32('p','o','i','n'))
+		{
+			pp = point_read(irel->selfchip);
+			printf("i:	poin@%08llx	(%f, %f, %f)\n",
+			irel->selfchip, pp->x, pp->y, pp->z);
+		}
+		else
+		{
+			printf("i:	%-s@%08llx	%08llx\n",
+			(char*)&(irel->selftype), irel->selfchip, irel->selffoot);
+		}
+
+		temp = irel->samepinnextchip;
+		if(temp == 0)break;
+
+		irel = connect_read(temp);
+		if(irel == 0)break;
+	}
+
+shapeorel:
+	temp = shape->orel;
+	if(temp == 0)return;
+
+	orel = connect_read(temp);
+	if(orel == 0)return;
+
+	while(orel != 0)
+	{
+		if(orel->desttype == hex32('h','a','s','h'))
+		{
+			printf("o:	");
+			strhash_print(orel->destchip);
+			printf("\n");
+		}
+		else if(orel->desttype == hex32('s','h','a','p'))
+		{
+			ss = shape_read(orel->destchip);
+			printf("o:	shap@%08llx	%.8s\n",
+			orel->destchip, &(ss->type));
+		}
+		else
+		{
+			printf("o:	%-s@%08llx	%08llx\n",
+			(char*)&(orel->desttype), orel->destchip, orel->destfoot);
+		}
+
+		temp = orel->samechipnextpin;
+		if(temp == 0)break;
+		//printf("temp=%x\n",temp);
+
+		orel = connect_read(temp);
+		if(orel == 0)break;
+		//printf("orel=%x\n",temp);
+	}
+}
+
+
+
+
 void searchfile(int offset)
 {
 	u64 temp;
@@ -436,7 +545,7 @@ fileirel:
 			funcname(irel->selfchip);
 			printf("\n");
 		}
-		else if(irel->selfchip != 0)
+		else
 		{
 			printf("i:	%-s@%08llx	%08llx	(@%lld)\n",
 			(char*)&(irel->selftype),
@@ -567,18 +676,17 @@ funcorel:
 
 void searchhash(char* buf, int len)
 {
-	u64 haha;
 	u64 temp;
-	u64 special=0;
+	u64 special = 0;
 	struct hash* h;
 	struct wire* irel;
 	struct wire* orel;
 
-	haha = strhash_generate(buf, len);
-	h = strhash_read(haha);
+	temp = strhash_generate(buf, len);
+	h = strhash_read(temp);
 	if(h == 0)
 	{
-		printf("notfound: (%llx)%s\n", haha, buf);
+		printf("notfound: %s\n", buf);
 		return;
 	}
 	printf("hash: %08x%08x @0x%08llx(%s)\n", h->hash1, h->hash0, (u64)h, buf);
@@ -613,7 +721,7 @@ hashirel:
 		{
 			printf("i:	chip@%08llx\n", irel->selfchip);
 		}
-		else if(irel->selftype != 0)
+		else
 		{
 			printf("i:	%.8s@%llx\n", (char*)&irel->selftype, irel->selfchip);
 		}
@@ -684,6 +792,8 @@ void search_prepare()
 	funcindex_start(1);
 	//pindata_start(1);
 	pinindex_start(1);
+	pointindex_start(1);
+	shapeindex_start(1);
 	strdata_start(1);
 	strhash_start(1);
 	connect_start(1);
@@ -715,6 +825,12 @@ void search_one(char* buf, int len)
 		{
 			hexstr2data(buf + 5, &temp);
 			searchfunc(temp);
+			return;
+		}
+		else if(strncmp(buf, "shap@", 5)==0)
+		{
+			hexstr2data(buf + 5, &temp);
+			searchshape(temp);
 			return;
 		}
 	}

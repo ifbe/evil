@@ -19,11 +19,8 @@ int decstr2data(void*, void*);
 
 struct shapeindex
 {
-	u32 self;
-	u32 x;
-	u32 y;
-	u32 z;
-
+	u64 self;
+	u64 type;
 	u64 first;
 	u64 last;
 };
@@ -35,18 +32,34 @@ static int shapeindexlen = 0x20;
 
 
 
-void* shape_write()
+void* shape_write(char* buf, int len)
 {
+	int j,k;
+	char* p;
 	struct shapeindex* addr;
 	addr = (void*)shapeindexbuf + shapeindexlen;
 
 	addr->self = shapeindexlen;
+	p = (char*)&(addr->type);
+	if(len>8)k = 8;
+	else k = len;
+	for(j=0;j<k;j++)
+	{
+		if(	((buf[j] > '0')&&(buf[j] < '9')) |
+			((buf[j] > 'A')&&(buf[j] < 'Z')) |
+			((buf[j] > 'a')&&(buf[j] < 'z')) )
+		{
+			p[j] = buf[j];
+		}
+	}
+	for(;j<8;j++)p[j] = 0;
 
 	shapeindexlen += 0x20;
 	return addr;
 }
 void* shape_read(int offset)
 {
+	if(offset == 0)return 0;
 	return (void*)shapeindexbuf + offset;
 }
 void shapeindex_start(int flag)

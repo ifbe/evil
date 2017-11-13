@@ -7,10 +7,15 @@
 #define u64 unsigned long long
 #define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
 #define hex64(a,b,c,d,e,f,g,h) (hex32(a,b,c,d) | (((u64)hex32(e,f,g,h))<<32))
-void* shape_write();
+int decstr2data(void*, void*);
+int hexstr2data(void*, void*);
+u64 strhash_generate(void*, int);
+void* strhash_read(u64);
 void* strhash_write(void*, int);
-void* point_write(int num, double x, double y, double z);
+void* shape_read(int);
+void* shape_write(void*, int);
 void* point_read(int);
+void* point_write(int num, double x, double y, double z);
 void connect_write(
 	void* uchip, u64 ufoot, u64 utype,
 	void* bchip, u64 bfoot, u64 btype);
@@ -18,39 +23,130 @@ void connect_write(
 
 
 
-static int countline = 0;
+struct hash
+{
+	u32 hash0;
+	u32 hash1;
+	u32 off;
+	u32 len;
+
+	u64 irel;
+	u64 orel;
+};
 static int innote = 0;
 static int inname = 0;
 static int inpoint = 0;
 static int inshape = 0;
+//
+static int countline = 0;
+static int rsp = 0;
+static void* stack[16];
 
 
 
 
-static void* shape = 0;
-void three_point(int num, double x, double y, double z)
+void three_point(char* buf, int len, int num)
 {
-	void* point = point_write(num, x, y, z);
+	double x,y,z;
+	sscanf(buf, "%lf, %lf, %lf", &x, &y, &z);
+	//printf("%lf, %lf, %lf\n", x, y, z);
+
+	point_write(num, x, y, z);
 	//printf("%d	%lf, %lf, %lf\n", num, x, y, z);
 }
 void three_shape(char* buf, int len)
 {
-	void* hash = strhash_write(buf, len);
-	shape = shape_write();
-	connect_write(
-		hash, 0, hex32('h','a','s','h'),
-		shape, 0, hex32('s', 'h', 'a', 'p')
-	);
+	int j;
+	void* shap;
+	void* hash;
+	for(j=0;j<len;j++)
+	{
+		if(buf[j] <= 0x20)break;
+		if(buf[j] == '{')break;
+	}
 	//printf("%.*s\n", len, buf);
+
+	//
+	shap = shape_write(buf, j);
+	if(shap == 0)
+	{
+		printf("error@shape_write\n");
+		return;
+	}
+
+	//
+	if(rsp <= 0)
+	{
+		hash = strhash_write(buf, j);
+		connect_write(
+			hash, 0, hex32('h','a','s','h'),
+			shap, 0, hex32('s','h','a','p')
+		);
+	}
+	else
+	{
+		connect_write(
+			stack[rsp-1], 0, hex32('s','h','a','p'),
+			shap,         0, hex32('s','h','a','p')
+		);
+	}
+
+	//
+	stack[rsp] = shap;
+	rsp++;
 }
-void three_foot(int foot, int num)
+void three_foot(char* buf ,int len)
 {
-	//printf("%c@%d\n", foot, which);
-	void* point = point_read(num*0x20);
-	connect_write(
-		point, 0, hex32('p','o','i','n'),
-		shape, foot, hex32('s', 'h', 'a', 'p')
-	);
+	int j;
+	u64 num;
+	void* point;
+	if(buf[0] < 0x30)return;
+	if(buf[0] > 0x39)return;
+
+	j = 0;
+	while(1)
+	{
+		j += decstr2data(buf+j, &num);
+		//printf("%d	", num);
+
+		point = point_read(num*0x20);
+		connect_write(
+			stack[rsp-1], 0, hex32('s', 'h', 'a', 'p'),
+			point, 0, hex32('p','o','i','n')
+		);
+
+		while(1)
+		{
+			if(j >= len)break;
+			if((buf[j] >= 0x30) && (buf[j] <= 0x39))break;
+			j++;
+		}
+		if(j >= len)break;
+	}
+	//printf("\n");
+}
+void three_call(u8* buf, int len)
+{
+	u64 temp;
+	struct hash* h;
+	//printf("%.*s\n", len, buf);
+
+	temp = strhash_generate(buf, len);
+	h = strhash_read(temp);
+	if(h == 0)
+	{
+		printf("no str: %.*s", len, buf);
+		return;
+	}
+
+	temp = h->irel;
+	if(temp == 0)
+	{
+		printf("no rel\n");
+		return;
+	}
+
+	printf("rel=%llx\n",temp);
 }
 
 
@@ -59,9 +155,7 @@ void three_foot(int foot, int num)
 void three_read(u8* buf, int len)
 {
 	u8 ch;
-	int j,k;
-	int num, foot;
-	double x,y,z;
+	int j, num;
 	//printf("%.*s", len, buf);
 
 	j=0;
@@ -70,12 +164,9 @@ void three_read(u8* buf, int len)
 		ch = buf[j];
 		if((ch == 0xa) | (ch == 0xd) )
 		{
-			if((inshape != 0) && (inname != 0))
+			if(inname != 0)
 			{
-				sscanf(buf+inname, "%d", &num);
-				//printf("point=%d\n", num);
-				three_foot(foot, num);
-
+				three_call(buf+inname, j-inname);
 				inname = 0;
 			}
 
@@ -107,37 +198,22 @@ void three_read(u8* buf, int len)
 		}
 		else if(ch == ')')
 		{
-			//printf("%.*s\n", j-inpoint, buf+inpoint);
-			sscanf(buf+inpoint, "%lf, %lf, %lf", &x, &y, &z);
-			//printf("%lf, %lf, %lf\n", x, y, z);
-
-			three_point(num, x, y, z);
+			three_point(buf+inpoint, j-inpoint, num);
 			inpoint = 0;
 			inname = 0;
 		}
 		else if(ch == '{')
 		{
-			//printf("inname=%d\n", inname);
-			for(k=inname;k<j;k++)
-			{
-				if(buf[k] == '{')break;
-				if(buf[k] == '\r')break;
-				if(buf[k] == '\n')break;
-			}
-			three_shape(buf+inname, k-inname);
-
+			three_shape(buf+inname, j-inname);
 			inshape = 2;
 			inname = 0;
 		}
 		else if(ch == '}')
 		{
+			if(inname != 0)three_foot(buf+inname, j-inname);
+			rsp--;
+
 			inshape = 0;
-			inname = 0;
-		}
-		else if(ch == '@')
-		{
-			//printf("foot = %c	", buf[inname]);
-			foot = buf[inname];
 			inname = 0;
 		}
 		else if(
