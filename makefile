@@ -20,6 +20,7 @@ all:
 	0.heaven/think/think.c \
 	0.heaven/serve/cli.c \
 	0.heaven/graph/cli.c \
+	0.heaven/graph/graph.c \
 	1.funland/insert/insert.c \
 	1.funland/delete/delete.c \
 	1.funland/modify/modify.c \
@@ -71,6 +72,7 @@ gl:
 	0.heaven/think/think.c \
 	0.heaven/serve/cli.c \
 	0.heaven/graph/opengl.c \
+	0.heaven/graph/graph.c \
 	1.funland/insert/insert.c \
 	1.funland/delete/delete.c \
 	1.funland/modify/modify.c \
@@ -122,6 +124,7 @@ epoll:
 	0.heaven/think/think.c \
 	0.heaven/serve/epoll.c \
 	0.heaven/graph/cli.c \
+	0.heaven/graph/graph.c \
 	1.funland/insert/insert.c \
 	1.funland/delete/delete.c \
 	1.funland/modify/modify.c \

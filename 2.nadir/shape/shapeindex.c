@@ -21,8 +21,8 @@ struct shapeindex
 {
 	u64 self;
 	u64 type;
-	u64 first;
-	u64 last;
+	u64 irel;
+	u64 orel;
 };
 #define maxlen 0x100000
 static u8 shapeindexbuf[maxlen];
@@ -45,9 +45,9 @@ void* shape_write(char* buf, int len)
 	else k = len;
 	for(j=0;j<k;j++)
 	{
-		if(	((buf[j] > '0')&&(buf[j] < '9')) |
-			((buf[j] > 'A')&&(buf[j] < 'Z')) |
-			((buf[j] > 'a')&&(buf[j] < 'z')) )
+		if(	((buf[j] >= '0')&&(buf[j] <= '9')) |
+			((buf[j] >= 'A')&&(buf[j] <= 'Z')) |
+			((buf[j] >= 'a')&&(buf[j] <= 'z')) )
 		{
 			p[j] = buf[j];
 		}

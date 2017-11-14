@@ -16,7 +16,8 @@ void* shape_read(int);
 void* shape_write(void*, int);
 void* point_read(int);
 void* point_write(int num, double x, double y, double z);
-void connect_write(
+void* connect_read(int);
+void* connect_write(
 	void* uchip, u64 ufoot, u64 utype,
 	void* bchip, u64 bfoot, u64 btype);
 
@@ -32,6 +33,22 @@ struct hash
 
 	u64 irel;
 	u64 orel;
+};
+struct wire
+{
+	u64 destchip;
+	u64 destfoot;
+	u32 desttype;		//eg: 'hash', 'dir', 'file', 'func'
+	u32 destflag;
+	u32 samepinprevchip;
+	u32 samepinnextchip;
+
+	u64 selfchip;
+	u64 selffoot;
+	u32 selftype;		//eg: 'dir', 'file', 'func', 'hash'
+	u32 selfflag;
+	u32 samechipprevpin;
+	u32 samechipnextpin;
 };
 static int innote = 0;
 static int inname = 0;
@@ -128,7 +145,10 @@ void three_foot(char* buf ,int len)
 void three_call(u8* buf, int len)
 {
 	u64 temp;
+	u64 haha;
+	void* shap;
 	struct hash* h;
+	struct wire* w;
 	//printf("%.*s\n", len, buf);
 
 	temp = strhash_generate(buf, len);
@@ -140,13 +160,48 @@ void three_call(u8* buf, int len)
 	}
 
 	temp = h->irel;
-	if(temp == 0)
+	w = connect_read(temp);
+	if((temp == 0) | (w == 0))
 	{
 		printf("no rel\n");
 		return;
 	}
 
-	printf("rel=%llx\n",temp);
+	haha = 0;
+	while(1)
+	{
+		if(w->selftype == hex32('s','h','a','p'))
+		{
+			if(haha != 0)
+			{
+				printf("more than one shap\n");
+				return;
+			}
+			else haha = w->selfchip;
+			printf("shap@%llx\n", w->selfchip);
+		}
+		else
+		{
+			printf("%llx,%llx,%llx\n", w->selfchip, w->selffoot, w->selftype);
+		}
+
+		temp = w->samepinnextchip;
+		if(temp == 0)break;
+
+		w = connect_read(temp);
+		if(w == 0)break;
+	}
+	if(haha == 0)
+	{
+		printf("no shap from hash\n");
+		return;
+	}
+
+	shap = shape_read(haha);
+	connect_write(
+		stack[rsp-1], 0, hex32('s','h','a','p'),
+		shap, 0, hex32('s','h','a','p')
+	);
 }
 
 
