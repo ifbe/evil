@@ -13,14 +13,16 @@ void graph_show(
 	u16* tribuf, int trilen,
 	u16* linebuf, int linelen,
 	u16* pointbuf, int pointlen);
+void readall(int);
 u64 strhash_generate(void*, int);
 void* strhash_read(u64);
-void* strhash_write(void*, int);
 void* shape_read(int);
-void* shape_write(void*, int);
 void* point_read(int);
-void* point_write(int num, double x, double y, double z);
 void* connect_read(int);
+
+
+
+
 struct pointindex
 {
 	u32 self;
@@ -101,7 +103,7 @@ shapeirel:
 	if(rel == 0)goto shapeorel;
 
 	type = shape->type;
-	printf("%.8s\n", &type);
+	printf("%.8s\n", (char*)&type);
 	while(rel != 0)
 	{
 		if(rel->selftype == hex32('s','h','a','p'))
@@ -124,6 +126,16 @@ shapeirel:
 				tribuf[trilen] = temp;
 				trilen++;
 			}
+			else if(type == hex32('l','i','n','e'))
+			{
+				linebuf[linelen] = temp;
+				linelen++;
+			}
+			else if(type == hex32('p','o','i','n'))
+			{
+				pointbuf[pointlen] = temp;
+				pointlen++;
+			}
 
 			vv = &vertexbuf[temp];
 			pp = point_read(rel->selfchip);
@@ -132,7 +144,7 @@ shapeirel:
 			vv->z = pp->z;
 
 			printf("i:	%lld@%llx	(%f, %f, %f)\n",
-				(rel->selfchip)/0x20, vv,
+				(rel->selfchip)/0x20, (u64)vv,
 				vv->x, vv->y, vv->z);
 		}
 
@@ -151,6 +163,10 @@ shapeorel:
 	else if(type == hex32('t','r','i',0))
 	{
 		if((trilen%3) != 0)printf("error@trilen\n");
+	}
+	else if(type == hex32('l','i','n','e'))
+	{
+		if((linelen%2) != 0)printf("error@line\n");
 	}
 	return;
 }
@@ -194,7 +210,7 @@ void* searchshapefromstr(char* buf, int len)
 		}
 		else
 		{
-			printf("%llx,%llx,%llx\n", w->selfchip, w->selffoot, w->selftype);
+			printf("%llx,%llx,%x\n", w->selfchip, w->selffoot, w->selftype);
 		}
 
 		temp = w->samepinnextchip;
@@ -216,27 +232,11 @@ void* searchshapefromstr(char* buf, int len)
 
 
 
-void graph_prepare()
-{
-	//chipdata_start(1);
-	chipindex_start(1);
-	filedata_start(1);
-	filemd5_start(1);
-	funcdata_start(1);
-	funcindex_start(1);
-	//pindata_start(1);
-	pinindex_start(1);
-	pointindex_start(1);
-	shapeindex_start(1);
-	strdata_start(1);
-	strhash_start(1);
-	connect_start(1);
-}
 void graph(int argc, char** argv)
 {
 	char* p;
 	void* temp;
-	graph_prepare();
+	readall(1);
 
 	if(argc == 1)p = "main";
 	else p = argv[1];

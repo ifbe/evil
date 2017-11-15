@@ -182,7 +182,7 @@ void three_call(u8* buf, int len)
 		}
 		else
 		{
-			printf("%llx,%llx,%llx\n", w->selfchip, w->selffoot, w->selftype);
+			printf("%llx,%llx,%x\n", w->selfchip, w->selffoot, w->selftype);
 		}
 
 		temp = w->samepinnextchip;

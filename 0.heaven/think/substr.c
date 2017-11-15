@@ -13,18 +13,10 @@
 #ifndef O_BINARY
         #define O_BINARY 0x0
 #endif
-//
-void strdata_start(int);
-void strdata_stop();
-void strhash_start(int);
-void strhash_stop();
+void connect_write(void* uchip, u64 ufoot, u64 utype, void* bchip, u64 bfoot, u64 btype);
 int strhash_export(void*, void*);
 void* strhash_write(void*, int);
 void* strhash_read(u64);
-//
-void connect_start(int);
-void connect_stop();
-void connect_write(void* uchip, u64 ufoot, u64 utype, void* bchip, u64 bfoot, u64 btype);
 
 
 
@@ -157,12 +149,6 @@ void think_part()
 void think_substr()
 {
 	u64 haha;
-	printf("thinking...\n");
-
-	//init
-	strdata_start(1);
-	strhash_start(1);
-	connect_start(1);
 
 	//malloc
 	sbuf = malloc(0x100000);
@@ -185,9 +171,4 @@ void think_substr()
 		haha++;
 		if(haha == 0)break;
 	}
-
-	//save
-	strdata_stop();
-	strhash_stop();
-	connect_stop();
 }

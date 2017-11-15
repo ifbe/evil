@@ -1,5 +1,5 @@
 all:
-	gcc main.c \
+	gcc main.c -o a.exe \
 	0.heaven/learn/circuit/cir.c \
 	0.heaven/learn/circuit/dsn.c \
 	0.heaven/learn/circuit/brd.c \
@@ -48,8 +48,8 @@ all:
 	2.nadir/str/strdata.c \
 	2.nadir/str/strhash.c \
 	2.nadir/str/strlib.c \
-	2.nadir/wire.c \
-	-o a.exe
+	2.nadir/rel/rel.c \
+	2.nadir/load.c
 gl:
 	gcc main.c -o a.exe \
 	0.heaven/learn/circuit/cir.c \
@@ -100,7 +100,8 @@ gl:
 	2.nadir/str/strdata.c \
 	2.nadir/str/strhash.c \
 	2.nadir/str/strlib.c \
-	2.nadir/wire.c \
+	2.nadir/rel/rel.c \
+	2.nadir/load.c \
 	-lglew32 -lfreeglut -lglu32 -lopengl32 -lm
 epoll:
 	gcc main.c -o a.exe \
@@ -152,6 +153,7 @@ epoll:
 	2.nadir/str/strdata.c \
 	2.nadir/str/strhash.c \
 	2.nadir/str/strlib.c \
-	2.nadir/wire.c
+	2.nadir/rel/rel.c \
+	2.nadir/load.c \
 clean:
 	rm -f *.exe *.out

@@ -88,7 +88,7 @@ char vCode[] = {
 		"vec3 S = normalize(vec3(diffuseplace - position));"
 		"vec3 ddd = diffusecolor * max(dot(S, N), 0.0);\n"
 		//"vertexcolor = color + ambientcolor + ddd;\n"
-		"vertexcolor = position;\n"
+		"vertexcolor = color*color;\n"
 		"gl_Position = mvpmatrix * vec4(position,1.0);\n"
 	"}\n"
 };
@@ -216,10 +216,10 @@ void initshader()
 }
 void initshape(
 	void* vertexbuf, int vertexlen,
-	void* rectbuf, int rectlen,
-	void* tribuf, int trilen,
-	void* linebuf, int linelen,
-	void* pointbuf, int pointlen)
+	u16* rectbuf, int rectlen,
+	u16* tribuf, int trilen,
+	u16* linebuf, int linelen,
+	u16* pointbuf, int pointlen)
 {
 	rectcount = rectlen;
 	tricount = trilen;
@@ -456,13 +456,11 @@ void callback_display()
 	fixmatrix();
 	fixlight();
 
-	//
 	if(rectcount != 0)
 	{
 		glBindVertexArray(shapevao4);
 		glDrawElements(GL_QUADS, rectcount, GL_UNSIGNED_SHORT, 0);
 	}
-
 	if(tricount != 0)
 	{
 		glBindVertexArray(shapevao3);
@@ -585,6 +583,7 @@ void graph_show(
     err = glewInit();
     if( GLEW_OK != err )printf("glewinit: %s\n", glewGetErrorString(err));  
 
+	glPointSize(2.0);
 	glViewport(0, 0, 512, 512);
 	glEnable(GL_DEPTH_TEST);
     initshader();

@@ -1,6 +1,6 @@
 #include<stdio.h>
 #include<string.h>
-void search_prepare();
+void readall(int);
 void search_one(char*, int);
 
 
@@ -10,7 +10,7 @@ char buf[0x1000];
 void serve(int argc, char** argv)
 {
 	int j;
-	search_prepare();
+	readall(1);
 
 	while(1)
 	{

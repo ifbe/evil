@@ -10,27 +10,15 @@ int hexstr2data(void*, void*);
 void strhash_print(u64);
 u64 strhash_generate(void*, int);
 void* strhash_read(u64);
-void connect_write(void* uchip, u64 ufoot, u64 utype, void* bchip, u64 bfoot, u64 btype);
-void* connect_read(int);
 //
+void readall(int);
+void* connect_read(int);
 void* pin_read(int);
 void* chipindex_read(int);
 void* funcindex_read(int);
 void* filemd5_read(int);
 void* point_read(int);
 void* shape_read(int);
-//
-void chipdata_start(int);
-void chipindex_start(int);
-void filedata_start(int);
-void filemd5_start(int);
-void funcdata_start(int);
-void funcindex_start(int);
-void pindata_start(int);
-void pinindex_start(int);
-void strdata_start(int);
-void strhash_start(int);
-void connect_start(int);
 
 
 
@@ -452,7 +440,7 @@ shapeirel:
 		{
 			ss = shape_read(irel->selfchip);
 			printf("i:	shap@%08llx	%.8s\n",
-			irel->selfchip, &(ss->type));
+			irel->selfchip, (char*)&(ss->type));
 		}
 		else if(irel->selftype == hex32('p','o','i','n'))
 		{
@@ -492,7 +480,7 @@ shapeorel:
 		{
 			ss = shape_read(orel->destchip);
 			printf("o:	shap@%08llx	%.8s\n",
-			orel->destchip, &(ss->type));
+			orel->destchip, (char*)&(ss->type));
 		}
 		else
 		{
@@ -782,22 +770,6 @@ theend:
 
 
 
-void search_prepare()
-{
-	//chipdata_start(1);
-	chipindex_start(1);
-	filedata_start(1);
-	filemd5_start(1);
-	funcdata_start(1);
-	funcindex_start(1);
-	//pindata_start(1);
-	pinindex_start(1);
-	pointindex_start(1);
-	shapeindex_start(1);
-	strdata_start(1);
-	strhash_start(1);
-	connect_start(1);
-}
 void search_one(char* buf, int len)
 {
 	u64 temp;
@@ -839,7 +811,7 @@ void search_one(char* buf, int len)
 void search(int argc, char** argv)
 {
 	int j;
-	search_prepare();
+	readall(1);
 
 	for(j=1;j<argc;j++)
 	{
