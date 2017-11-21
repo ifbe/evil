@@ -233,6 +233,26 @@ shapeorel:
 	}
 	else if(type == hex32('l','i','n','e'))
 	{
+		//vertex
+		vv = (void*)buffer + 0x100000 + tempbuf[0]*12;
+		vv->x += 0.0;
+		vv->y += 0.0;
+		vv->z += 1.0;
+		vv = (void*)buffer + 0x100000 + tempbuf[1]*12;
+		vv->x += 0.0;
+		vv->y += 0.0;
+		vv->z += 1.0;
+
+		//colour
+		vv = (void*)buffer + 0x200000 + tempbuf[0]*12;
+		vv->x = 1.0;
+		vv->y = 1.0;
+		vv->z = 1.0;
+		vv = (void*)buffer + 0x200000 + tempbuf[1]*12;
+		vv->x = 1.0;
+		vv->y = 1.0;
+		vv->z = 1.0;
+
 		ii = (void*)buffer + 0x600000 + 2*index[6];
 		ii[0] = tempbuf[0];
 		ii[1] = tempbuf[1];
@@ -240,6 +260,18 @@ shapeorel:
 	}
 	else if(type == hex32('p','o','i','n'))
 	{
+		//vertex
+		vv = (void*)buffer + 0x100000 + tempbuf[0]*12;
+		vv->x += 0.0;
+		vv->y += 0.0;
+		vv->z += 1.0;
+
+		//colour
+		vv = (void*)buffer + 0x200000 + tempbuf[0]*12;
+		vv->x = 1.0;
+		vv->y = 1.0;
+		vv->z = 1.0;
+
 		ii = (void*)buffer + 0x700000 + 2*index[7];
 		ii[0] = tempbuf[0];
 		index[7] += 1;

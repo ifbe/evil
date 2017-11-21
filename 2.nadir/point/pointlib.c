@@ -18,10 +18,6 @@ void vectorcross(float* v, float* x)
 	v[1] = t[2]*x[0] - t[0]*x[2];
 	v[2] = t[0]*x[1] - t[1]*x[0];
 }
-
-
-
-
 void trianglenormal(float* n, float* a, float* b, float* c)
 {
 	float p[3];
@@ -36,4 +32,23 @@ void trianglenormal(float* n, float* a, float* b, float* c)
 
 	vectorcross(n, p);
 	vectornormalize(n);
+}
+void quaternionrotate(float* v, float* q)
+{
+	//t = 2 * cross(q.xyz, v)
+	//v' = v + q.w * t + cross(q.xyz, t)
+	//float tx = 2*q[2]*v[2]
+	float j[3];
+	float k[3];
+	j[0] = (q[1]*v[2]-q[2]*v[1]) * 2;
+	j[1] = (q[2]*v[0]-q[0]*v[2]) * 2;
+	j[2] = (q[0]*v[1]-q[1]*v[0]) * 2;
+
+	k[0] = q[1]*j[2]-q[2]*j[1];
+	k[1] = q[2]*j[0]-q[0]*j[2];
+	k[2] = q[0]*j[1]-q[1]*j[0];
+
+	v[0] += q[3]*j[0] + k[0];
+	v[1] += q[3]*j[1] + k[1];
+	v[2] += q[3]*j[2] + k[2];
 }

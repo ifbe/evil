@@ -18,15 +18,9 @@ GLuint vShader;
 GLuint fShader;
 GLuint programHandle;
 //
-float camerax = 1.0f;
-float cameray = -2.0f;
-float cameraz = 1.0f;
-float centerx = 0.0f;
-float centery = 0.0f;
-float centerz = 0.0f;
-float abovex = 0.0f;
-float abovey = 0.0f;
-float abovez = 1.0f;
+float camera[4] = {1.0f, -2.0f, 1.0f};
+float center[4] = {0.0f, 0.0f, 0.0f};
+float above[4] = {0.0f, 0.0f, 1.0f};
 //
 GLfloat modelmatrix[4*4] = {  
 	1.0f, 0.0f, 0.0f, 0.0f,  
@@ -360,18 +354,18 @@ void fixview()
 	float norm;
 
 	//Z = center - camera
-	float nx = centerx - camerax;
-	float ny = centery - cameray;
-	float nz = centerz - cameraz;
+	float nx = center[0] - camera[0];
+	float ny = center[1] - camera[1];
+	float nz = center[2] - camera[2];
 	norm = sqrt(nx*nx + ny*ny + nz*nz);
 	nx /= norm;
 	ny /= norm;
 	nz /= norm;
 
 	//X = cross(Z, above)
-	float ux = ny*abovez - nz*abovey;
-	float uy = nz*abovex - nx*abovez;
-	float uz = nx*abovey - ny*abovex;
+	float ux = ny*above[2] - nz*above[1];
+	float uy = nz*above[0] - nx*above[2];
+	float uz = nx*above[1] - ny*above[0];
 	norm = sqrt(ux*ux + uy*uy + uz*uz);
 	ux /= norm;
 	uy /= norm;
@@ -397,17 +391,10 @@ void fixview()
 	viewmatrix[10] = -nz;
 	viewmatrix[11] = 0.0f;
 
-	viewmatrix[12] = -camerax*ux - cameray*uy - cameraz*uz;
-	viewmatrix[13] = -camerax*vx - cameray*vy - cameraz*vz;
-	viewmatrix[14] = camerax*nx + cameray*ny + cameraz*nz;
+	viewmatrix[12] = -camera[0]*ux - camera[1]*uy - camera[2]*uz;
+	viewmatrix[13] = -camera[0]*vx - camera[1]*vy - camera[2]*vz;
+	viewmatrix[14] = camera[0]*nx + camera[1]*ny + camera[2]*nz;
 	viewmatrix[15] = 1.0f;
-/*
-	viewmatrix[0] = cos(camerax);
-	viewmatrix[2] = -sin(camerax);
-	viewmatrix[8] = sin(camerax);
-	viewmatrix[10] = cos(camerax);
-	viewmatrix[14] = -1.0f;
-*/
 }
 void fixprojection()
 {
@@ -550,34 +537,51 @@ void callback_reshape(int w, int h)
 }
 void callback_move(int x,int y)
 {
-	float tx = camerax;
-	float ty = cameray;
+	float t[3];
+	float v[4];
+	t[0] = 0.0;
+	t[1] = 0.0;
+	t[2] = 1.0;
+	v[0] = camera[0];
+	v[1] = camera[1];
+	v[2] = camera[2];
+	v[3] = 0.0;
 	if(x>last_x)
 	{
-		camerax = tx*cos(0.1f) + ty*sin(0.1f);
-		cameray = -tx*sin(0.1f) + ty*cos(0.1f);
+		camera[0] = v[0]*cos(0.05f) + v[1]*sin(0.05f);
+		camera[1] = -v[0]*sin(0.05f) + v[1]*cos(0.05f);
 
-		//camera_yaw += PI/20;
+		//camera_yaw += PI/90;
 	}
 	else if(x<last_x)
 	{
-		camerax = tx*cos(0.1f) - ty*sin(0.1f);
-		cameray = tx*sin(0.1f) + ty*cos(0.1f);
+		camera[0] = v[0]*cos(0.05f) - v[1]*sin(0.05f);
+		camera[1] = v[0]*sin(0.05f) + v[1]*cos(0.05f);
 
-		//camera_yaw -= PI/20;
+		//camera_yaw -= PI/90;
 	}
 
-	if(y>last_y)
+	if(y > last_y)
 	{
-		cameraz += 0.1;
-		//cameray += 0.1f;
-		//if(camera_pitch < PI*44/90)camera_pitch += PI/90;
+		vectorcross(v, t);
+		vectornormalize(v);
+
+		v[0] *= sin(0.02f);
+		v[1] *= sin(0.02f);
+		v[2] *= sin(0.02f);
+		v[3] = cos(0.02f);
+		quaternionrotate(camera, v);
 	}
 	else if(y<last_y)
 	{
-		cameraz -= 0.1;
-		//cameray -= 0.1f;
-		//if(camera_pitch > -PI*44/90)camera_pitch -= PI/90;
+		vectorcross(v, t);
+		vectornormalize(v);
+
+		v[0] *= sin(-0.02f);
+		v[1] *= sin(-0.02f);
+		v[2] *= sin(-0.02f);
+		v[3] = cos(-0.02f);
+		quaternionrotate(camera, v);
 	}
 
 	last_x = x;
@@ -586,9 +590,7 @@ void callback_move(int x,int y)
 }
 void callback_mouse(int button, int state, int x, int y)
 {
-	float tx = camerax;
-	float ty = cameray;
-	float tz = cameraz;
+	float tx, ty, tz;
 	if(state == GLUT_DOWN)
 	{
 		last_x = x;
@@ -596,29 +598,27 @@ void callback_mouse(int button, int state, int x, int y)
 	}
 	if(state == GLUT_UP)
 	{
+		tx = camera[0];
+		ty = camera[1];
+		tz = camera[2];
 		if(button == 3)	//wheel_up
 		{
-			camerax = 0.9*tx + 0.1*centerx;
-			cameray = 0.9*ty + 0.1*centery;
-			cameraz = 0.9*tz + 0.1*centerz;
-/*
+			camera[0] = 0.9*tx + 0.1*center[0];
+			camera[1] = 0.9*ty + 0.1*center[1];
+			camera[2] = 0.9*tz + 0.1*center[2];
+
 			//camera_zoom *= 0.95;
-			viewmatrix[14] += 0.1f;
-*/
 			glutPostRedisplay();
 		}
-		if(button == 4)	//wheel_down
+		else if(button == 4)	//wheel_down
 		{
-			camerax = 1.1*tx - 0.1*centerx;
-			cameray = 1.1*ty - 0.1*centery;
-			cameraz = 1.1*tz - 0.1*centerz;
-			glutPostRedisplay();
-/*
-			viewmatrix[14] -= 0.1f;
+			camera[0] = 1.1*tx - 0.1*center[0];
+			camera[1] = 1.1*ty - 0.1*center[1];
+			camera[2] = 1.1*tz - 0.1*center[2];
+
 			//camera_zoom *= 1.05263158;
-*/
+			glutPostRedisplay();
 		}
-		//printf("camera_zoom=%f\n",camera_zoom);
 	}
 }
 void graph_thread()
