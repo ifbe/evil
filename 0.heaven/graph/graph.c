@@ -1,19 +1,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 #define u8 unsigned char
 #define u16 unsigned short
 #define u32 unsigned int
 #define u64 unsigned long long
 #define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
 #define hex64(a,b,c,d,e,f,g,h) (hex32(a,b,c,d) | (((u64)hex32(e,f,g,h))<<32))
-void graph_show(
-	void* vertexbuf, int vertexlen,
-	u16* rectbuf, int rectlen,
-	u16* tribuf, int trilen,
-	u16* linebuf, int linelen,
-	u16* pointbuf, int pointlen);
 void readall(int);
+void graph_init(void*, void*);
+void graph_data(void*, void*);
+void trianglenormal(void* n, void* a, void* b, void* c);
+//
 u64 strhash_generate(void*, int);
 void* strhash_read(u64);
 void* shape_read(int);
@@ -72,16 +71,10 @@ struct vertex
 	float y;
 	float z;
 };
-static struct vertex vertexbuf[0x10000];
-static u16 rectbuf[0x10000];
-static u16 tribuf[0x10000];
-static u16 linebuf[0x10000];
-static u16 pointbuf[0x10000];
-static int vertexlen = 0;
-static int rectlen = 0;
-static int trilen = 0;
-static int linelen = 0;
-static int pointlen = 0;
+static u16 tempbuf[0x1000];
+static int templen = 0;
+static u8 buffer[0x800000];
+static u64 index[8];
 
 
 
@@ -90,6 +83,9 @@ void traverseshape_dfs(struct shapeindex* shape)
 {
 	u64 type;
 	u64 temp;
+	float n[3];
+	float c[3];
+	u16* ii;
 	struct wire* rel;
 	struct vertex* vv;
 	struct shapeindex* ss;
@@ -97,13 +93,15 @@ void traverseshape_dfs(struct shapeindex* shape)
 
 shapeirel:
 	temp = shape->irel;
-	if(temp == 0)goto shapeorel;
+	if(temp == 0)return;
 
 	rel = connect_read(temp);
-	if(rel == 0)goto shapeorel;
+	if(rel == 0)return;
 
 	type = shape->type;
 	printf("%.8s\n", (char*)&type);
+
+	templen = 0;
 	while(rel != 0)
 	{
 		if(rel->selftype == hex32('s','h','a','p'))
@@ -116,28 +114,10 @@ shapeirel:
 		else if(rel->selftype == hex32('p','o','i','n'))
 		{
 			temp = (rel->selfchip)/0x20;
-			if(type == hex32('r','e','c','t'))
-			{
-				rectbuf[rectlen] = temp;
-				rectlen++;
-			}
-			else if(type == hex32('t','r','i',0))
-			{
-				tribuf[trilen] = temp;
-				trilen++;
-			}
-			else if(type == hex32('l','i','n','e'))
-			{
-				linebuf[linelen] = temp;
-				linelen++;
-			}
-			else if(type == hex32('p','o','i','n'))
-			{
-				pointbuf[pointlen] = temp;
-				pointlen++;
-			}
+			tempbuf[templen] = temp;
+			templen++;
 
-			vv = &vertexbuf[temp];
+			vv = (void*)buffer + temp*12;
 			pp = point_read(rel->selfchip);
 			vv->x = pp->x;
 			vv->y = pp->y;
@@ -158,17 +138,112 @@ shapeirel:
 shapeorel:
 	if(type == hex32('r','e','c','t'))
 	{
-		if((rectlen%4) != 0)printf("error@rectlen\n");
+		trianglenormal(n,
+			(void*)buffer + tempbuf[0]*12,
+			(void*)buffer + tempbuf[1]*12,
+			(void*)buffer + tempbuf[2]*12
+		);
+		printf("%f,%f,%f\n",n[0],n[1],n[2]);
+
+		//normal
+		vv = (void*)buffer + 0x100000 + tempbuf[0]*12;
+		vv->x += n[0];
+		vv->y += n[1];
+		vv->z += n[2];
+		vv = (void*)buffer + 0x100000 + tempbuf[1]*12;
+		vv->x += n[0];
+		vv->y += n[1];
+		vv->z += n[2];
+		vv = (void*)buffer + 0x100000 + tempbuf[2]*12;
+		vv->x += n[0];
+		vv->y += n[1];
+		vv->z += n[2];
+		vv = (void*)buffer + 0x100000 + tempbuf[3]*12;
+		vv->x += n[0];
+		vv->y += n[1];
+		vv->z += n[2];
+
+		//colour
+		vv = (void*)buffer + 0x200000 + tempbuf[0]*12;
+		vv->x = 0.5;
+		vv->y = 0.28;
+		vv->z = 0.0;
+		vv = (void*)buffer + 0x200000 + tempbuf[1]*12;
+		vv->x = 0.5;
+		vv->y = 0.28;
+		vv->z = 0.0;
+		vv = (void*)buffer + 0x200000 + tempbuf[2]*12;
+		vv->x = 0.5;
+		vv->y = 0.28;
+		vv->z = 0.0;
+		vv = (void*)buffer + 0x200000 + tempbuf[3]*12;
+		vv->x = 0.5;
+		vv->y = 0.28;
+		vv->z = 0.0;
+
+		ii = (void*)buffer + 0x400000 + 2*index[4];
+		ii[0] = tempbuf[0];
+		ii[1] = tempbuf[1];
+		ii[2] = tempbuf[2];
+		ii[3] = tempbuf[3];
+		index[4] += 4;
 	}
 	else if(type == hex32('t','r','i',0))
 	{
-		if((trilen%3) != 0)printf("error@trilen\n");
+		trianglenormal(n,
+			(void*)buffer + tempbuf[0]*12,
+			(void*)buffer + tempbuf[1]*12,
+			(void*)buffer + tempbuf[2]*12
+		);
+		printf("%f,%f,%f\n",n[0],n[1],n[2]);
+
+		//vertex
+		vv = (void*)buffer + 0x100000 + tempbuf[0]*12;
+		vv->x += n[0];
+		vv->y += n[1];
+		vv->z += n[2];
+		vv = (void*)buffer + 0x100000 + tempbuf[1]*12;
+		vv->x += n[0];
+		vv->y += n[1];
+		vv->z += n[2];
+		vv = (void*)buffer + 0x100000 + tempbuf[2]*12;
+		vv->x += n[0];
+		vv->y += n[1];
+		vv->z += n[2];
+
+		//colour
+		vv = (void*)buffer + 0x200000 + tempbuf[0]*12;
+		vv->x = 0.5;
+		vv->y = 0.28;
+		vv->z = 0.0;
+		vv = (void*)buffer + 0x200000 + tempbuf[1]*12;
+		vv->x = 0.5;
+		vv->y = 0.28;
+		vv->z = 0.0;
+		vv = (void*)buffer + 0x200000 + tempbuf[2]*12;
+		vv->x = 0.5;
+		vv->y = 0.28;
+		vv->z = 0.0;
+
+		ii = (void*)buffer + 0x500000 + 2*index[5];
+		ii[0] = tempbuf[0];
+		ii[1] = tempbuf[1];
+		ii[2] = tempbuf[2];
+		index[5] += 3;
 	}
 	else if(type == hex32('l','i','n','e'))
 	{
-		if((linelen%2) != 0)printf("error@line\n");
+		ii = (void*)buffer + 0x600000 + 2*index[6];
+		ii[0] = tempbuf[0];
+		ii[1] = tempbuf[1];
+		index[6] += 2;
 	}
-	return;
+	else if(type == hex32('p','o','i','n'))
+	{
+		ii = (void*)buffer + 0x700000 + 2*index[7];
+		ii[0] = tempbuf[0];
+		index[7] += 1;
+	}
 }
 void* searchshapefromstr(char* buf, int len)
 {
@@ -232,24 +307,49 @@ void* searchshapefromstr(char* buf, int len)
 
 
 
-void graph(int argc, char** argv)
+void graph_one(char* buf, int len)
 {
-	char* p;
+	int j;
 	void* temp;
-	readall(1);
+	for(j=0;j<8;j++)index[j] = 0;
+	for(j=0;j<0x800000;j++)buffer[j] = 0;
 
-	if(argc == 1)p = "main";
-	else p = argv[1];
-
-	temp = searchshapefromstr(p, strlen(p));
+	temp = searchshapefromstr(buf, len);
 	traverseshape_dfs(temp);
 
-	vertexlen = 0x1000;
-	graph_show(
-		vertexbuf, vertexlen,
-		rectbuf, rectlen,
-		tribuf, trilen,
-		linebuf, linelen,
-		pointbuf, pointlen
-	);
+	index[0] = 0x1000;
+	index[1] = 0x1000;
+	index[2] = 0x1000;
+	graph_data(buffer, index);
+}
+void graph(int argc, char** argv)
+{
+	char buf[0x1000];
+	char* p;
+	int j;
+
+	readall(1);
+	graph_init(buffer, index);
+
+	for(j=1;j<argc;j++)
+	{
+		graph_one(argv[j], strlen(argv[j]));
+	}
+	while(1)
+	{
+		printf("->");
+		fgets(buf, 0x1000, stdin);
+		for(j=0;j<0x1000;j++)
+		{
+			if(buf[j] <= 0xa)
+			{
+				buf[j] = 0;
+				break;
+			}
+		}
+		if((buf[0] == 'q')&&(buf[1] == 0))break;
+
+		j = strlen(buf);
+		if(j != 0)graph_one(buf, j);
+	}
 }

@@ -102,7 +102,7 @@ gl:
 	2.nadir/str/strlib.c \
 	2.nadir/rel/rel.c \
 	2.nadir/load.c \
-	-lglew32 -lfreeglut -lglu32 -lopengl32 -lm
+	-lglew32 -lfreeglut -lglu32 -lopengl32 -lpthread -lm
 epoll:
 	gcc main.c -o a.exe \
 	0.heaven/learn/circuit/cir.c \

@@ -49,24 +49,22 @@ GLfloat projmatrix[4*4] = {
 //
 GLuint vertexhandle;
 GLuint normalhandle;
-GLuint colorhandle;
+GLuint colourhandle;
 GLuint texturehandle;
 //
 GLuint shapevao4;
 GLuint indexhandle4;
-int rectcount;
-//
 GLuint shapevao3;
 GLuint indexhandle3;
-int tricount;
-//
 GLuint shapevao2;
 GLuint indexhandle2;
-int linecount;
-//
 GLuint shapevao1;
 GLuint indexhandle1;
-int pointcount;
+//
+u8* buffer = 0;
+u64* binfo = 0;
+int enqueue = 0;
+int dequeue = 0;
 
 
 
@@ -84,11 +82,11 @@ char vCode[] = {
 	//"uniform mat4 normatrix;\n"
 	"void main()\n"
 	"{\n"
-		"vec3 N = normalize(normal);"
-		"vec3 S = normalize(vec3(diffuseplace - position));"
-		"vec3 ddd = diffusecolor * max(dot(S, N), 0.0);\n"
-		//"vertexcolor = color + ambientcolor + ddd;\n"
-		"vertexcolor = color*color;\n"
+		"vec3 N = normalize(normal);\n"
+		"vec3 S = normalize(vec3(diffuseplace - position));\n"
+		"vec3 ambient = color * ambientcolor;\n"
+		"vec3 diffuse = color * diffusecolor * max(dot(S, N), 0.0);\n"
+		"vertexcolor = ambient + diffuse;\n"
 		"gl_Position = mvpmatrix * vec4(position,1.0);\n"
 	"}\n"
 };
@@ -111,11 +109,11 @@ void initshader()
     GLint major, minor;  
     glGetIntegerv(GL_MAJOR_VERSION, &major);
     glGetIntegerv(GL_MINOR_VERSION, &minor);
-    printf("GL Vendor: %s\n", vendor);
-    printf("GL Renderer: %s\n", renderer);
-    printf("GL Version (string): %s\n", version);
-    printf("GLSL Version: %s\n", glslVersion);
-    printf("GL Version (integer): %x.%x\n", major, minor);
+    //printf("GL Vendor: %s\n", vendor);
+    //printf("GL Renderer: %s\n", renderer);
+    //printf("GL Version (string): %s\n", version);
+    //printf("GLSL Version: %s\n", glslVersion);
+    //printf("GL Version (integer): %x.%x\n", major, minor);
 
     //2. 顶点着色器  
     vShader = glCreateShader(GL_VERTEX_SHADER);
@@ -214,102 +212,113 @@ void initshader()
         glUseProgram(programHandle);  
     }  
 }
-void initshape(
-	void* vertexbuf, int vertexlen,
-	u16* rectbuf, int rectlen,
-	u16* tribuf, int trilen,
-	u16* linebuf, int linelen,
-	u16* pointbuf, int pointlen)
+void initshape()
 {
-	rectcount = rectlen;
-	tricount = trilen;
-	linecount = linelen;
-	pointcount = pointlen;
+	void* vertexxyz = (void*)buffer+0x000000;
+	void* normalxyz = (void*)buffer+0x100000;
+	void* colorrgb = (void*)buffer+0x200000;
+	void* texturexyz = (void*)buffer+0x300000;
 
+	void* pointindex = (void*)buffer+0x400000;
+	void* lineindex = (void*)buffer+0x500000;
+	void* triindex = (void*)buffer+0x600000;
+	void* rectindex = (void*)buffer+0x700000;
+
+	//
 	glGenBuffers(1, &vertexhandle);
 	glBindBuffer(GL_ARRAY_BUFFER, vertexhandle);
-	glBufferData(GL_ARRAY_BUFFER, 12 * vertexlen, vertexbuf, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, 0x100000, vertexxyz, GL_STATIC_DRAW);
 
 	glGenBuffers(1, &normalhandle);
 	glBindBuffer(GL_ARRAY_BUFFER, normalhandle);
-	glBufferData(GL_ARRAY_BUFFER, 12 * vertexlen, vertexbuf, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, 0x100000, normalxyz, GL_STATIC_DRAW);
 
-	glGenBuffers(1, &colorhandle);
-	glBindBuffer(GL_ARRAY_BUFFER, colorhandle);
-	glBufferData(GL_ARRAY_BUFFER, 12 * vertexlen, vertexbuf, GL_STATIC_DRAW);
+	glGenBuffers(1, &colourhandle);
+	glBindBuffer(GL_ARRAY_BUFFER, colourhandle);
+    glBufferData(GL_ARRAY_BUFFER, 0x100000, colorrgb, GL_STATIC_DRAW);
 
-	if(rectcount != 0)
-	{
-		glGenVertexArrays(1, &shapevao4);
-		glBindVertexArray(shapevao4);
-		glBindBuffer(GL_ARRAY_BUFFER, vertexhandle);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-		glEnableVertexAttribArray(0);
-		glBindBuffer(GL_ARRAY_BUFFER, normalhandle);
-		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
-		glEnableVertexAttribArray(1);
-		glBindBuffer(GL_ARRAY_BUFFER, colorhandle);
-		glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, 0);
-		glEnableVertexAttribArray(2);
 
-		glGenBuffers(1, &indexhandle4);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexhandle4);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, 2 * rectcount, rectbuf, GL_STATIC_DRAW);
-	}
-	if(tricount != 0)
-	{
-		glGenVertexArrays(1, &shapevao3);
-		glBindVertexArray(shapevao3);
-		glBindBuffer(GL_ARRAY_BUFFER, vertexhandle);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-		glEnableVertexAttribArray(0);
-		glBindBuffer(GL_ARRAY_BUFFER, normalhandle);
-		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
-		glEnableVertexAttribArray(1);
-		glBindBuffer(GL_ARRAY_BUFFER, colorhandle);
-		glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, 0);
-		glEnableVertexAttribArray(2);
+	//
+	glGenVertexArrays(1, &shapevao4);
+	glBindVertexArray(shapevao4);
+	glBindBuffer(GL_ARRAY_BUFFER, vertexhandle);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, normalhandle);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray(1);
+	glBindBuffer(GL_ARRAY_BUFFER, colourhandle);
+	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray(2);
 
-		glGenBuffers(1, &indexhandle3);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexhandle3);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, 2 * tricount, tribuf, GL_STATIC_DRAW);
-	}
-	if(linecount != 0)
-	{
-		glGenVertexArrays(1, &shapevao2);
-		glBindVertexArray(shapevao2);
-		glBindBuffer(GL_ARRAY_BUFFER, vertexhandle);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-		glEnableVertexAttribArray(0);
-		glBindBuffer(GL_ARRAY_BUFFER, normalhandle);
-		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
-		glEnableVertexAttribArray(1);
-		glBindBuffer(GL_ARRAY_BUFFER, colorhandle);
-		glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, 0);
-		glEnableVertexAttribArray(2);
+	glGenBuffers(1, &indexhandle4);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexhandle4);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 0x100000, rectindex, GL_STATIC_DRAW);
 
-		glGenBuffers(1, &indexhandle2);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexhandle2);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, 2 * linecount, linebuf, GL_STATIC_DRAW);
-	}
-	if(pointcount != 0)
-	{
-		glGenVertexArrays(1, &shapevao1);
-		glBindVertexArray(shapevao1);
-		glBindBuffer(GL_ARRAY_BUFFER, vertexhandle);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-		glEnableVertexAttribArray(0);
-		glBindBuffer(GL_ARRAY_BUFFER, normalhandle);
-		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
-		glEnableVertexAttribArray(1);
-		glBindBuffer(GL_ARRAY_BUFFER, colorhandle);
-		glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, 0);
-		glEnableVertexAttribArray(2);
 
-		glGenBuffers(1, &indexhandle1);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexhandle1);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, 2 * pointcount, pointbuf, GL_STATIC_DRAW);
-	}
+	//
+	glGenVertexArrays(1, &shapevao3);
+	glBindVertexArray(shapevao3);
+	glBindBuffer(GL_ARRAY_BUFFER, vertexhandle);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, normalhandle);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray(1);
+	glBindBuffer(GL_ARRAY_BUFFER, colourhandle);
+	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray(2);
+
+	glGenBuffers(1, &indexhandle3);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexhandle3);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 0x100000, triindex, GL_STATIC_DRAW);
+
+
+	//
+	glGenVertexArrays(1, &shapevao2);
+	glBindVertexArray(shapevao2);
+	glBindBuffer(GL_ARRAY_BUFFER, vertexhandle);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, normalhandle);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray(1);
+	glBindBuffer(GL_ARRAY_BUFFER, colourhandle);
+	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray(2);
+
+	glGenBuffers(1, &indexhandle2);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexhandle2);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 0x100000, lineindex, GL_STATIC_DRAW);
+
+
+	//
+	glGenVertexArrays(1, &shapevao1);
+	glBindVertexArray(shapevao1);
+	glBindBuffer(GL_ARRAY_BUFFER, vertexhandle);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, normalhandle);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray(1);
+	glBindBuffer(GL_ARRAY_BUFFER, colourhandle);
+	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray(2);
+
+	glGenBuffers(1, &indexhandle1);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexhandle1);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 0x100000, pointindex, GL_STATIC_DRAW);
+}
+void graph_data(
+	void* vbuf, int vlen,
+	void* nbuf, int nlen,
+	void* cbuf, int clen,
+	u16* rbuf, int rlen,
+	u16* tbuf, int tlen,
+	u16* lbuf, int llen,
+	u16* pbuf, int plen)
+{
+	enqueue = (enqueue+1)%0x10000;
 }
 
 
@@ -431,9 +440,9 @@ void fixmatrix()
 }
 void fixlight()
 {
-	GLfloat ambientcolor[3] = {0.1f, 0.1f, 0.1f};
-	GLfloat diffuseplace[3] = {0.1f, 0.2f, 5.0f};
-	GLfloat diffusecolor[3] = {0.5f, 0.5f, 0.5f};
+	GLfloat ambientcolor[3] = {0.5f, 0.5f, 0.5f};
+	GLfloat diffusecolor[3] = {1.0f, 1.0f, 1.0f};
+	GLfloat diffuseplace[3] = {0.0f, 0.0f, 10.0f};
 
 	GLint ac = glGetUniformLocation(programHandle, "ambientcolor");
 	glUniform3fv(ac, 1, ambientcolor);
@@ -456,30 +465,78 @@ void callback_display()
 	fixmatrix();
 	fixlight();
 
-	if(rectcount != 0)
-	{
-		glBindVertexArray(shapevao4);
-		glDrawElements(GL_QUADS, rectcount, GL_UNSIGNED_SHORT, 0);
-	}
-	if(tricount != 0)
-	{
-		glBindVertexArray(shapevao3);
-		glDrawElements(GL_TRIANGLES, tricount, GL_UNSIGNED_SHORT, 0);
-	}
-	if(linecount != 0)
-	{
-		glBindVertexArray(shapevao2);
-		glDrawElements(GL_LINES, linecount, GL_UNSIGNED_SHORT, 0);
-	}
-	if(pointcount != 0)
-	{
-		glBindVertexArray(shapevao1);
-		glDrawElements(GL_POINTS, pointcount, GL_UNSIGNED_SHORT, 0);
-	}
+	glBindVertexArray(shapevao4);
+	glDrawElements(GL_QUADS, binfo[4], GL_UNSIGNED_SHORT, 0);
+
+	glBindVertexArray(shapevao3);
+	glDrawElements(GL_TRIANGLES, binfo[5], GL_UNSIGNED_SHORT, 0);
+
+	glBindVertexArray(shapevao2);
+	glDrawElements(GL_LINES, binfo[6], GL_UNSIGNED_SHORT, 0);
+
+	glBindVertexArray(shapevao1);
+	glDrawElements(GL_POINTS, binfo[7], GL_UNSIGNED_SHORT, 0);
 
 	//write
 	glFlush();
     glutSwapBuffers();
+}
+void callback_idle()
+{
+	float* vertexdata;
+	float* normaldata;
+	float* colourdata;
+	float* texturedata;
+	u16* pointindex;
+	u16* lineindex;
+	u16* triindex;
+	u16* rectindex;
+	if(enqueue == dequeue)return;
+
+	vertexdata = (void*)buffer + 0x000000;
+	normaldata = (void*)buffer + 0x100000;
+	colourdata = (void*)buffer + 0x200000;
+	texturedata = (void*)buffer + 0x300000;
+
+	rectindex = (void*)buffer + 0x400000;
+	triindex = (void*)buffer + 0x500000;
+	lineindex = (void*)buffer + 0x600000;
+	pointindex = (void*)buffer + 0x700000;
+
+	if(binfo[0] != 0)
+	{
+		glBindBuffer(GL_ARRAY_BUFFER, vertexhandle);
+		glBufferSubData(GL_ARRAY_BUFFER, 0, 12 * binfo[0], vertexdata);
+
+		glBindBuffer(GL_ARRAY_BUFFER, normalhandle);
+		glBufferSubData(GL_ARRAY_BUFFER, 0, 12 * binfo[0], normaldata);
+
+		glBindBuffer(GL_ARRAY_BUFFER, colourhandle);
+		glBufferSubData(GL_ARRAY_BUFFER, 0, 12 * binfo[0], colourdata);
+	}
+	if(binfo[4] != 0)
+	{
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexhandle4);
+		glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, 2*binfo[4], rectindex);
+	}
+	if(binfo[5] != 0)
+	{
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexhandle3);
+		glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, 2*binfo[5], triindex);
+	}
+	if(binfo[6] != 0)
+	{
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexhandle2);
+		glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, 2*binfo[6], lineindex);
+	}
+	if(binfo[7] != 0)
+	{
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexhandle1);
+		glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, 2*binfo[7], pointindex);
+	}
+
+	dequeue = (dequeue+1)%0x10000;
+	glutPostRedisplay();
 }
 void callback_keyboard(unsigned char key,int x,int y)
 {
@@ -564,12 +621,7 @@ void callback_mouse(int button, int state, int x, int y)
 		//printf("camera_zoom=%f\n",camera_zoom);
 	}
 }
-void graph_show(
-	void* vertexbuf, int vertexlen,
-	u16* rectbuf, int rectlen,
-	u16* tribuf, int trilen,
-	u16* linebuf, int linelen,
-	u16* pointbuf, int pointlen)
+void graph_thread()
 {
 	int err;
 	int argc = 1;
@@ -587,13 +639,9 @@ void graph_show(
 	glViewport(0, 0, 512, 512);
 	glEnable(GL_DEPTH_TEST);
     initshader();
-	initshape(
-		vertexbuf, vertexlen,
-		rectbuf, rectlen,
-		tribuf, trilen,
-		linebuf, linelen,
-		pointbuf, pointlen);
+	initshape();
 
+	glutIdleFunc(callback_idle);
     glutDisplayFunc(callback_display);
     glutKeyboardFunc(callback_keyboard);
 	glutReshapeFunc(callback_reshape);
@@ -605,4 +653,12 @@ void graph_show(
 	glDeleteShader(vShader);
 	glDeleteShader(fShader);
 	glUseProgram(0);
+}
+void graph_init(void* buf, void* ind)
+{
+	buffer = buf;
+	binfo = ind;
+
+	u64 id;
+	pthread_create((void*)&id, NULL, graph_thread, 0);
 }

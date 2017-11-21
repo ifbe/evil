@@ -12,8 +12,17 @@ struct vertex
 	float y;
 	float z;
 };
-void graph_show(
+
+
+
+
+void graph_init()
+{
+}
+void graph_data(
 	struct vertex* vertexbuf, int vertexlen,
+	struct vertex* normalbuf, int normallen,
+	struct vertex* colourbuf, int colourlen,
 	u16* rectbuf, int rectlen,
 	u16* tribuf, int trilen,
 	u16* linebuf, int linelen,

@@ -1,0 +1,46 @@
+0(x,y,z,w)
+1(x,y,z,w)
+2(x,y,z,w)
+3(x,y,z,w)
+4(x,y,z,w)
+5(x,y,z,w)
+6(x,y,z,w)
+7(x,y,z,w)
+leg{
+	rect()
+	rect()
+	rect()
+	rect()
+}
+chair{
+	surface{
+		rect(p0, p1, p2, p3)
+	}
+	backrest{
+		rect()
+	}
+	leg()
+	leg()
+	leg()
+	leg()
+}
+cinema{
+	ground{
+		rect()
+	}
+	screen{
+		rect()
+	}
+	chair(d3, r1, c3)
+	chair(d1, r2, c5)
+	chair(d6, r3, c7)
+	chair(d3, r1, c3)
+	chair(d1, r2, c5)
+	chair(d6, r3, c7)
+	chair(d3, r1, c3)
+	chair(d1, r2, c5)
+	chair(d6, r3, c7)
+}
+world{
+	cinema()
+}
