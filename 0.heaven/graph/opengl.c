@@ -68,20 +68,27 @@ char vCode[] = {
 	"layout(location = 0)in vec3 position;\n"
 	"layout(location = 1)in vec3 normal;\n"
 	"layout(location = 2)in vec3 color;\n"
-	"out vec3 vertexcolor;\n"
 	"uniform vec3 ambientcolor;\n"
-	"uniform vec3 diffusecolor;\n"
-	"uniform vec3 diffuseplace;\n"
-	"uniform mat4 mvpmatrix;\n"
-	//"uniform mat4 normatrix;\n"
+	"uniform vec3 lightcolor;\n"
+	"uniform vec3 lightposition;\n"
+	"uniform vec3 eyeposition;\n"
+	"uniform mat4 modelviewproj;\n"
+	"uniform mat4 normalmatrix;\n"
+	"out vec3 vertexcolor;\n"
 	"void main()\n"
 	"{\n"
+		"vec3 S = normalize(vec3(lightposition - position));\n"
 		"vec3 N = normalize(normal);\n"
-		"vec3 S = normalize(vec3(diffuseplace - position));\n"
+		"vec3 V = normalize(-position);\n"
+		"vec3 R = reflect(-S, N);\n"
+		"float SN = max(dot(S, N), 0.0);\n"
+		"float RV = max(dot(R, V), 0.0);\n"
 		"vec3 ambient = color * ambientcolor;\n"
-		"vec3 diffuse = color * diffusecolor * max(dot(S, N), 0.0);\n"
-		"vertexcolor = ambient + diffuse;\n"
-		"gl_Position = mvpmatrix * vec4(position,1.0);\n"
+		"vec3 diffuse = color * lightcolor * SN;\n"
+		"vec3 specular = vec3(0.0, 0.0, 0.0);\n"
+		"if(SN>0.0)specular = color * lightcolor * pow(RV, 8);\n"
+		"vertexcolor = ambient + diffuse + specular;\n"
+		"gl_Position = modelviewproj * vec4(position,1.0);\n"
 	"}\n"
 };
 char fCode[] = {
@@ -422,23 +429,26 @@ void fixmatrix()
 	matrixmultiply(temp, viewmatrix);
 	matrixmultiply(temp, projmatrix);
 
-	GLint pvmmatrix = glGetUniformLocation(programHandle, "mvpmatrix");
+	GLint pvmmatrix = glGetUniformLocation(programHandle, "modelviewproj");
 	glUniformMatrix4fv(pvmmatrix, 1, GL_FALSE, temp);
 }
 void fixlight()
 {
 	GLfloat ambientcolor[3] = {0.5f, 0.5f, 0.5f};
-	GLfloat diffusecolor[3] = {1.0f, 1.0f, 1.0f};
-	GLfloat diffuseplace[3] = {0.0f, 0.0f, 10.0f};
+	GLfloat lightcolor[3] = {1.0f, 1.0f, 1.0f};
+	GLfloat lightposition[3] = {0.0f, 0.0f, 10.0f};
 
 	GLint ac = glGetUniformLocation(programHandle, "ambientcolor");
 	glUniform3fv(ac, 1, ambientcolor);
 
-	GLint dc = glGetUniformLocation(programHandle, "diffusecolor");
-	glUniform3fv(dc, 1, diffusecolor);
+	GLint dc = glGetUniformLocation(programHandle, "lightcolor");
+	glUniform3fv(dc, 1, lightcolor);
 
-	GLint dp = glGetUniformLocation(programHandle, "diffuseplace");
-	glUniform3fv(dp, 1, diffuseplace);
+	GLint dp = glGetUniformLocation(programHandle, "lightposition");
+	glUniform3fv(dp, 1, lightposition);
+
+	GLint ep = glGetUniformLocation(programHandle, "lightposition");
+	glUniform3fv(ep, 1, camera);
 }
 void callback_display()
 {
