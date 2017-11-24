@@ -20,7 +20,7 @@
 #define u32 unsigned int
 #define u64 unsigned long long
 #define MAXSIZE 4096
-void readall(j);
+void readthemall(j);
 void search_one(char* buf, int len);
 
 
@@ -221,7 +221,7 @@ void serve(int argc, char** argv)
 	sa.sa_handler = SIG_IGN;
 	sigaction(SIGPIPE, &sa, 0);
 
-	readall(1);
+	readthemall(1);
 
 	epollfd = epoll_create(MAXSIZE);
 	if(epollfd <= 0)printf("%d,%d@epoll_create\n", epollfd, errno);

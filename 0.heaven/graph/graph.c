@@ -75,7 +75,7 @@ static u8* origin;
 static u16 tempbuf[0x1000];
 static int templen = 0;
 static u8 buffer[0x800000];
-static u64 index[8];
+static u64 buflen[8];
 
 
 
@@ -129,14 +129,14 @@ void traverseshape_rectangle()
 	vv->y = 0.28;
 	vv->z = 0.0;
 
-	ii = (void*)buffer + 0x400000 + 2*index[4];
+	ii = (void*)buffer + 0x400000 + 2*buflen[4];
 	ii[0] = tempbuf[0];
 	ii[1] = tempbuf[1];
 	ii[2] = tempbuf[2];
 	ii[3] = tempbuf[3];
-	index[4] += 4;
+	buflen[4] += 4;
 }
-traverseshape_triangle()
+void traverseshape_triangle()
 {
 	u16* ii;
 	float n[3];
@@ -177,11 +177,11 @@ traverseshape_triangle()
 	vv->y = 0.28;
 	vv->z = 0.0;
 
-	ii = (void*)buffer + 0x500000 + 2*index[5];
+	ii = (void*)buffer + 0x500000 + 2*buflen[5];
 	ii[0] = tempbuf[0];
 	ii[1] = tempbuf[1];
 	ii[2] = tempbuf[2];
-	index[5] += 3;
+	buflen[5] += 3;
 }
 void traverseshape_line()
 {
@@ -209,10 +209,10 @@ void traverseshape_line()
 	vv->y = 1.0;
 	vv->z = 1.0;
 
-	ii = (void*)buffer + 0x600000 + 2*index[6];
+	ii = (void*)buffer + 0x600000 + 2*buflen[6];
 	ii[0] = tempbuf[0];
 	ii[1] = tempbuf[1];
-	index[6] += 2;
+	buflen[6] += 2;
 }
 
 void traverseshape_point()
@@ -233,9 +233,9 @@ void traverseshape_point()
 	vv->y = 1.0;
 	vv->z = 1.0;
 
-	ii = (void*)buffer + 0x700000 + 2*index[7];
+	ii = (void*)buffer + 0x700000 + 2*buflen[7];
 	ii[0] = tempbuf[0];
-	index[7] += 1;
+	buflen[7] += 1;
 }
 void traverseshape_dfs(struct shapeindex* shape)
 {
@@ -363,16 +363,16 @@ void graph_one(char* buf, int len)
 {
 	int j;
 	void* temp;
-	for(j=0;j<8;j++)index[j] = 0;
+	for(j=0;j<8;j++)buflen[j] = 0;
 	for(j=0;j<0x800000;j++)buffer[j] = 0;
 
 	temp = searchshapefromstr(buf, len);
 	traverseshape_dfs(temp);
 
-	index[0] = 0x1000;
-	index[1] = 0x1000;
-	index[2] = 0x1000;
-	graph_data(buffer, index);
+	buflen[0] = 0x1000;
+	buflen[1] = 0x1000;
+	buflen[2] = 0x1000;
+	graph_data(buffer, buflen);
 }
 void graph(int argc, char** argv)
 {
@@ -383,7 +383,7 @@ void graph(int argc, char** argv)
 	readthemall(1);
 	origin = pointdata_read(0);
 
-	graph_init(buffer, index);
+	graph_init(buffer, buflen);
 	for(j=1;j<argc;j++)
 	{
 		graph_one(argv[j], strlen(argv[j]));

@@ -14,37 +14,6 @@
 #endif
 #define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
 #define hex64(a,b,c,d,e,f,g,h) (hex32(a,b,c,d) | (((u64)hex32(e,f,g,h))<<32))
-//
-void chipdata_start(int);
-void chipdata_stop();
-void chipindex_start(int);
-void chipindex_stop();
-void filedata_start(int);
-void filedata_stop();
-void filemd5_start(int);
-void filemd5_stop();
-void funcdata_start(int);
-void funcdata_stop();
-void funcindex_start(int);
-void funcindex_stop();
-void pindata_start(int);
-void pindata_stop();
-void pinindex_start(int);
-void pinindex_stop();
-void pointdata_start(int);
-void pointdata_stop();
-void pointindex_start(int);
-void pointindex_stop();
-void shapedata_start(int);
-void shapedata_stop();
-void shapeindex_start(int);
-void shapeindex_stop();
-void strdata_start(int);
-void strdata_stop();
-void strhash_start(int);
-void strhash_stop();
-void connect_start(int);
-void connect_stop();
 //data
 int json_create(void*, void*);
 int json_delete();
@@ -90,7 +59,6 @@ int count_delete();
 //
 int cir_create(void*, void*);
 int cir_delete();
-//
 int three_create(void*, void*);
 int three_delete();
 //
@@ -104,6 +72,9 @@ void* funcindex_write(u64);
 void* strhash_write(void*, int);
 void* strhash_read(u64);
 void connect_write(void* uchip, u64 ufoot, u64 utype, void* bchip, u64 bfoot, u64 btype);
+//
+void readthemall(int);
+void writethemall();
 
 
 

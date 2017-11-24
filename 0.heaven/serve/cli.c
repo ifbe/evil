@@ -6,7 +6,7 @@ void search_one(char*, int);
 
 
 
-char buf[0x1000];
+unsigned char buf[0x1000];
 void serve(int argc, char** argv)
 {
 	int j;

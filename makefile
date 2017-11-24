@@ -48,7 +48,8 @@ all:
 	2.nadir/str/strhash.c \
 	2.nadir/str/strlib.c \
 	2.nadir/rel/rel.c \
-	2.nadir/load.c
+	2.nadir/load.c \
+	-lm
 gl:
 	gcc main.c -o a.exe \
 	0.heaven/learn/circuit/cir.c \
@@ -152,5 +153,6 @@ epoll:
 	2.nadir/str/strlib.c \
 	2.nadir/rel/rel.c \
 	2.nadir/load.c \
+	-lm
 clean:
 	rm -f *.exe *.out
