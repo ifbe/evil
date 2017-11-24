@@ -40,7 +40,7 @@ int pointdata_write(float x, float y, float z, float w)
 {
 	int j;
 	struct vertex* p;
-	printf("%f,%f,%f,%f\n",x,y,z,w);
+	//printf("%f,%f,%f,%f\n",x,y,z,w);
 
 	j = pointdatalen;
 	pointdatalen += 0x10;

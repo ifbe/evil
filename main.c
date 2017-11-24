@@ -40,18 +40,20 @@ int kirchhoff(int argc,char** argv);
 
 
 
-void help()
+void help(char* buf)
 {
-	printf("usage:\n");
+	if(buf != 0)printf("wrong usage: %s\n", buf);
+	printf("learn:\n");
 	printf("	a.exe learn aaa.c /some/dir/bbb.cpp /my/folder/haha*\n");
+	printf("think:\n");
 	printf("	a.exe think\n");
-	printf("	a.exe serve port\n");
-	printf("	a.exe graph name\n");
-	printf("debug:\n");
 	printf("	a.exe insert\n");
 	printf("	a.exe delete\n");
 	printf("	a.exe change\n");
 	printf("	a.exe search str func@c0 file@20\n");
+	printf("serve:\n");
+	printf("	a.exe serve\n");
+	printf("	a.exe graph\n");
 	printf("	a.exe kirchhoff\n");
 }
 int main(int argc, char** argv)
@@ -59,7 +61,7 @@ int main(int argc, char** argv)
 	//--------------------------help---------------------------
 	if(argc==1)
 	{
-		help();
+		help(0);
 		return 0;
 	}
 	//---------------------------------------------------------
@@ -68,13 +70,6 @@ int main(int argc, char** argv)
 
 
 	//--------------------------.42 dir check------------------
-	//{
-	//struct stat s;
-	//int err=stat(".42",&s);
-	//if((-1==err) || !S_ISDIR(s.st_mode))
-	//{
-	//}
-	//}
 	mkdir(".42", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
 	mkdir(".42/chip", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
 	mkdir(".42/file", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
@@ -107,25 +102,17 @@ int main(int argc, char** argv)
 
 
 
-	//
+	//learn
 	if(strcmp(argv[1] , "learn") == 0)
 	{
 		learn(argc-1, argv+1);
 	}
+
+	//think
 	else if(strcmp(argv[1] , "think") == 0)
 	{
 		think(argc-1, argv+1);
 	}
-	else if(strcmp(argv[1], "serve") == 0)
-	{
-		serve(argc-1, argv+1);
-	}
-	else if(strcmp(argv[1], "graph") == 0)
-	{
-		graph(argc-1, argv+1);
-	}
-
-	//
 	else if(strcmp(argv[1] , "search") == 0)
 	{
 		search(argc-1, argv+1);
@@ -134,13 +121,25 @@ int main(int argc, char** argv)
 	{
 		delete(argc-1, argv+1);
 	}
+
+	//serve
+	else if(strcmp(argv[1], "serve") == 0)
+	{
+		serve(argc-1, argv+1);
+	}
+	else if(strcmp(argv[1], "graph") == 0)
+	{
+		graph(argc-1, argv+1);
+	}
 	else if(strcmp(argv[1] , "kirchhoff") == 0)
 	{
 		kirchhoff(argc-1, argv+1);
 	}
+
+	//
 	else
 	{
-		help();
+		help(argv[1]);
 		return 0;
 	}
 
