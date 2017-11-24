@@ -17,7 +17,7 @@ void connect_start(int);
 
 
 
-void readall(int j)
+void readthemall(int j)
 {
 	//chipdata_start(j);
 	chipindex_start(j);
@@ -31,7 +31,10 @@ void readall(int j)
 	//pindata_start(j);
 	pinindex_start(j);
 
+	pointdata_start(j);
 	pointindex_start(j);
+
+	//shapedata_start(j);
 	shapeindex_start(j);
 
 	strdata_start(j);
@@ -39,6 +42,28 @@ void readall(int j)
 
 	connect_start(j);
 }
-void writeall()
+void writethemall()
 {
+	//chipdata_stop();
+	chipindex_stop();
+
+	filedata_stop();
+	filemd5_stop();
+
+	funcdata_stop();
+	funcindex_stop();
+
+	//pindata_stop();
+	pinindex_stop();
+
+	pointdata_stop();
+	pointindex_stop();
+
+	//shapedata_stop();
+	shapeindex_stop();
+
+	strdata_stop();
+	strhash_stop();
+
+	connect_stop();
 }

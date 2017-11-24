@@ -8,15 +8,16 @@
 #define u64 unsigned long long
 #define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
 #define hex64(a,b,c,d,e,f,g,h) (hex32(a,b,c,d) | (((u64)hex32(e,f,g,h))<<32))
-void readall(int);
+void readthemall(int);
 void graph_init(void*, void*);
 void graph_data(void*, void*);
 void trianglenormal(void* n, void* a, void* b, void* c);
 //
 u64 strhash_generate(void*, int);
 void* strhash_read(u64);
-void* shape_read(int);
-void* point_read(int);
+void* shapeindex_read(int);
+void* pointindex_read(int);
+void* pointdata_read(int);
 void* connect_read(int);
 
 
@@ -24,10 +25,8 @@ void* connect_read(int);
 
 struct pointindex
 {
-	u32 self;
-	float x;
-	float y;
-	float z;
+	u64 self;
+	u64 ofst;
 
 	u64 irel;
 	u64 orel;
@@ -70,7 +69,9 @@ struct vertex
 	float x;
 	float y;
 	float z;
+	float w;
 };
+static u8* origin;
 static u16 tempbuf[0x1000];
 static int templen = 0;
 static u8 buffer[0x800000];
@@ -79,17 +80,172 @@ static u64 index[8];
 
 
 
+void traverseshape_rectangle()
+{
+	u16* ii;
+	float n[3];
+	struct vertex* vv;
+
+	trianglenormal(n,
+		(void*)buffer + tempbuf[0]*12,
+		(void*)buffer + tempbuf[1]*12,
+		(void*)buffer + tempbuf[2]*12
+	);
+	printf("%f,%f,%f\n",n[0],n[1],n[2]);
+
+	//normal
+	vv = (void*)buffer + 0x100000 + tempbuf[0]*12;
+	vv->x += n[0];
+	vv->y += n[1];
+	vv->z += n[2];
+	vv = (void*)buffer + 0x100000 + tempbuf[1]*12;
+	vv->x += n[0];
+	vv->y += n[1];
+	vv->z += n[2];
+	vv = (void*)buffer + 0x100000 + tempbuf[2]*12;
+	vv->x += n[0];
+	vv->y += n[1];
+	vv->z += n[2];
+	vv = (void*)buffer + 0x100000 + tempbuf[3]*12;
+	vv->x += n[0];
+	vv->y += n[1];
+	vv->z += n[2];
+
+	//colour
+	vv = (void*)buffer + 0x200000 + tempbuf[0]*12;
+	vv->x = 0.5;
+	vv->y = 0.28;
+	vv->z = 0.0;
+	vv = (void*)buffer + 0x200000 + tempbuf[1]*12;
+	vv->x = 0.5;
+	vv->y = 0.28;
+	vv->z = 0.0;
+	vv = (void*)buffer + 0x200000 + tempbuf[2]*12;
+	vv->x = 0.5;
+	vv->y = 0.28;
+	vv->z = 0.0;
+	vv = (void*)buffer + 0x200000 + tempbuf[3]*12;
+	vv->x = 0.5;
+	vv->y = 0.28;
+	vv->z = 0.0;
+
+	ii = (void*)buffer + 0x400000 + 2*index[4];
+	ii[0] = tempbuf[0];
+	ii[1] = tempbuf[1];
+	ii[2] = tempbuf[2];
+	ii[3] = tempbuf[3];
+	index[4] += 4;
+}
+traverseshape_triangle()
+{
+	u16* ii;
+	float n[3];
+	struct vertex* vv;
+
+	trianglenormal(n,
+		(void*)buffer + tempbuf[0]*12,
+		(void*)buffer + tempbuf[1]*12,
+		(void*)buffer + tempbuf[2]*12
+	);
+	printf("%f,%f,%f\n",n[0],n[1],n[2]);
+
+	//vertex
+	vv = (void*)buffer + 0x100000 + tempbuf[0]*12;
+	vv->x += n[0];
+	vv->y += n[1];
+	vv->z += n[2];
+	vv = (void*)buffer + 0x100000 + tempbuf[1]*12;
+	vv->x += n[0];
+	vv->y += n[1];
+	vv->z += n[2];
+	vv = (void*)buffer + 0x100000 + tempbuf[2]*12;
+	vv->x += n[0];
+	vv->y += n[1];
+	vv->z += n[2];
+
+	//colour
+	vv = (void*)buffer + 0x200000 + tempbuf[0]*12;
+	vv->x = 0.5;
+	vv->y = 0.28;
+	vv->z = 0.0;
+	vv = (void*)buffer + 0x200000 + tempbuf[1]*12;
+	vv->x = 0.5;
+	vv->y = 0.28;
+	vv->z = 0.0;
+	vv = (void*)buffer + 0x200000 + tempbuf[2]*12;
+	vv->x = 0.5;
+	vv->y = 0.28;
+	vv->z = 0.0;
+
+	ii = (void*)buffer + 0x500000 + 2*index[5];
+	ii[0] = tempbuf[0];
+	ii[1] = tempbuf[1];
+	ii[2] = tempbuf[2];
+	index[5] += 3;
+}
+void traverseshape_line()
+{
+	u16* ii;
+	float n[3];
+	struct vertex* vv;
+
+	//vertex
+	vv = (void*)buffer + 0x100000 + tempbuf[0]*12;
+	vv->x += 0.0;
+	vv->y += 0.0;
+	vv->z += 1.0;
+	vv = (void*)buffer + 0x100000 + tempbuf[1]*12;
+	vv->x += 0.0;
+	vv->y += 0.0;
+	vv->z += 1.0;
+
+	//colour
+	vv = (void*)buffer + 0x200000 + tempbuf[0]*12;
+	vv->x = 1.0;
+	vv->y = 1.0;
+	vv->z = 1.0;
+	vv = (void*)buffer + 0x200000 + tempbuf[1]*12;
+	vv->x = 1.0;
+	vv->y = 1.0;
+	vv->z = 1.0;
+
+	ii = (void*)buffer + 0x600000 + 2*index[6];
+	ii[0] = tempbuf[0];
+	ii[1] = tempbuf[1];
+	index[6] += 2;
+}
+
+void traverseshape_point()
+{
+	u16* ii;
+	float n[3];
+	struct vertex* vv;
+
+	//vertex
+	vv = (void*)buffer + 0x100000 + tempbuf[0]*12;
+	vv->x += 0.0;
+	vv->y += 0.0;
+	vv->z += 1.0;
+
+	//colour
+	vv = (void*)buffer + 0x200000 + tempbuf[0]*12;
+	vv->x = 1.0;
+	vv->y = 1.0;
+	vv->z = 1.0;
+
+	ii = (void*)buffer + 0x700000 + 2*index[7];
+	ii[0] = tempbuf[0];
+	index[7] += 1;
+}
 void traverseshape_dfs(struct shapeindex* shape)
 {
 	u64 type;
 	u64 temp;
-	float n[3];
-	float c[3];
-	u16* ii;
 	struct wire* rel;
-	struct vertex* vv;
 	struct shapeindex* ss;
 	struct pointindex* pp;
+	struct vertex* uu;
+	struct vertex* vv;
 
 shapeirel:
 	temp = shape->irel;
@@ -106,7 +262,7 @@ shapeirel:
 	{
 		if(rel->selftype == hex32('s','h','a','p'))
 		{
-			ss = shape_read(rel->selfchip);
+			ss = shapeindex_read(rel->selfchip);
 			traverseshape_dfs(ss);
 			//printf("i:	shap@%08llx	%.8s\n",
 			//rel->selfchip, &(ss->type));
@@ -117,15 +273,15 @@ shapeirel:
 			tempbuf[templen] = temp;
 			templen++;
 
+			pp = pointindex_read(rel->selfchip);
+			uu = (void*)origin + pp->ofst;
 			vv = (void*)buffer + temp*12;
-			pp = point_read(rel->selfchip);
-			vv->x = pp->x;
-			vv->y = pp->y;
-			vv->z = pp->z;
+			vv->x = uu->x;
+			vv->y = uu->y;
+			vv->z = uu->z;
 
 			printf("i:	%lld@%llx	(%f, %f, %f)\n",
-				(rel->selfchip)/0x20, (u64)vv,
-				vv->x, vv->y, vv->z);
+				(rel->selfchip)/0x20, (u64)vv, vv->x, vv->y, vv->z);
 		}
 
 		temp = rel->samepinnextchip;
@@ -136,146 +292,10 @@ shapeirel:
 	}
 
 shapeorel:
-	if(type == hex32('r','e','c','t'))
-	{
-		trianglenormal(n,
-			(void*)buffer + tempbuf[0]*12,
-			(void*)buffer + tempbuf[1]*12,
-			(void*)buffer + tempbuf[2]*12
-		);
-		printf("%f,%f,%f\n",n[0],n[1],n[2]);
-
-		//normal
-		vv = (void*)buffer + 0x100000 + tempbuf[0]*12;
-		vv->x += n[0];
-		vv->y += n[1];
-		vv->z += n[2];
-		vv = (void*)buffer + 0x100000 + tempbuf[1]*12;
-		vv->x += n[0];
-		vv->y += n[1];
-		vv->z += n[2];
-		vv = (void*)buffer + 0x100000 + tempbuf[2]*12;
-		vv->x += n[0];
-		vv->y += n[1];
-		vv->z += n[2];
-		vv = (void*)buffer + 0x100000 + tempbuf[3]*12;
-		vv->x += n[0];
-		vv->y += n[1];
-		vv->z += n[2];
-
-		//colour
-		vv = (void*)buffer + 0x200000 + tempbuf[0]*12;
-		vv->x = 0.5;
-		vv->y = 0.28;
-		vv->z = 0.0;
-		vv = (void*)buffer + 0x200000 + tempbuf[1]*12;
-		vv->x = 0.5;
-		vv->y = 0.28;
-		vv->z = 0.0;
-		vv = (void*)buffer + 0x200000 + tempbuf[2]*12;
-		vv->x = 0.5;
-		vv->y = 0.28;
-		vv->z = 0.0;
-		vv = (void*)buffer + 0x200000 + tempbuf[3]*12;
-		vv->x = 0.5;
-		vv->y = 0.28;
-		vv->z = 0.0;
-
-		ii = (void*)buffer + 0x400000 + 2*index[4];
-		ii[0] = tempbuf[0];
-		ii[1] = tempbuf[1];
-		ii[2] = tempbuf[2];
-		ii[3] = tempbuf[3];
-		index[4] += 4;
-	}
-	else if(type == hex32('t','r','i',0))
-	{
-		trianglenormal(n,
-			(void*)buffer + tempbuf[0]*12,
-			(void*)buffer + tempbuf[1]*12,
-			(void*)buffer + tempbuf[2]*12
-		);
-		printf("%f,%f,%f\n",n[0],n[1],n[2]);
-
-		//vertex
-		vv = (void*)buffer + 0x100000 + tempbuf[0]*12;
-		vv->x += n[0];
-		vv->y += n[1];
-		vv->z += n[2];
-		vv = (void*)buffer + 0x100000 + tempbuf[1]*12;
-		vv->x += n[0];
-		vv->y += n[1];
-		vv->z += n[2];
-		vv = (void*)buffer + 0x100000 + tempbuf[2]*12;
-		vv->x += n[0];
-		vv->y += n[1];
-		vv->z += n[2];
-
-		//colour
-		vv = (void*)buffer + 0x200000 + tempbuf[0]*12;
-		vv->x = 0.5;
-		vv->y = 0.28;
-		vv->z = 0.0;
-		vv = (void*)buffer + 0x200000 + tempbuf[1]*12;
-		vv->x = 0.5;
-		vv->y = 0.28;
-		vv->z = 0.0;
-		vv = (void*)buffer + 0x200000 + tempbuf[2]*12;
-		vv->x = 0.5;
-		vv->y = 0.28;
-		vv->z = 0.0;
-
-		ii = (void*)buffer + 0x500000 + 2*index[5];
-		ii[0] = tempbuf[0];
-		ii[1] = tempbuf[1];
-		ii[2] = tempbuf[2];
-		index[5] += 3;
-	}
-	else if(type == hex32('l','i','n','e'))
-	{
-		//vertex
-		vv = (void*)buffer + 0x100000 + tempbuf[0]*12;
-		vv->x += 0.0;
-		vv->y += 0.0;
-		vv->z += 1.0;
-		vv = (void*)buffer + 0x100000 + tempbuf[1]*12;
-		vv->x += 0.0;
-		vv->y += 0.0;
-		vv->z += 1.0;
-
-		//colour
-		vv = (void*)buffer + 0x200000 + tempbuf[0]*12;
-		vv->x = 1.0;
-		vv->y = 1.0;
-		vv->z = 1.0;
-		vv = (void*)buffer + 0x200000 + tempbuf[1]*12;
-		vv->x = 1.0;
-		vv->y = 1.0;
-		vv->z = 1.0;
-
-		ii = (void*)buffer + 0x600000 + 2*index[6];
-		ii[0] = tempbuf[0];
-		ii[1] = tempbuf[1];
-		index[6] += 2;
-	}
-	else if(type == hex32('p','o','i','n'))
-	{
-		//vertex
-		vv = (void*)buffer + 0x100000 + tempbuf[0]*12;
-		vv->x += 0.0;
-		vv->y += 0.0;
-		vv->z += 1.0;
-
-		//colour
-		vv = (void*)buffer + 0x200000 + tempbuf[0]*12;
-		vv->x = 1.0;
-		vv->y = 1.0;
-		vv->z = 1.0;
-
-		ii = (void*)buffer + 0x700000 + 2*index[7];
-		ii[0] = tempbuf[0];
-		index[7] += 1;
-	}
+	if(type == hex32('r','e','c','t'))traverseshape_rectangle();
+	else if(type == hex32('t','r','i',0))traverseshape_triangle();
+	else if(type == hex32('l','i','n','e'))traverseshape_line();
+	else if(type == hex32('p','o','i','n'))traverseshape_point();
 }
 void* searchshapefromstr(char* buf, int len)
 {
@@ -332,7 +352,7 @@ void* searchshapefromstr(char* buf, int len)
 		return 0;
 	}
 
-	shap = shape_read(haha);
+	shap = shapeindex_read(haha);
 	return shap;
 }
 
@@ -360,9 +380,10 @@ void graph(int argc, char** argv)
 	char* p;
 	int j;
 
-	readall(1);
-	graph_init(buffer, index);
+	readthemall(1);
+	origin = pointdata_read(0);
 
+	graph_init(buffer, index);
 	for(j=1;j<argc;j++)
 	{
 		graph_one(argv[j], strlen(argv[j]));

@@ -13,16 +13,15 @@
 #define u32 unsigned int
 #define u64 unsigned long long
 int decstr2data(void*, void*);
+int pointdata_write(float, float, float, float);
 
 
 
 
 struct pointindex
 {
-	u32 self;
-	float x;
-	float y;
-	float z;
+	u64 self;
+	u64 pppp;
 
 	u64 first;
 	u64 last;
@@ -35,20 +34,16 @@ static int pointindexlen;
 
 
 
-void* point_write(int num, double x, double y, double z)
+void* pointindex_write(int num, float x, float y, float z, float w)
 {
 	struct pointindex* addr;
 	addr = (void*)pointindexbuf + num*0x20;
 
 	addr->self = num*0x20;
-	addr->x = x;
-	addr->y = y;
-	addr->z = z;
-
-	//printf("%d	%lf, %lf, %lf\n", num, x, y, z);
+	addr->pppp = pointdata_write(x, y, z, w);
 	return addr;
 }
-void* point_read(int offset)
+void* pointindex_read(int offset)
 {
 	return (void*)pointindexbuf + offset;
 }

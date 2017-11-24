@@ -451,44 +451,11 @@ void worker_delete()
 
 
 
-void stoplearn()
-{
-	//chipdata_stop();
-	chipindex_stop();
-	filedata_stop();
-	filemd5_stop();
-	funcdata_stop();
-	funcindex_stop();
-	//pindata_stop();
-	pinindex_stop();
-	//pointdata_stop();
-	pointindex_stop();
-	//shapedata_stop();
-	shapeindex_stop();
-	strdata_stop();
-	strhash_stop();
-	connect_stop();
-	exit(-1);
-}
 int learn(int argc,char** argv)
 {
 	int j,k;
 	char* p;
-	//chipdata_start(0);
-	chipindex_start(0);
-	filedata_start(0);
-	filemd5_start(0);
-	funcdata_start(0);
-	funcindex_start(0);
-	//pindata_start(0);
-	pinindex_start(0);
-	//pointdata_start(0);
-	pointindex_start(0);
-	//shapedata_start(0);
-	shapeindex_start(0);
-	strdata_start(0);
-	strhash_start(0);
-	connect_start(0);
+	readthemall(0);
 
 	//example:	./a.out 1.c *.c /src/*.c */*.c
 	for(j=1;j<argc;j++)
@@ -517,6 +484,6 @@ int learn(int argc,char** argv)
 		traverse_stop();
 	}//for
 
-	stoplearn();
+	writethemall();
 	return 0;
 }

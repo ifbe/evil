@@ -7,19 +7,21 @@
 #define u64 unsigned long long
 #define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
 #define hex64(a,b,c,d,e,f,g,h) (hex32(a,b,c,d) | (((u64)hex32(e,f,g,h))<<32))
-int decstr2data(void*, void*);
-int hexstr2data(void*, void*);
 u64 strhash_generate(void*, int);
 void* strhash_read(u64);
 void* strhash_write(void*, int);
-void* shape_read(int);
-void* shape_write(void*, int);
-void* point_read(int);
-void* point_write(int num, double x, double y, double z);
-void* connect_read(int);
+//
+void* shapeindex_read(int);
+void* shapeindex_write(void*, int);
+void* pointindex_read(int);
+void* pointindex_write(int num, float x, float y, float z, float w);
+//
 void* connect_write(
 	void* uchip, u64 ufoot, u64 utype,
 	void* bchip, u64 bfoot, u64 btype);
+void* connect_read(int);
+int decstr2data(void*, void*);
+int hexstr2data(void*, void*);
 
 
 
@@ -64,11 +66,11 @@ static void* stack[16];
 
 void three_point(char* buf, int len, int num)
 {
-	double x,y,z;
-	sscanf(buf, "%lf, %lf, %lf", &x, &y, &z);
+	float x,y,z;
+	sscanf(buf, "%f, %f, %f", &x, &y, &z);
 	//printf("%lf, %lf, %lf\n", x, y, z);
 
-	point_write(num, x, y, z);
+	pointindex_write(num, x, y, z, 0.0);
 	//printf("%d	%lf, %lf, %lf\n", num, x, y, z);
 }
 void three_shape(char* buf, int len)
@@ -84,10 +86,10 @@ void three_shape(char* buf, int len)
 	//printf("%.*s\n", len, buf);
 
 	//
-	shap = shape_write(buf, j);
+	shap = shapeindex_write(buf, j);
 	if(shap == 0)
 	{
-		printf("error@shape_write\n");
+		printf("error@shapeindex_write\n");
 		return;
 	}
 
@@ -126,7 +128,7 @@ void three_foot(char* buf ,int len)
 		j += decstr2data(buf+j, &num);
 		//printf("%d	", num);
 
-		point = point_read(num*0x20);
+		point = pointindex_read(num*0x20);
 		connect_write(
 			stack[rsp-1], 0, hex32('s', 'h', 'a', 'p'),
 			point, 0, hex32('p','o','i','n')
@@ -197,7 +199,7 @@ void three_call(u8* buf, int len)
 		return;
 	}
 
-	shap = shape_read(haha);
+	shap = shapeindex_read(haha);
 	connect_write(
 		stack[rsp-1], 0, hex32('s','h','a','p'),
 		shap, 0, hex32('s','h','a','p')

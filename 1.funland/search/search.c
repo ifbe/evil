@@ -6,29 +6,28 @@
 #define u32 unsigned int
 #define u64 unsigned long long
 #define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
-int hexstr2data(void*, void*);
-void strhash_print(u64);
 u64 strhash_generate(void*, int);
+void strhash_print(u64);
 void* strhash_read(u64);
 //
-void readall(int);
-void* connect_read(int);
 void* pin_read(int);
 void* chipindex_read(int);
 void* funcindex_read(int);
 void* filemd5_read(int);
-void* point_read(int);
-void* shape_read(int);
+void* pointindex_read(int);
+void* shapeindex_read(int);
+void* connect_read(int);
+//
+void readthemall(int);
+int hexstr2data(void*, void*);
 
 
 
 
 struct pointindex
 {
-	u32 self;
-	float x;
-	float y;
-	float z;
+	u64 self;
+	u64 haha;
 
 	u64 irel;
 	u64 orel;
@@ -418,7 +417,7 @@ void searchshape(int offset)
 	struct wire* orel;
 	if(offset%0x20 != 0)printf("notfound: shape@%x",offset);
 
-	shape = shape_read(offset);
+	shape = shapeindex_read(offset);
 	printf("shape@%08x	@%llx\n", offset, (u64)shape);
 
 shapeirel:
@@ -438,15 +437,15 @@ shapeirel:
 		}
 		else if(irel->selftype == hex32('s','h','a','p'))
 		{
-			ss = shape_read(irel->selfchip);
+			ss = shapeindex_read(irel->selfchip);
 			printf("i:	shap@%08llx	%.8s\n",
 			irel->selfchip, (char*)&(ss->type));
 		}
 		else if(irel->selftype == hex32('p','o','i','n'))
 		{
-			pp = point_read(irel->selfchip);
-			printf("i:	poin@%08llx	(%f, %f, %f)\n",
-			irel->selfchip, pp->x, pp->y, pp->z);
+			pp = pointindex_read(irel->selfchip);
+			printf("i:	poin@%08llx	%llx\n",
+			irel->selfchip, pp->haha);
 		}
 		else
 		{
@@ -478,7 +477,7 @@ shapeorel:
 		}
 		else if(orel->desttype == hex32('s','h','a','p'))
 		{
-			ss = shape_read(orel->destchip);
+			ss = shapeindex_read(orel->destchip);
 			printf("o:	shap@%08llx	%.8s\n",
 			orel->destchip, (char*)&(ss->type));
 		}
@@ -811,7 +810,7 @@ void search_one(char* buf, int len)
 void search(int argc, char** argv)
 {
 	int j;
-	readall(1);
+	readthemall(1);
 
 	for(j=1;j<argc;j++)
 	{

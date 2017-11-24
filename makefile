@@ -26,7 +26,6 @@ all:
 	1.funland/modify/modify.c \
 	1.funland/search/search.c \
 	1.funland/kirchhoff.c \
-	1.funland/mechanics.c \
 	2.nadir/chip/chipdata.c \
 	2.nadir/chip/chipid.c \
 	2.nadir/chip/chiplib.c \
@@ -78,7 +77,6 @@ gl:
 	1.funland/modify/modify.c \
 	1.funland/search/search.c \
 	1.funland/kirchhoff.c \
-	1.funland/mechanics.c \
 	2.nadir/chip/chipdata.c \
 	2.nadir/chip/chipid.c \
 	2.nadir/chip/chiplib.c \
@@ -131,7 +129,6 @@ epoll:
 	1.funland/modify/modify.c \
 	1.funland/search/search.c \
 	1.funland/kirchhoff.c \
-	1.funland/mechanics.c \
 	2.nadir/chip/chipdata.c \
 	2.nadir/chip/chipid.c \
 	2.nadir/chip/chiplib.c \

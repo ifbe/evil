@@ -32,7 +32,7 @@ static int shapeindexlen = 0x20;
 
 
 
-void* shape_write(char* buf, int len)
+void* shapeindex_write(char* buf, int len)
 {
 	int j,k;
 	char* p;
@@ -57,7 +57,7 @@ void* shape_write(char* buf, int len)
 	shapeindexlen += 0x20;
 	return addr;
 }
-void* shape_read(int offset)
+void* shapeindex_read(int offset)
 {
 	if(offset == 0)return 0;
 	return (void*)shapeindexbuf + offset;

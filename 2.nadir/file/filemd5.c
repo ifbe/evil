@@ -37,7 +37,6 @@ static int md5len;
 
 
 
-void stoplearn();
 void* filemd5_write(char* buf, int len)
 {
 	struct fileindex* addr;
@@ -50,7 +49,6 @@ void* filemd5_write(char* buf, int len)
 	if(md5len >= maxlen)
 	{
 		printf("err@filemd5\n");
-		stoplearn();
 		return 0;
 	}
 	return addr;

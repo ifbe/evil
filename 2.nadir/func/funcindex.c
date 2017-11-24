@@ -35,7 +35,6 @@ static int funcindexlen;
 
 
 
-void stoplearn();
 void* funcindex_write(int linenum)
 {
 	struct funcindex* addr;
@@ -49,7 +48,6 @@ void* funcindex_write(int linenum)
 	if(funcindexlen >= maxlen)
 	{
 		printf("err@funcindex\n");
-		stoplearn();
 		return 0;
 	}
 	return addr;
