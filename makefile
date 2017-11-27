@@ -53,12 +53,18 @@ all:
 	2.serve/graph/cli.c \
 	2.serve/serve/cli.c \
 	-lm
-gl:
+wingl:
 	gcc main.c -o a.exe \
 	$(SRC) \
 	2.serve/graph/opengl.c \
 	2.serve/serve/cli.c \
 	-lglew32 -lfreeglut -lglu32 -lopengl32 -lpthread -lm
+linuxgl:
+	gcc main.c -o a.exe \
+	$(SRC) \
+	2.serve/graph/opengl.c \
+	2.serve/serve/cli.c \
+	-lglut -lGLEW -lGLU -lGL -lpthread -lm
 epoll:
 	gcc main.c -o a.exe \
 	$(SRC) \

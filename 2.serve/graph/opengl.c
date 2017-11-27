@@ -1,13 +1,21 @@
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
 #include <GL/glew.h>
 #include <GL/freeglut.h>
+#include <pthread.h>
 #define u8 unsigned char
 #define u16 unsigned short
 #define u32 unsigned int
 #define u64 unsigned long long
 #define PI 3.1415926535897932384626433832795028841971693993151
+void vectornormalize(float* v);
+void vectorcross(float* v, float* x);
+void quaternionrotate(float* v, float* q);
+
+
+
+
 //
 int width;
 int height;
@@ -64,37 +72,37 @@ int dequeue = 0;
 
 
 char vCode[] = {
-	"#version 400\n"
-	"layout(location = 0)in vec3 position;\n"
-	"layout(location = 1)in vec3 normal;\n"
-	"layout(location = 2)in vec3 color;\n"
-	"uniform vec3 ambientcolor;\n"
-	"uniform vec3 lightcolor;\n"
-	"uniform vec3 lightposition;\n"
-	"uniform vec3 eyeposition;\n"
+	"#version 300 es\n"
+	"layout(location = 0)in mediump vec3 position;\n"
+	"layout(location = 1)in mediump vec3 normal;\n"
+	"layout(location = 2)in mediump vec3 color;\n"
+	"uniform mediump vec3 ambientcolor;\n"
+	"uniform mediump vec3 lightcolor;\n"
+	"uniform mediump vec3 lightposition;\n"
+	"uniform mediump vec3 eyeposition;\n"
 	"uniform mat4 modelviewproj;\n"
 	"uniform mat4 normalmatrix;\n"
-	"out vec3 vertexcolor;\n"
+	"out mediump vec3 vertexcolor;\n"
 	"void main()\n"
 	"{\n"
-		"vec3 N = normalize(normal);\n"
-		"vec3 L = normalize(vec3(lightposition - position));\n"
-		"vec3 E = normalize(eyeposition-position);\n"
-		"vec3 R = reflect(-L, N);\n"
-		"float SN = max(dot(N, L), 0.0);\n"
-		"float RV = max(dot(R, E), 0.0);\n"
-		"vec3 ambient = color * ambientcolor;\n"
-		"vec3 diffuse = color * lightcolor * SN;\n"
-		"vec3 specular = vec3(0.0, 0.0, 0.0);\n"
-		"if(SN>0.0)specular = color * lightcolor * pow(RV, 8);\n"
+		"mediump vec3 N = normalize(normal);\n"
+		"mediump vec3 L = normalize(vec3(lightposition - position));\n"
+		"mediump vec3 E = normalize(eyeposition-position);\n"
+		"mediump vec3 R = reflect(-L, N);\n"
+		"mediump float SN = max(dot(N, L), 0.0);\n"
+		"mediump float RV = max(dot(R, E), 0.0);\n"
+		"mediump vec3 ambient = color * ambientcolor;\n"
+		"mediump vec3 diffuse = color * lightcolor * SN;\n"
+		"mediump vec3 specular = vec3(0.0, 0.0, 0.0);\n"
+		"if(SN>0.0)specular = color * lightcolor * pow(RV, 8.0);\n"
 		"vertexcolor = ambient + diffuse + specular;\n"
 		"gl_Position = modelviewproj * vec4(position,1.0);\n"
 	"}\n"
 };
 char fCode[] = {
-	"#version 400\n"
-	"in vec3 vertexcolor;\n"
-	"out vec4 FragColor;\n"
+	"#version 300 es\n"
+	"in mediump vec3 vertexcolor;\n"
+	"out mediump vec4 FragColor;\n"
 	"void main()\n"
 	"{\n"
 		"FragColor = vec4(vertexcolor,1.0);\n"
@@ -102,116 +110,99 @@ char fCode[] = {
 };
 void initshader()  
 {  
-    //1. 查看GLSL和OpenGL的版本  
-    const GLubyte *renderer = glGetString( GL_RENDERER );  
-    const GLubyte *vendor = glGetString( GL_VENDOR );  
-    const GLubyte *version = glGetString( GL_VERSION );  
-    const GLubyte *glslVersion = glGetString( GL_SHADING_LANGUAGE_VERSION );  
-    GLint major, minor;  
-    glGetIntegerv(GL_MAJOR_VERSION, &major);
-    glGetIntegerv(GL_MINOR_VERSION, &minor);
-    //printf("GL Vendor: %s\n", vendor);
-    //printf("GL Renderer: %s\n", renderer);
-    //printf("GL Version (string): %s\n", version);
-    //printf("GLSL Version: %s\n", glslVersion);
-    //printf("GL Version (integer): %x.%x\n", major, minor);
+	const GLubyte *renderer = glGetString( GL_RENDERER );  
+	const GLubyte *vendor = glGetString( GL_VENDOR );  
+	const GLubyte *version = glGetString( GL_VERSION );  
+	const GLubyte *glslVersion = glGetString( GL_SHADING_LANGUAGE_VERSION );  
+	GLint major, minor;  
+	glGetIntegerv(GL_MAJOR_VERSION, &major);
+	glGetIntegerv(GL_MINOR_VERSION, &minor);
+	//printf("GL Vendor: %s\n", vendor);
+	//printf("GL Renderer: %s\n", renderer);
+	//printf("GL Version (string): %s\n", version);
+	//printf("GLSL Version: %s\n", glslVersion);
+	//printf("GL Version (integer): %x.%x\n", major, minor);
 
-    //2. 顶点着色器  
-    vShader = glCreateShader(GL_VERTEX_SHADER);
-    if (0 == vShader)  
-    {  
-        printf("ERROR : Create vertex shader failed\n");
-        exit(1);  
-    }  
+	vShader = glCreateShader(GL_VERTEX_SHADER);
+	if (0 == vShader)  
+	{  
+		printf("ERROR : Create vertex shader failed\n");
+		exit(1);  
+	}  
 
-    //把着色器源代码和着色器对象相关联
 	const GLchar* vCodeArray[1] = {vCode};
-    glShaderSource(vShader, 1, vCodeArray, NULL);
-    glCompileShader(vShader);  
+	glShaderSource(vShader, 1, vCodeArray, NULL);
+	glCompileShader(vShader);  
 
-    //检查编译是否成功  
-    GLint compileResult;  
-    glGetShaderiv(vShader,GL_COMPILE_STATUS,&compileResult);  
-    if (GL_FALSE == compileResult)  
-    {  
-        GLint logLen;  
-        //得到编译日志长度  
-        glGetShaderiv(vShader,GL_INFO_LOG_LENGTH,&logLen);  
-        if (logLen > 0)  
-        {  
-            char *log = (char *)malloc(logLen);  
-            GLsizei written;  
-            //得到日志信息并输出  
-            glGetShaderInfoLog(vShader,logLen,&written,log);
-            printf("vertex shader compile log: %s\n",log);
-            free(log);//释放空间
-        }
-    }
+	GLint compileResult;  
+	glGetShaderiv(vShader,GL_COMPILE_STATUS,&compileResult);  
+	if (GL_FALSE == compileResult)  
+	{  
+		GLint logLen;  
+		glGetShaderiv(vShader,GL_INFO_LOG_LENGTH,&logLen);  
+		if (logLen > 0)  
+		{  
+			GLsizei written;  
+			char *log = (char *)malloc(logLen);  
+			glGetShaderInfoLog(vShader,logLen,&written,log);
+			printf("vertex shader compile log: %s\n",log);
+			free(log);
+		}
+	}
 
-    //3. 片断着色器  
-    fShader = glCreateShader(GL_FRAGMENT_SHADER);
-    if (0 == fShader)  
-    {  
-        printf("ERROR : Create fragment shader failed");  
-        exit(1);  
-    }  
+	fShader = glCreateShader(GL_FRAGMENT_SHADER);
+	if (0 == fShader)  
+	{  
+		printf("ERROR : Create fragment shader failed");  
+		exit(1);  
+	}  
 
-    //把着色器源代码和着色器对象相关联
 	const GLchar* fCodeArray[1] = {fCode};
-    glShaderSource(fShader, 1, fCodeArray, NULL);
-    glCompileShader(fShader);  
+	glShaderSource(fShader, 1, fCodeArray, NULL);
+	glCompileShader(fShader);  
 
-    //检查编译是否成功  
-    glGetShaderiv(fShader,GL_COMPILE_STATUS,&compileResult);  
-    if (GL_FALSE == compileResult)  
-    {  
-        GLint logLen;  
-        //得到编译日志长度  
-        glGetShaderiv(fShader,GL_INFO_LOG_LENGTH,&logLen);  
-        if (logLen > 0)  
-        {  
-            char *log = (char *)malloc(logLen);  
-            GLsizei written;  
-            //得到日志信息并输出  
-            glGetShaderInfoLog(fShader,logLen,&written,log);
-            printf("fragment shader compile log: %s\n",log);
-            free(log);//释放空间  
-        }  
-    }  
+	glGetShaderiv(fShader,GL_COMPILE_STATUS,&compileResult);  
+	if (GL_FALSE == compileResult)  
+	{  
+		GLint logLen;  
+		glGetShaderiv(fShader,GL_INFO_LOG_LENGTH,&logLen);  
+		if (logLen > 0)  
+		{  
+			GLsizei written;  
+			char *log = (char *)malloc(logLen);  
+			glGetShaderInfoLog(fShader,logLen,&written,log);
+			printf("fragment shader compile log: %s\n",log);
+			free(log);
+		}  
+	}  
   
-    //4. 着色器程序  
-    programHandle = glCreateProgram();  
-    if (!programHandle)  
-    {  
-        printf("ERROR : create program failed");
-        exit(1);  
-    }
+	programHandle = glCreateProgram();  
+	if (!programHandle)  
+	{  
+		printf("ERROR : create program failed");
+		exit(1);  
+	}
 
-    //将着色器程序链接到所创建的程序中  
-    glAttachShader(programHandle,vShader);
-    glAttachShader(programHandle,fShader);
-    glLinkProgram(programHandle);
+	glAttachShader(programHandle,vShader);
+	glAttachShader(programHandle,fShader);
+	glLinkProgram(programHandle);
 
-    //查询链接的结果  
-    GLint linkStatus;  
-    glGetProgramiv(programHandle,GL_LINK_STATUS,&linkStatus);  
-    if(GL_FALSE == linkStatus)  
-    {  
-        printf("ERROR : link shader program failed");  
-        GLint logLen;  
-        glGetProgramiv(programHandle,GL_INFO_LOG_LENGTH, &logLen);  
-        if (logLen > 0)  
-        {  
-            char *log = (char *)malloc(logLen);  
-            GLsizei written;  
-            glGetProgramInfoLog(programHandle,logLen, &written,log);  
-            printf("Program log :%s\n", log);  
-        }  
-    }  
-    else//链接成功，在OpenGL管线中使用渲染程序  
-    {  
-        glUseProgram(programHandle);  
-    }  
+	GLint linkStatus;  
+	glGetProgramiv(programHandle,GL_LINK_STATUS,&linkStatus);  
+	if(GL_FALSE == linkStatus)  
+	{  
+		printf("ERROR : link shader program failed");  
+		GLint logLen;  
+		glGetProgramiv(programHandle,GL_INFO_LOG_LENGTH, &logLen);  
+		if (logLen > 0)  
+		{  
+			char *log = (char *)malloc(logLen);  
+			GLsizei written;  
+			glGetProgramInfoLog(programHandle,logLen, &written,log);  
+			printf("Program log :%s\n", log);  
+		}  
+	}  
+	else glUseProgram(programHandle);  
 }
 void initshape()
 {
@@ -228,15 +219,15 @@ void initshape()
 	//
 	glGenBuffers(1, &vertexhandle);
 	glBindBuffer(GL_ARRAY_BUFFER, vertexhandle);
-    glBufferData(GL_ARRAY_BUFFER, 0x100000, vertexxyz, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, 0x100000, vertexxyz, GL_STATIC_DRAW);
 
 	glGenBuffers(1, &normalhandle);
 	glBindBuffer(GL_ARRAY_BUFFER, normalhandle);
-    glBufferData(GL_ARRAY_BUFFER, 0x100000, normalxyz, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, 0x100000, normalxyz, GL_STATIC_DRAW);
 
 	glGenBuffers(1, &colourhandle);
 	glBindBuffer(GL_ARRAY_BUFFER, colourhandle);
-    glBufferData(GL_ARRAY_BUFFER, 0x100000, colorrgb, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, 0x100000, colorrgb, GL_STATIC_DRAW);
 
 
 	//
@@ -476,7 +467,7 @@ void callback_display()
 
 	//write
 	glFlush();
-    glutSwapBuffers();
+	glutSwapBuffers();
 }
 void callback_idle()
 {
@@ -631,38 +622,39 @@ void callback_mouse(int button, int state, int x, int y)
 		}
 	}
 }
-void graph_thread()
+void* graph_thread(void* arg)
 {
 	int err;
 	int argc = 1;
 	char* argv[2] = {"a.out", 0};
-    glutInit(&argc, argv);
-    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
-    glutInitWindowSize(512, 512);
-    glutInitWindowPosition(256, 256);
-    glutCreateWindow("GLSL Test : Draw a triangle");
+	glutInit(&argc, argv);
+	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
+	glutInitWindowSize(512, 512);
+	glutInitWindowPosition(256, 256);
+	glutCreateWindow("GLSL Test : Draw a triangle");
 
-    err = glewInit();
-    if( GLEW_OK != err )printf("glewinit: %s\n", glewGetErrorString(err));  
+	err = glewInit();
+	if( GLEW_OK != err )printf("glewinit: %s\n", glewGetErrorString(err));  
 
 	glPointSize(2.0);
 	glViewport(0, 0, 512, 512);
 	glEnable(GL_DEPTH_TEST);
-    initshader();
+	initshader();
 	initshape();
 
 	glutIdleFunc(callback_idle);
-    glutDisplayFunc(callback_display);
-    glutKeyboardFunc(callback_keyboard);
+	glutDisplayFunc(callback_display);
+	glutKeyboardFunc(callback_keyboard);
 	glutReshapeFunc(callback_reshape);
 	glutMouseFunc(callback_mouse);
 	glutMotionFunc(callback_move); 
-      
-    glutMainLoop();
+	  
+	glutMainLoop();
 
 	glDeleteShader(vShader);
 	glDeleteShader(fShader);
 	glUseProgram(0);
+	return 0;
 }
 void graph_init(void* buf, void* ind)
 {
