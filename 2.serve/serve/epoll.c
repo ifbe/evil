@@ -20,7 +20,7 @@
 #define u32 unsigned int
 #define u64 unsigned long long
 #define MAXSIZE 4096
-void readthemall(j);
+void readthemall(int);
 void search_one(char* buf, int len);
 
 
@@ -28,8 +28,8 @@ void search_one(char* buf, int len);
 
 static int epollfd;
 static int tcpfd;
-static u8 buffer[0x100000];
-static u8 GET[0x1000];
+static u8 rbuf[0x100000];
+static u8 wbuf[0x100000];
 static u8 response[] =
 	"HTTP/1.1 200 OK\r\n"
 	"Content-type: text/html\r\n"
@@ -70,38 +70,58 @@ void epoll_mod(u64 fd)
 
 
 
-int servesocket(char* buf, int len)
+int servesocket_url(char* buf, int len)
 {
-	int j,ret;
-	char* p;
-	//printf("%.*s\n\n", len, buf);
-
-	if(strncmp(buf, "GET /", 5) != 0)return 0;
-
-	p = buf+5;
-	ret = 0;
+	int j,ret = 0;
 	for(j=0;j<0x1000;j++)
 	{
-		if(p[j] <= 0x20)
+		if(buf[j] <= 0x20)
 		{
-			p[j] = 0;
+			buf[j] = 0;
 			ret = j;
 			break;
 		}
 	}
-	//printf("%.*s\n", ret, p);
-
-	if(ret == 0)ret = snprintf(GET, 0x80, "index.html");
+	if(ret == 0)
+	{
+		j = open("datafile/index.html", O_RDONLY);
+		if(j <= 0)return 0;
+	}
 	else
 	{
-		for(j=0;j<ret;j++)GET[j] = p[j];
-		GET[ret] = 0;
-
-		search_one(GET, ret);
+		j = open(buf, O_RDONLY);
+		if(j <= 0)return 0;
 	}
 
-	ret = snprintf(buf, 0x80, "%s%s", response, GET);
+	ret = read(j, wbuf, 0x100000);
+	close(j);
+
+	if(ret <= 0)return 0;
 	return ret;
+}
+int servesocket_search(char* buf, int len)
+{
+	int j,ret = 0;
+	for(j=0;j<0x1000;j++)
+	{
+		if(buf[j] <= 0x20)
+		{
+			buf[j] = 0;
+			ret = j;
+			break;
+		}
+	}
+	search_one(buf, ret);
+
+	return snprintf(wbuf, 0x80, "%s%s", response, buf);
+}
+int servesocket(char* buf, int len)
+{
+	//printf("%.*s\n\n", len, buf);
+	if(strncmp(buf, "GET /", 5) != 0)return 0;
+
+	if(buf[5] != '?')return servesocket_url(buf+5, len-5);
+	else return servesocket_search(buf+6, len-6);
 }
 int listensocket()
 {
@@ -150,16 +170,16 @@ int listensocket()
 				//read
 				else
 				{
-ret = read(fd, buffer, 0x100000);
-if(ret > 0)
-{
-	ret = servesocket(buffer, ret);
-	if(ret > 0)
-	{
-		ret = write(fd, buffer, ret);
-	}
-}
-close(fd);
+					ret = read(fd, rbuf, 0x100000);
+					if(ret > 0)
+					{
+						ret = servesocket(rbuf, ret);
+						if(ret > 0)
+						{
+							ret = write(fd, wbuf, ret);
+						}
+					}
+					close(fd);
 				}
 			}//EPOLLIN
 		}//for
