@@ -29,12 +29,14 @@ void worker_create();
 void worker_delete();
 //
 int learn(int argc,char** argv);
-int think(int argc,char** argv);
-int serve(int argc,char** argv);
-int graph(int argc,char** argv);
 //
+int think(int argc,char** argv);
 int search(int argc,char** argv);
 int delete(int argc,char** argv);
+//
+int graph(int argc,char** argv);
+int serve(int argc,char** argv);
+int trace(int argc,char** argv);
 int kirchhoff(int argc,char** argv);
 
 
@@ -54,6 +56,7 @@ void help(char* buf)
 	printf("serve:\n");
 	printf("	a.exe serve\n");
 	printf("	a.exe graph\n");
+	printf("	a.exe trace\n");
 	printf("	a.exe kirchhoff\n");
 }
 int main(int argc, char** argv)
@@ -130,6 +133,10 @@ int main(int argc, char** argv)
 	else if(strcmp(argv[1], "graph") == 0)
 	{
 		graph(argc-1, argv+1);
+	}
+	else if(strcmp(argv[1], "trace") == 0)
+	{
+		trace(argc-1, argv+1);
 	}
 	else if(strcmp(argv[1] , "kirchhoff") == 0)
 	{

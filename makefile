@@ -20,9 +20,10 @@ SRC = 0.learn/learn.c \
 1.think/delete/delete.c \
 1.think/modify/modify.c \
 1.think/search/search.c \
-2.serve/graph/graph.c \
-2.serve/serve/serve.c \
-2.serve/kirchhoff.c \
+2.indite/graph/graph.c \
+2.indite/serve/serve.c \
+2.indite/trace/trace.c \
+2.indite/kirchhoff/kirchhoff.c \
 3.store/load.c \
 3.store/chip/chipdata.c \
 3.store/chip/chipid.c \
@@ -50,26 +51,35 @@ SRC = 0.learn/learn.c \
 all:
 	gcc main.c -o a.exe \
 	$(SRC) \
-	2.serve/graph/cli.c \
-	2.serve/serve/cli.c \
+	2.indite/graph/cli.c \
+	2.indite/serve/cli.c \
 	-lm
-wingl:
-	gcc main.c -o a.exe \
-	$(SRC) \
-	2.serve/graph/opengl.c \
-	2.serve/serve/cli.c \
-	-lglew32 -lfreeglut -lglu32 -lopengl32 -lpthread -lm
+
 linuxgl:
 	gcc main.c -o a.exe \
 	$(SRC) \
-	2.serve/graph/opengl.c \
-	2.serve/serve/cli.c \
+	2.indite/graph/opengl.c \
+	2.indite/serve/cli.c \
 	-lglut -lGLEW -lGLU -lGL -lpthread -lm
 epoll:
 	gcc main.c -o a.exe \
 	$(SRC) \
-	2.serve/graph/cli.c \
-	2.serve/serve/epoll.c \
+	2.indite/graph/cli.c \
+	2.indite/serve/epoll.c \
 	-lm
+
+wingl:
+	gcc main.c -o a.exe \
+	$(SRC) \
+	2.indite/graph/opengl.c \
+	2.indite/serve/cli.c \
+	-lglew32 -lfreeglut -lglu32 -lopengl32 -lpthread -lm
+iocp:
+	gcc main.c -o a.exe \
+	$(SRC) \
+	2.indite/graph/cli.c \
+	2.indite/serve/iocp.c \
+	-lm
+
 clean:
 	rm -f *.exe *.out
