@@ -14,6 +14,8 @@
 #define u64 unsigned long long
 void* strdata_read(int);
 int strdata_write(char*, int);
+u32 bkdrhash(char* buf, int len);
+u32 djb2hash(char* buf, int len);
 
 
 
@@ -52,30 +54,6 @@ struct tree
 static struct tree btnode[0x100];
 static int btlen = 0;
 #define maxlen 0x40000
-
-
-
-
-u32 bkdrhash(char* buf, int len)
-{
-	int j;
-	u32 hash = 0;
-	for(j=0;j<len;j++)
-	{
-		hash = hash * 131 + buf[j];
-	}
-	return hash;
-}
-u32 djb2hash(char* buf, int len)
-{
-	int j;
-	u32 hash=5381;
-	for(j=0;j<len;j++)
-	{
-		hash=(hash<<5) + hash + buf[j];
-	}
-	return hash;
-}
 
 
 
