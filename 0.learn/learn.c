@@ -147,7 +147,7 @@ int worker_write(char* buf, int len, int type, int haha)
 		thisobj = strhash_read(strhash);
 		if(thisobj == 0)
 		{
-			printf("error@1111\n");
+			printf("error@0000\n");
 			return 0;
 		}
 

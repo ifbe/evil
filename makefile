@@ -46,6 +46,7 @@ SRC = 0.learn/learn.c \
 3.store/str/strdata.c \
 3.store/str/strhash.c \
 3.store/str/strlib.c \
+3.store/str/bplus.c \
 3.store/rel/rel.c
 
 all:

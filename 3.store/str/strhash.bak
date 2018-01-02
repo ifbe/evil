@@ -12,15 +12,10 @@
 #define u16 unsigned short
 #define u32 unsigned int
 #define u64 unsigned long long
+void* strdata_read(int);
+int strdata_write(char*, int);
 u32 bkdrhash(char* buf, int len);
 u32 djb2hash(char* buf, int len);
-int strdata_write(char*, int);
-void* strdata_read(int);
-void bplus_prepare(void*);
-void bplus_debug(void*);
-void* bplus_search(void*, u64);
-void* bplus_insert(void*, void*);
-
 
 
 
@@ -35,8 +30,105 @@ struct hash
 	u64 first;
 	u64 last;
 };
-static u8 btnode[0x100000];
-static int btlen = 0x100000;
+struct tree
+{
+	//hash
+	u64 begin;
+	u64 end;
+
+	//length
+	u64 cur;
+	u64 len;
+
+	//child
+	u64 left;
+	u64 right;
+
+	//memory
+	u64 type;
+	union{
+		void* buf;
+		u64 pad;
+	};
+};
+static struct tree btnode[0x100];
+static int btlen = 0;
+#define maxlen 0x40000
+
+
+
+
+void tree_split(struct tree* orig)
+{
+	int j;
+	int begin;
+	u8* src;
+	u8* dst;
+	void* mem;
+	struct tree* this;
+
+	//check
+	if(btlen >= 0x100)
+	{
+		printf("error@btlen\n");
+		return;
+	}
+
+	//alloc
+	mem = malloc(maxlen);
+	if(mem == 0)
+	{
+		printf("error@malloc\n");
+		return;
+	}
+
+	//move node
+	dst = (void*)btnode + (btlen+1)*sizeof(struct tree) - 1;
+	src = dst - sizeof(struct tree);
+	this = (void*)orig + sizeof(struct tree);
+	btlen++;
+	while(1)
+	{
+		*dst = *src;
+
+		dst--;
+		src--;
+		if(src < (u8*)this)break;
+	}
+
+	//write
+	this->len = maxlen;
+	this->buf = mem;
+
+	//move hash
+	dst = mem;
+	src = orig->buf;
+	begin = ((orig->cur)/2)&0xffffffffffffff20;
+	for(j=0;j<begin;j++)dst[j] = src[begin+j];
+
+	//change
+	this->cur = (orig->cur) - begin;
+	this->begin = *(u64*)dst;
+	this->end = orig->end;
+	//printf("%016llx,%016llx	%llx\n", this->begin, this->end, this->cur);
+
+	orig->cur = begin;
+	orig->end = this->begin - 1;
+	//printf("%016llx,%016llx	%llx\n", orig->begin, orig->end, orig->cur);
+}
+void* tree_search(u64 hash)
+{
+	int j;
+	for(j=0;j<btlen;j++)
+	{
+		if( (hash >= btnode[j].begin) && (hash <= btnode[j].end) )
+		{
+			return &btnode[j];
+		}
+	}
+	printf("impossiable\n");
+	return 0;
+}
 
 
 
@@ -62,7 +154,6 @@ u64 strhash_generate(char* buf, int len)
 
 	return *(u64*)this;
 }
-/*
 void* strhash_search(void* buf, int len, u64 hash)
 {
 	u64 xxx;
@@ -95,15 +186,18 @@ void* strhash_search(void* buf, int len, u64 hash)
 		}
 	}
 }
-*/
 void strhash_print(u64 hash)
 {
 	int len;
 	char* addr;
+	struct tree* t;
 	struct hash* h;
-//printf("fdas");
-	h = bplus_search(btnode, hash);
+	t = tree_search(hash);
+	if(t == 0)return;
+
+	h = strhash_search(t->buf, t->cur, hash);
 	if(h == 0)return;
+	if(*(u64*)h != hash)return;
 
 	if((h->len) <= 8)
 	{
@@ -119,7 +213,6 @@ void strhash_print(u64 hash)
 }
 int strhash_export(u8* dst, u64* part)
 {
-/*
 	int j,k,ret,len;
 	u8* buf;
 	u8* addr;
@@ -154,7 +247,6 @@ int strhash_export(u8* dst, u64* part)
 
 	*part = t->end;
 	return ret;
-*/
 }
 
 
@@ -163,49 +255,70 @@ int strhash_export(u8* dst, u64* part)
 void* strhash_write(char* buf, int len)
 {
 	int j;
-	u64 hash;
-	void* addr;
-	struct hash h;
+	u64 temp;
+	u8* src;
+	u8* dst;
+	struct tree* t;
+	struct hash* h;
+	temp = strhash_generate(buf, len);
 
-	hash = strhash_generate(buf, len);
+	//which
+	t = tree_search(temp);
+	if(t == 0)return 0;
+	if((t->cur) >= (t->len))
+	{
+		printf("tree split: %x\n", btlen);
+		tree_split(t);
+		t = tree_search(temp);
+	}
 
-	//exist -> return
-	addr = bplus_search(btnode, hash);
-	if(addr != 0)return addr;
+	//where
+	h = strhash_search(t->buf, t->cur, temp);
+	if(h == 0)return 0;
+	if(*(u64*)h == temp)return h;
 
+	//move 
+	dst = (t->buf) + (t->cur) + 0x1f;
+	src = dst - 0x20;
+	t->cur += 0x20;
+	while(1)
+	{
+		*dst = *src;
+
+		dst--;
+		src--;
+		if(src < (u8*)h)break;
+	}
+
+	//insert string
 	if(len <= 8)j = 0;
 	else j = strdata_write(buf, len);
 
-	h.hash0 = hash & 0xffffffff;
-	h.hash1 = hash >> 32;
-	h.off = j;
-	h.len = len;
-	h.first = 0;
-	h.last = 0;
+	//insert hash
+	h->hash0 = temp & 0xffffffff;
+	h->hash1 = temp >> 32;
+	h->off = j;
+	h->len = len;
+	h->first = 0;
+	h->last = 0;
 
-	addr = bplus_insert(btnode, &h);
-	bplus_debug(btnode);
-
-	return bplus_search(btnode, hash);
+	//printf("%d	%s\n", j, buf);
+	return h;
 }
 void* strhash_read(u64 hash)
 {
-	return bplus_search(btnode, hash);
-/*
-	void* t;
+	struct tree* t;
 	struct hash* h;
-	t = bplus_search(btnode, hash);
+	t = tree_search(hash);
 	if(t == 0)return 0;
 
-	h = strhash_search(t+0x20, 0xfe0, hash);
+	h = strhash_search(t->buf, t->cur, hash);
 	if(h == 0)return 0;
 	if(*(u64*)h != hash)return 0;
 	return h;
-*/
 }
 void strhash_start(int type)
 {
-/*
 	int j, fd;
 	char name[32];
 	void* mem;
@@ -229,31 +342,22 @@ void strhash_start(int type)
 		t->buf = mem;
 		return;
 	}
-*/
-	int j, fd;
-	char name[32];
+
+	//open index
 	snprintf(name, 32, ".42/str/index");
+	fd = open(name,
+		O_CREAT|O_RDWR|O_BINARY,
+		S_IRWXU|S_IRWXG|S_IRWXO
+	);
 
-	if(type == 0)
-	{
-		bplus_prepare(btnode);
-	}
-	else
-	{
-		//open
-		fd = open(name,
-			O_CREAT|O_RDWR|O_BINARY,
-			S_IRWXU|S_IRWXG|S_IRWXO
-		);
+	//read index
+	j = read(fd, btnode, sizeof(btnode));
+	btlen = j / sizeof(struct tree);
+	printf("strhash:	%x\n", btlen);
 
-		//read index
-		btlen = read(fd, btnode, sizeof(btnode));
-		printf("strhash:	%x\n", btlen);
+	//close index
+	close(fd);
 
-		//close index
-		close(fd);
-	}
-/*
 	//
 	for(j=0;j<btlen;j++)
 	{
@@ -291,7 +395,6 @@ void strhash_start(int type)
 		//close
 		close(fd);
 	}
-*/
 }
 void strhash_stop()
 {
@@ -314,7 +417,7 @@ void strhash_stop()
 	}
 
 	//write index
-	ret = write(fd, btnode, 0x100000);
+	ret = write(fd, btnode, btlen*sizeof(struct tree));
 	if(ret < 0)
 	{
 		printf("error@write: %s\n", name);
@@ -323,7 +426,7 @@ void strhash_stop()
 
 	//close index
 	close(fd);
-/*
+
 	for(j=0;j<btlen;j++)
 	{
 		//open data
@@ -350,7 +453,6 @@ void strhash_stop()
 		//close data
 		close(fd);
 	}
-*/
 }
 void strhash_create()
 {
