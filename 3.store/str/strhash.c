@@ -13,7 +13,7 @@
 #define u32 unsigned int
 #define u64 unsigned long long
 #define pagesize 0x1000
-#define indxstep ((pagesize/0x10) - 1)
+#define indxkeys ((pagesize/0x10) - 2)
 #define leafstep ((pagesize/0x20) - 1)
 u32 bkdrhash(char* buf, int len);
 u32 djb2hash(char* buf, int len);
@@ -42,7 +42,7 @@ struct indexdata
 struct bplusindex
 {
 	struct bplushead head;
-	struct indexdata node[indxstep];
+	struct indexdata node[indxkeys];
 };
 struct leafdata
 {
@@ -57,8 +57,8 @@ struct bplusleaf
 	struct bplushead head;
 	struct leafdata node[leafstep];
 };
-static u8 btnode[0x100000];
-static int btlen = 0x100000;
+static u8 btnode[0x1000000];
+static int btlen = 0x1000000;
 
 
 
@@ -180,6 +180,105 @@ void* bplus_findleaf(struct bplushead* head, u64 hash)
 
 
 
+void bplus_debug_leftright(struct bplushead* head, u64 addr)
+{
+	int j;
+	struct bplusleaf* leaf;
+	struct bplusindex* index;
+	if(addr == 0)return;
+
+	index = bplus_logic2memory(head, addr);
+	while(1)
+	{
+		printf("%08x->%08x<-%08x:\n",
+			index->head.left, addr, index->head.right);
+
+		if(index->head.type == '?')
+		{
+			for(j=0;j<index->head.len;j++)
+			{
+				printf("%016llx ", index->node[j].hash);
+			}
+			printf("\n");
+		}
+		else
+		{
+			leaf = (void*)index;
+			for(j=0;j<leaf->head.len;j++)
+			{
+				printf("%016llx ", leaf->node[j].hash);
+			}
+			printf("\n");
+		}
+
+		addr = index->head.right;
+		index = bplus_getright(head, &index->head);
+		if(index == 0)break;
+	}
+}
+void bplus_debug_traverse(struct bplushead* head, u64 addr)
+{
+	int j;
+	struct bplusleaf* leaf;
+	struct bplusindex* index;
+	if(addr == 0)return;
+
+	index = bplus_logic2memory(head, addr);
+	if(index->head.type == '!')
+	{
+		leaf = (void*)index;
+		printf("!%04x: ", addr);
+		for(j=0;j<leaf->head.len;j++)
+		{
+			printf(" %016llx", leaf->node[j].hash);
+		}
+		printf("\n");
+		return;
+	}
+
+	printf("?%08x: ", addr);
+	for(j=0;j<index->head.len;j++)
+	{
+		printf(" %016llx", index->node[j].hash);
+	}
+	printf("\n");
+
+	bplus_debug_traverse(head, index->head.child);
+
+	for(j=0;j<index->head.len;j++)
+	{
+		printf("%d,%d,%llx\n", index->head.len, j, index->node[j].buf);
+		bplus_debug_traverse(head, index->node[j].buf);
+	}
+}
+void bplus_debug(struct bplushead* head)
+{
+	int depth = 0;
+	u64 addr = head->parent;
+	struct bplusindex* here = bplus_getparent(head, head);
+	while(1)
+	{
+		if(addr == 0)break;
+
+		printf("depth=%d\n", depth);
+		bplus_debug_leftright(head, addr);
+
+		if(here->head.type != '?')break;
+
+		depth++;
+		addr = here->head.child;
+		here = bplus_getchild(head, here, 10000);
+	}
+	//bplus_debug_traverse(head, head->parent);
+}
+
+
+
+
+
+
+
+
 void bplus_indexcopy(struct indexdata* a, struct indexdata* b, int len)
 {
 	int j;
@@ -231,11 +330,11 @@ void* bplus_indexsplit(struct bplushead* head,
 	//step1: left right
 	right = bplus_grow(head);
 	right->head.type = '?';
-	right->head.len = (indxstep+1)/2;
+	right->head.len = (indxkeys+1)/2;
 	right->head.left = bplus_memory2logic(head, left);
 	right->head.right = left->head.right;
 
-	left->head.len = (indxstep/2);
+	left->head.len = (indxkeys/2);
 	left->head.right = bplus_memory2logic(head, right);
 
 	temp = bplus_getright(head, &right->head);
@@ -244,68 +343,87 @@ void* bplus_indexsplit(struct bplushead* head,
 
 	//step2: inner data
 	hash = data->hash;
-	for(j=0;j<indxstep;j++)
+	for(j=0;j<indxkeys;j++)
 	{
 		if(hash < left->node[j].hash)break;
 	}
 
-	if(j < (indxstep+1)/2)
+	haha.buf = bplus_memory2logic(head, right);
+	if(j == (indxkeys+1)/2)
 	{
-		//3: 1, l(2) >>1>> r(0), l(j) >>1-j>> l(j+1), l(j)
-		//4: 1, l(2) >>2>> r(0), l(j) >>2-j>> l(j+1), l(j)
-		//5: 2, l(3) >>2>> r(0), l(j) >>2-j>> l(j+1), l(j)
-		//6: 2, l(3) >>3>> r(0), l(j) >>3-j>> l(j+1), l(j)
-		//7: 3, l(4) >>3>> r(0), l(j) >>3-j>> l(j+1), l(j)
-		//8: 3, l(4) >>4>> r(0), l(j) >>4-j>> l(j+1), l(j)
-		//9: 4, l(5) >>4>> r(0), l(j) >>4-j>> l(j+1), l(j)
-		//a: 4, l(5) >>5>> r(0), l(j) >>5-j>> l(j+1), l(j)
-		haha.buf = bplus_memory2logic(head, right);
-		haha.hash = left->node[(indxstep-1)/2].hash;
-		right->head.child = left->node[(indxstep-1)/2].buf;
+		//3: l(2) >>1>> r(0)
+		//4: l(2) >>2>> r(0)
+		//5: l(3) >>2>> r(0)
+		//6: l(3) >>3>> r(0)
+		//7: l(4) >>3>> r(0)
+		//8: l(4) >>4>> r(0)
+		//9: l(5) >>4>> r(0)
+		//a: l(5) >>5>> r(0)
+		right->head.child = data->buf;
+		haha.hash = data->hash;
 
 		bplus_indexcopy(
-			&left->node[indxstep/2],
+			&left->node[(indxkeys+1)/2],
 			&right->node[0],
-			(indxstep+1)/2
+			indxkeys/2
+		);
+	}
+	else if(j > (indxkeys+1)/2)
+	{
+		//3: 2, l(3) >>j-3>> r(0), l(j) >>3-j>> r(j-2), r(j-3)
+		//4: 2, l(3) >>j-3>> r(0), l(j) >>4-j>> r(j-2), r(j-3)
+		//5: 3, l(4) >>j-4>> r(0), l(j) >>5-j>> r(j-3), r(j-4)
+		//6: 3, l(4) >>j-4>> r(0), l(j) >>6-j>> r(j-3), r(j-4)
+		//7: 4, l(5) >>j-5>> r(0), l(j) >>7-j>> r(j-4), r(j-5)
+		//8: 4, l(5) >>j-5>> r(0), l(j) >>8-j>> r(j-4), r(j-5)
+		//9: 5, l(6) >>j-6>> r(0), l(j) >>9-j>> r(j-5), r(j-6)
+		//a: 5, l(6) >>j-6>> r(0), l(j) >>a-j>> r(j-5), r(j-6)
+		right->head.child = left->node[(indxkeys+1)/2].buf;
+		haha.hash = left->node[(indxkeys+1)/2].hash;
+
+		bplus_indexcopy(
+			&left->node[((indxkeys+1)/2)+1],
+			&right->node[0],
+			j-1 - ((indxkeys+1)/2)
 		);
 		bplus_indexcopy(
 			&left->node[j],
-			&left->node[j+1],
-			(indxstep/2)-j
+			&right->node[j - ((indxkeys+1)/2)],
+			indxkeys-j
 		);
 		bplus_indexcopy(
 			data,
-			&left->node[j],
+			&right->node[j-1 - ((indxkeys+1)/2)],
 			1
 		);
 	}
 	else
 	{
-		//3: l(2) >>j-2>> r(0), l(j) >>3-j>> r(j-1), r(j-2)
-		//4: l(3) >>j-3>> r(0), l(j) >>4-j>> r(j-2), r(j-3)
-		//5: l(3) >>j-3>> r(0), l(j) >>5-j>> r(j-2), r(j-3)
-		//6: l(4) >>j-4>> r(0), l(j) >>6-j>> r(j-3), r(j-4)
-		//7: l(4) >>j-4>> r(0), l(j) >>7-j>> r(j-3), r(j-4)
-		//8: l(5) >>j-5>> r(0), l(j) >>8-j>> r(j-4), r(j-5)
-		//9: l(5) >>j-5>> r(0), l(j) >>9-j>> r(j-4), r(j-5)
-		//a: l(6) >>j-6>> r(0), l(j) >>a-j>> r(j-5), r(j-6)
+		//3: 1, l(2) >>1>> r(0), l(j) >>1-j>> l(j+1), l(j)
+		//4: 1, l(2) >>2>> r(0), l(j) >>1-j>> l(j+1), l(j)
+		//5: 2, l(3) >>2>> r(0), l(j) >>2-j>> l(j+1), l(j)
+		//6: 2, l(3) >>3>> r(0), l(j) >>2-j>> l(j+1), l(j)
+		//7: 3, l(4) >>3>> r(0), l(j) >>3-j>> l(j+1), l(j)
+		//8: 3, l(4) >>4>> r(0), l(j) >>3-j>> l(j+1), l(j)
+		//9: 4, l(5) >>4>> r(0), l(j) >>4-j>> l(j+1), l(j)
+		//a: 4, l(5) >>5>> r(0), l(j) >>4-j>> l(j+1), l(j)
 		haha.buf = bplus_memory2logic(head, right);
-		haha.hash = left->node[indxstep/2].hash;
-		right->head.child = left->node[indxstep/2].buf;
+		haha.hash = left->node[(indxkeys-1)/2].hash;
+		right->head.child = left->node[(indxkeys-1)/2].buf;
 
 		bplus_indexcopy(
-			&left->node[(indxstep/2)+1],
+			&left->node[(indxkeys+1)/2],
 			&right->node[0],
-			j-1 - (indxstep/2)
+			indxkeys/2
 		);
 		bplus_indexcopy(
 			&left->node[j],
-			&right->node[j - (indxstep/2)],
-			indxstep-j
+			&left->node[j+1],
+			((indxkeys-1)/2)-j
 		);
 		bplus_indexcopy(
 			data,
-			&right->node[j-1 - (indxstep/2)],
+			&left->node[j],
 			1
 		);
 	}
@@ -344,15 +462,12 @@ void* bplus_indexsplit(struct bplushead* head,
 		haha.hash = left->node[2].hash;
 	}
 */
-	if(right->head.type == '?')
+	for(j=0;j<right->head.len;j++)
 	{
-		for(j=0;j<right->head.len;j++)
-		{
-			temp = bplus_getchild(head, right, j);
-			if(temp == 0)break;
+		temp = bplus_getchild(head, right, j);
+		if(temp == 0)break;
 
-			temp->head.parent = bplus_memory2logic(head, right);
-		}
+		temp->head.parent = bplus_memory2logic(head, right);
 	}
 
 
@@ -380,8 +495,15 @@ void* bplus_indexsplit(struct bplushead* head,
 	{
 		right->head.parent = left->head.parent;
 
-		if(temp->head.len < 3)bplus_indexadd(temp, &haha);
-		else bplus_indexsplit(head, temp, &haha);
+		if(temp->head.len < indxkeys)
+		{
+			bplus_indexadd(temp, &haha);
+		}
+		else
+		{
+			bplus_indexsplit(head, temp, &haha);
+			bplus_debug(head);
+		}
 	}
 }
 
@@ -559,8 +681,12 @@ void* bplus_leafsplit(struct bplushead* head,
 		haha.hash = right->node[0].hash;
 		haha.buf = bplus_memory2logic(head, right);
 
-		if(temp->head.len < 3)bplus_indexadd(temp, &haha);
-		else bplus_indexsplit(head, temp, &haha);
+		if(temp->head.len < indxkeys)bplus_indexadd(temp, &haha);
+		else
+		{
+			bplus_indexsplit(head, temp, &haha);
+			bplus_debug(head);
+		}
 	}
 
 	if(j <= leafstep/2)return &left->node[j];
@@ -640,111 +766,14 @@ printf("insert:%llx\n", hash);
 	}
 
 	//split insert
-	return bplus_leafsplit(head, this, data);
+	this = bplus_leafsplit(head, this, data);
+	bplus_debug(head);
+	return this;
 }
 void* bplus_destory(struct bplushead* head, u64 hash)
 {
 	if(head == 0)return 0;
 }
-
-
-
-
-void bplus_debug_leftright(struct bplushead* head, u64 addr)
-{
-	int j;
-	struct bplusleaf* leaf;
-	struct bplusindex* index;
-	if(addr == 0)return;
-
-	index = bplus_logic2memory(head, addr);
-	while(1)
-	{
-		printf("%08x->%08x<-%08x:",
-			index->head.left, addr, index->head.right);
-
-		if(index->head.type == '?')
-		{
-			for(j=0;j<index->head.len;j++)
-			{
-				printf(" %016llx", index->node[j].hash);
-			}
-			printf("\n");
-		}
-		else
-		{
-			leaf = (void*)index;
-			for(j=0;j<leaf->head.len;j++)
-			{
-				printf(" %016llx", leaf->node[j].hash);
-			}
-			printf("\n");
-		}
-
-		addr = index->head.right;
-		index = bplus_getright(head, &index->head);
-		if(index == 0)break;
-	}
-}
-void bplus_debug_traverse(struct bplushead* head, u64 addr)
-{
-	int j;
-	struct bplusleaf* leaf;
-	struct bplusindex* index;
-	if(addr == 0)return;
-
-	index = bplus_logic2memory(head, addr);
-	if(index->head.type == '!')
-	{
-		leaf = (void*)index;
-		printf("!%04x: ", addr);
-		for(j=0;j<leaf->head.len;j++)
-		{
-			printf(" %016llx", leaf->node[j].hash);
-		}
-		printf("\n");
-		return;
-	}
-
-	printf("?%08x: ", addr);
-	for(j=0;j<index->head.len;j++)
-	{
-		printf(" %016llx", index->node[j].hash);
-	}
-	printf("\n");
-
-	bplus_debug_traverse(head, index->head.child);
-
-	for(j=0;j<index->head.len;j++)
-	{
-		printf("%d,%d,%llx\n", index->head.len, j, index->node[j].buf);
-		bplus_debug_traverse(head, index->node[j].buf);
-	}
-}
-void bplus_debug(struct bplushead* head)
-{
-	int depth = 0;
-	u64 addr = head->parent;
-	struct bplusindex* here = bplus_getparent(head, head);
-	while(1)
-	{
-		if(addr == 0)break;
-
-		printf("depth=%d\n", depth);
-		bplus_debug_leftright(head, addr);
-
-		if(here->head.type != '?')break;
-
-		depth++;
-		addr = here->head.child;
-		here = bplus_getchild(head, here, 10000);
-	}
-	//bplus_debug_traverse(head, head->parent);
-}
-
-
-
-
 
 
 
@@ -889,9 +918,7 @@ void* strhash_write(char* buf, int len)
 	h.irel = 0;
 	h.orel = 0;
 
-	addr = bplus_insert((void*)btnode, &h);
-	bplus_debug((void*)btnode);
-	return addr;
+	return bplus_insert((void*)btnode, &h);
 }
 void* strhash_read(u64 hash)
 {
@@ -905,7 +932,7 @@ void strhash_start(int type)
 
 	if(type == 0)
 	{
-		bplus_prepare((void*)btnode, 0x100000);
+		bplus_prepare((void*)btnode, 0x1000000);
 	}
 	else
 	{
@@ -944,7 +971,7 @@ void strhash_stop()
 	}
 
 	//write index
-	ret = write(fd, btnode, 0x100000);
+	ret = write(fd, btnode, 0x1000000);
 	if(ret < 0)
 	{
 		printf("error@write: %s\n", name);
