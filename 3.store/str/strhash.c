@@ -462,7 +462,7 @@ void* bplus_indexsplit(struct bplushead* head,
 		haha.hash = left->node[2].hash;
 	}
 */
-	for(j=0;j<right->head.len;j++)
+	for(j=-1;j<right->head.len;j++)
 	{
 		temp = bplus_getchild(head, right, j);
 		if(temp == 0)break;
