@@ -57,8 +57,8 @@ struct bplusleaf
 	struct bplushead head;
 	struct leafdata node[leafstep];
 };
-static u8 btnode[0x1000000];
-static int btlen = 0x1000000;
+static u8 btnode[0x4000000];
+static int btlen = 0x4000000;
 
 
 
@@ -502,7 +502,7 @@ void* bplus_indexsplit(struct bplushead* head,
 		else
 		{
 			bplus_indexsplit(head, temp, &haha);
-			bplus_debug(head);
+			//bplus_debug(head);
 		}
 	}
 }
@@ -685,7 +685,7 @@ void* bplus_leafsplit(struct bplushead* head,
 		else
 		{
 			bplus_indexsplit(head, temp, &haha);
-			bplus_debug(head);
+			//bplus_debug(head);
 		}
 	}
 
@@ -732,7 +732,7 @@ void* bplus_insert(struct bplushead* head, struct leafdata* data)
 	if(head == 0)return 0;
 
 	hash = data->hash;
-printf("insert:%llx\n", hash);
+//printf("insert:%llx\n", hash);
 
 	//empty?
 	this = bplus_getparent(head, head);
@@ -767,7 +767,7 @@ printf("insert:%llx\n", hash);
 
 	//split insert
 	this = bplus_leafsplit(head, this, data);
-	bplus_debug(head);
+	//bplus_debug(head);
 	return this;
 }
 void* bplus_destory(struct bplushead* head, u64 hash)
@@ -932,7 +932,7 @@ void strhash_start(int type)
 
 	if(type == 0)
 	{
-		bplus_prepare((void*)btnode, 0x1000000);
+		bplus_prepare((void*)btnode, 0x4000000);
 	}
 	else
 	{
@@ -971,7 +971,7 @@ void strhash_stop()
 	}
 
 	//write index
-	ret = write(fd, btnode, 0x1000000);
+	ret = write(fd, btnode, 0x4000000);
 	if(ret < 0)
 	{
 		printf("error@write: %s\n", name);
