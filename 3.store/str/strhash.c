@@ -26,13 +26,13 @@ void* strdata_read(int);
 struct bplushead
 {
 	u64 left:56;
-	u8 type;
+	u64 type:8;
 	u64 right:56;
-	u8 len;
+	u64 len:8;
 	u64 parent:56;
-	u8 lock;
+	u64 lock:8;
 	u64 child:56;
-	u8 flag;
+	u64 flag:8;
 };
 struct indexdata
 {
