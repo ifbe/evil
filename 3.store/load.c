@@ -26,8 +26,8 @@ void strdata_start(int);
 void strdata_stop();
 void strhash_start(int);
 void strhash_stop();
-void connect_start(int);
-void connect_stop();
+void relation_start(int);
+void relation_stop();
 
 
 
@@ -55,7 +55,7 @@ void readthemall(int j)
 	strdata_start(j);
 	strhash_start(j);
 
-	connect_start(j);
+	relation_start(j);
 }
 void writethemall()
 {
@@ -80,5 +80,5 @@ void writethemall()
 	strdata_stop();
 	strhash_stop();
 
-	connect_stop();
+	relation_stop();
 }

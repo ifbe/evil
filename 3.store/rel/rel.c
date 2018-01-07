@@ -72,7 +72,7 @@ static int wirelen;
 
 
 
-void* connect_generate(
+void* relation_generate(
 	struct hash* uchip, u64 ufoot, u64 utype,
 	struct hash* bchip, u64 bfoot, u64 btype)
 {
@@ -110,7 +110,7 @@ void* connect_generate(
 //funcinfo, funcofst, 'func', hashinfo, 0, 'hash'
 //wininfo,  position, 'win',  actor,    0, 'act'
 //actinfo,  which,    'act',  userinfo, what,     'user'
-int connect_write(
+int relation_write(
 	void* uchip, u64 ufoot, u64 utype,
 	void* bchip, u64 bfoot, u64 btype)
 {
@@ -129,48 +129,73 @@ int connect_write(
 	}
 
 	//
-	ww = connect_generate(uchip, ufoot, utype, bchip, bfoot, btype);
+	ww = relation_generate(uchip, ufoot, utype, bchip, bfoot, btype);
 
 	//
 	h1 = uchip;
-	if(h1->irel == 0)
-	{
-		h1->irel = (void*)ww - (void*)wirebuf;
-	}
-	else
+	if(h1->irel != 0)
 	{
 		wc = (void*)wirebuf + (h1->irel);
-		while(wc->samepinnextchip != 0)wc = (void*)wirebuf + (wc->samepinnextchip);
 		wc->samepinnextchip = (void*)ww - (void*)wirebuf;
 		ww->samepinprevchip = (void*)wc - (void*)wirebuf;
 	}
+	h1->irel = (void*)ww - (void*)wirebuf;
 
 	h2 = bchip;
-	if(h2->orel == 0)
-	{
-		h2->orel = (void*)ww - (void*)wirebuf;
-	}
-	else
+	if(h2->orel != 0)
 	{
 		wc = (void*)wirebuf + (h2->orel);
-		while(wc->samechipnextpin != 0)wc = (void*)wirebuf + (wc->samechipnextpin);
 		wc->samechipnextpin = (void*)ww - (void*)wirebuf;
 		ww->samechipprevpin = (void*)wc - (void*)wirebuf;
 	}
+	h2->orel = (void*)ww - (void*)wirebuf;
 
 	return 1;
 }
-void* connect_read(int offset)
+
+
+
+
+void* samepinprevchip(struct wire* w)
 {
+	if(w == 0)return 0;
+	if(w->samepinprevchip == 0)return 0;
+	return (void*)wirebuf + (w->samepinprevchip);
+}
+void* samepinnextchip(struct wire* w)
+{
+	if(w == 0)return 0;
+	if(w->samepinnextchip == 0)return 0;
+	return (void*)wirebuf + (w->samepinnextchip);
+}
+void* samechipprevpin(struct wire* w)
+{
+	if(w == 0)return 0;
+	if(w->samechipprevpin == 0)return 0;
+	return (void*)wirebuf + (w->samechipprevpin);
+}
+void* samechipnextpin(struct wire* w)
+{
+	if(w == 0)return 0;
+	if(w->samechipnextpin == 0)return 0;
+	return (void*)wirebuf + (w->samechipnextpin);
+}
+void* relation_read(int offset)
+{
+	if(offset == 0)return 0;
 	return (void*)wirebuf + offset;
 }
-void connect_list()
+
+
+
+
+void relation_list()
 {
 }
-void connect_choose()
+void relation_choose()
 {
 }
-void connect_start(int type)
+void relation_start(int type)
 {
 	int j;
 	int flag1, flag2;
@@ -216,15 +241,15 @@ void connect_start(int type)
 		for(j=wirecur;j<wirelen;j++)wirebuf[j] = 0;
 	}
 }
-void connect_stop()
+void relation_stop()
 {
 	lseek(wirefd, 0, SEEK_SET);
 	write(wirefd, wirebuf, wirecur);
 	close(wirefd);
 }
-void connect_create()
+void relation_create()
 {
 }
-void connect_delete()
+void relation_delete()
 {
 }

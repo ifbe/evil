@@ -8,7 +8,7 @@
 #define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
 void* chipindex_read(int);
 void* pin_read(int);
-void* connect_read(int);
+void* relation_read(int);
 //
 void chipdata_start(int);
 void chipindex_start(int);
@@ -16,7 +16,12 @@ void pindata_start(int);
 void pinindex_start(int);
 void strdata_start(int);
 void strhash_start(int);
-void connect_start(int);
+//
+void* samepinprevchip(void*);
+void* samepinnextchip(void*);
+void* samechipprevpin(void*);
+void* samechipnextpin(void*);
+void relation_start(int);
 
 
 
@@ -67,7 +72,6 @@ static int rsp = 0;
 void kirchhoff_chip(int offset)
 {
 	int flag;
-	u64 temp;
 	struct chipindex* chip;
 	struct wire* irel;
 	struct wire* orel;
@@ -76,10 +80,7 @@ void kirchhoff_chip(int offset)
 	chip = chipindex_read(offset);
 	//printf("chip@%08x	@%llx\n", offset, (u64)chip);
 
-	temp = chip->orel;
-	if(temp == 0)return;
-
-	orel = connect_read(temp);
+	orel = relation_read(chip->orel);
 	if(orel == 0)return;
 
 if(orel->selfflag == hex32('V',0,0,0))
@@ -93,13 +94,8 @@ if(orel->selfflag == hex32('V',0,0,0))
 			printf("U%llx", (orel->destchip)/0x20);
 		}
 
-		temp = orel->samechipnextpin;
-		if(temp == 0)break;
-		//printf("temp=%x\n",temp);
-
-		orel = connect_read(temp);
+		orel = samechipnextpin(orel);
 		if(orel == 0)break;
-		//printf("orel=%x\n",temp);
 
 		if(flag == 1)printf(" - ");
 	}
@@ -116,19 +112,13 @@ else if(orel->selfflag == hex32('R',0,0,0))
 			printf("U%llx", (orel->destchip)/0x20);
 		}
 
-		temp = orel->samechipnextpin;
-		if(temp == 0)break;
-		//printf("temp=%x\n",temp);
-
-		orel = connect_read(temp);
+		orel = samechipnextpin(orel);
 		if(orel == 0)break;
-		//printf("orel=%x\n",temp);
 
 		if(flag == 1)printf(" - ");
 	}
 
-	temp = chip->orel;
-	orel = connect_read(temp);
+	orel = relation_read(chip->orel);
 	printf(" = R%llx * (", orel->selfchip);
 
 	while(orel != 0)
@@ -137,17 +127,12 @@ else if(orel->selfflag == hex32('R',0,0,0))
 		if(orel->desttype == hex32('p','i','n',0))
 		{
 			flag = 1;
-			printf("I%llx", temp);
+			printf("I%llx", orel);
 			//printf("I(%llx:%c)", orel->selfchip, (u32)(orel->selffoot));
 		}
 
-		temp = orel->samechipnextpin;
-		if(temp == 0)break;
-		//printf("temp=%x\n",temp);
-
-		orel = connect_read(temp);
+		orel = samechipnextpin(orel);
 		if(orel == 0)break;
-		//printf("orel=%x\n",temp);
 
 		if(flag == 1)printf(" - ");
 	}
@@ -175,20 +160,14 @@ else if(orel->selfflag == hex32('N','M','O','S'))
 			}
 		}
 
-		temp = orel->samechipnextpin;
-		if(temp == 0)break;
-		//printf("temp=%x\n",temp);
-
-		orel = connect_read(temp);
+		orel = samechipnextpin(orel);
 		if(orel == 0)break;
-		//printf("orel=%x\n",temp);
 
 		if((flag == 1)|(flag == 2))printf(" = ");
 	}
 	printf("\n");
 
-	temp = chip->orel;
-	orel = connect_read(temp);
+	orel = relation_read(chip->orel);
 	flag = 0;
 	while(orel != 0)
 	{
@@ -199,23 +178,18 @@ else if(orel->selfflag == hex32('N','M','O','S'))
 			{
 				flag &= 0x3;
 				flag |= 1;
-				printf("I%llx", temp);
+				printf("I%llx", orel);
 			}
 			else if(orel->selffoot == 'S')
 			{
 				flag &= 0x3;
 				flag |= 2;
-				printf("I%llx", temp);
+				printf("I%llx", orel);
 			}
 		}
 
-		temp = orel->samechipnextpin;
-		if(temp == 0)break;
-		//printf("temp=%x\n",temp);
-
-		orel = connect_read(temp);
+		orel = samechipnextpin(orel);
 		if(orel == 0)break;
-		//printf("orel=%x\n",temp);
 
 		if((flag == 1)|(flag == 2))printf(" + ");
 	}
@@ -224,7 +198,6 @@ else if(orel->selfflag == hex32('N','M','O','S'))
 }
 void kirchhoff_pin(int offset)
 {
-	u64 temp;
 	struct pinindex* pin;
 	struct wire* irel;
 	struct wire* orel;
@@ -233,10 +206,7 @@ void kirchhoff_pin(int offset)
 	pin = pin_read(offset);
 	//printf("pin@%08x	@%llx\n", offset, (u64)pin);
 
-	temp = pin->irel;
-	if(temp == 0)return;
-
-	irel = connect_read(temp);
+	irel = relation_read(pin->irel);
 	if(irel == 0)return;
 
 	//input
@@ -245,13 +215,10 @@ void kirchhoff_pin(int offset)
 		if(irel->selftype == hex32('c','h','i','p'))
 		{
 			//printf("I(%llx:%c)", irel->selfchip, (u32)(irel->selffoot));
-			printf("I%llx", temp);
+			printf("I%llx", irel);
 		}
 
-		temp = irel->samepinnextchip;
-		if(temp == 0)break;
-
-		irel = connect_read(temp);
+		irel = samepinnextchip(irel);
 		if(irel == 0)break;
 
 		printf(" + ");
@@ -264,10 +231,7 @@ void kirchhoff_pin(int offset)
 
 void* kirchhoff_traverse_forpin(struct wire* base)
 {
-	u64 temp;
-	struct wire* rel;
-
-	rel = base;
+	struct wire* rel = base;
 	while(1)
 	{
 		if(	(rel->desttype == hex32('p','i','n',0)) &&
@@ -276,10 +240,7 @@ void* kirchhoff_traverse_forpin(struct wire* base)
 			return rel;
 		}
 
-		temp = rel->samechipprevpin;
-		if(temp == 0)break;
-
-		rel = connect_read(temp);
+		rel = samechipprevpin(rel);
 		if(rel == 0)break;
 	}
 
@@ -292,10 +253,7 @@ void* kirchhoff_traverse_forpin(struct wire* base)
 			return rel;
 		}
 
-		temp = rel->samechipnextpin;
-		if(temp == 0)break;
-
-		rel = connect_read(temp);
+		rel = samechipnextpin(rel);
 		if(rel == 0)break;
 	}
 
@@ -303,10 +261,7 @@ void* kirchhoff_traverse_forpin(struct wire* base)
 }
 void* kirchhoff_traverse_forchip(struct wire* base)
 {
-	u64 temp;
-	struct wire* rel;
-
-	rel = base;
+	struct wire* rel = base;
 	while(1)
 	{
 		if(	(rel->selftype == hex32('c','h','i','p')) &&
@@ -315,10 +270,7 @@ void* kirchhoff_traverse_forchip(struct wire* base)
 			return rel;
 		}
 
-		temp = rel->samepinprevchip;
-		if(temp == 0)break;
-
-		rel = connect_read(temp);
+		rel = samepinprevchip(rel);
 		if(rel == 0)break;
 	}
 
@@ -331,10 +283,7 @@ void* kirchhoff_traverse_forchip(struct wire* base)
 			return rel;
 		}
 
-		temp = rel->samepinnextchip;
-		if(temp == 0)break;
-
-		rel = connect_read(temp);
+		rel = samepinnextchip(rel);
 		if(rel == 0)break;
 	}
 
@@ -342,17 +291,13 @@ void* kirchhoff_traverse_forchip(struct wire* base)
 }
 void kirchhoff_traverse(int offset)
 {
-	u64 temp;
 	struct pinindex* pin;
 	struct wire* rel;
 
 	pin = pin_read(offset);
 	if(pin == 0)return;
 
-	temp = pin->irel;
-	if(temp == 0)return;
-
-	rel = connect_read(temp);
+	rel = relation_read(pin->irel);
 	if(rel == 0)return;
 
 	rsp = 0;
@@ -414,7 +359,7 @@ void kirchhoff(int argc, char** argv)
 	pinindex_start(1);
 	strdata_start(1);
 	strhash_start(1);
-	connect_start(1);
+	relation_start(1);
 
 	kirchhoff_pin(0x20);
 	kirchhoff_pin(0x40);

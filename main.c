@@ -22,8 +22,8 @@ void strdata_delete();
 void strhash_create();
 void strhash_delete();
 //
-void connect_create();
-void connect_delete();
+void relation_create();
+void relation_delete();
 //
 void worker_create();
 void worker_delete();
@@ -98,7 +98,7 @@ int main(int argc, char** argv)
 	strhash_create();
 	strdata_create();
 
-	connect_create();
+	relation_create();
 	worker_create();
 	//----------------------------------------------------------
 
@@ -155,7 +155,7 @@ int main(int argc, char** argv)
 
 	//-------------------------after---------------------------
 	worker_delete();
-	connect_delete();
+	relation_delete();
 
 	strhash_delete();
 	strdata_delete();

@@ -18,7 +18,12 @@ void* strhash_read(u64);
 void* shapeindex_read(int);
 void* pointindex_read(int);
 void* pointdata_read(int);
-void* connect_read(int);
+//
+void* samepinprevchip(void*);
+void* samepinnextchip(void*);
+void* samechipprevpin(void*);
+void* samechipnextpin(void*);
+void* relation_read(int);
 
 
 
@@ -239,8 +244,8 @@ void traverseshape_point()
 }
 void traverseshape_dfs(struct shapeindex* shape)
 {
-	u64 type;
 	u64 temp;
+	u64 type;
 	struct wire* rel;
 	struct shapeindex* ss;
 	struct pointindex* pp;
@@ -248,10 +253,7 @@ void traverseshape_dfs(struct shapeindex* shape)
 	struct vertex* vv;
 
 shapeirel:
-	temp = shape->irel;
-	if(temp == 0)return;
-
-	rel = connect_read(temp);
+	rel = relation_read(shape->irel);
 	if(rel == 0)return;
 
 	type = shape->type;
@@ -284,10 +286,7 @@ shapeirel:
 				(rel->selfchip)/0x20, (u64)vv, vv->x, vv->y, vv->z);
 		}
 
-		temp = rel->samepinnextchip;
-		if(temp == 0)break;
-
-		rel = connect_read(temp);
+		rel = samepinnextchip(rel);
 		if(rel == 0)break;
 	}
 
@@ -314,9 +313,8 @@ void* searchshapefromstr(char* buf, int len)
 		return 0;
 	}
 
-	temp = h->irel;
-	w = connect_read(temp);
-	if((temp == 0) | (w == 0))
+	w = relation_read(h->irel);
+	if(w == 0)
 	{
 		printf("no rel\n");
 		return 0;
@@ -340,10 +338,7 @@ void* searchshapefromstr(char* buf, int len)
 			printf("%llx,%llx,%x\n", w->selfchip, w->selffoot, w->selftype);
 		}
 
-		temp = w->samepinnextchip;
-		if(temp == 0)break;
-
-		w = connect_read(temp);
+		w = samepinnextchip(w);
 		if(w == 0)break;
 	}
 	if(haha == 0)

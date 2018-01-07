@@ -71,7 +71,7 @@ void* filemd5_write(void*, u64);
 void* funcindex_write(u64);
 void* strhash_write(void*, int);
 void* strhash_read(u64);
-void connect_write(void* uchip, u64 ufoot, u64 utype, void* bchip, u64 bfoot, u64 btype);
+void relation_write(void* uchip, u64 ufoot, u64 utype, void* bchip, u64 bfoot, u64 btype);
 //
 void readthemall(int);
 void writethemall();
@@ -152,7 +152,7 @@ int worker_write(char* buf, int len, int type, int haha)
 		}
 
 		//hash <- file (lchip, lfoot, ltype, rchip, rfoot, rtype)
-		connect_write(
+		relation_write(
 			thisobj, 0, hex32('h','a','s','h'),
 			fileobj, 0, hex32('f','i','l','e')
 		);
@@ -175,13 +175,13 @@ int worker_write(char* buf, int len, int type, int haha)
 		}
 
 		//file <- func
-		connect_write(
+		relation_write(
 			fileobj, haha, hex32('f','i','l','e'),
 			funcobj, 0, hex32('f','u','n','c')
 		);
 
 		//hash <- func
-		connect_write(
+		relation_write(
 			thisobj, 0, hex32('h','a','s','h'),
 			funcobj, 0, hex32('f','u','n','c')
 		);
@@ -196,7 +196,7 @@ int worker_write(char* buf, int len, int type, int haha)
 		}
 
 		//func <- hash
-		connect_write(
+		relation_write(
 			funcobj, haha, hex32('f','u','n','c'),
 			thisobj, 0, hex64('h','a','s','h','f','u','n','c')
 		);
@@ -219,7 +219,7 @@ int worker_write(char* buf, int len, int type, int haha)
 		}
 
 		//hash <- hash
-		connect_write(
+		relation_write(
 			thatobj, 0, hex32('h','a','s','h'),
 			thisobj, 0, hex32('h','a','s','h')
 		);
@@ -245,7 +245,7 @@ int worker_write(char* buf, int len, int type, int haha)
 		}
 
 		//file <- func
-		connect_write(
+		relation_write(
 			fileobj, haha, hex32('f','i','l','e'),
 			thisobj, 0, hex64('h','a','s','h','s','t','r',0)
 		);
@@ -260,7 +260,7 @@ int worker_write(char* buf, int len, int type, int haha)
 		}
 
 		//func <- hash
-		connect_write(
+		relation_write(
 			funcobj, haha, hex32('f','u','n','c'),
 			thisobj, 0, hex64('h','a','s','h','s','t','r',0)
 		);

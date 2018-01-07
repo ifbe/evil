@@ -9,7 +9,7 @@
 void* pin_write(void*, int);
 void* chip_write(void*, int);
 void* strhash_write(void*, int);
-void connect_write(
+void relation_write(
 	void* uchip, u64 ufoot, u64 utype,
 	void* bchip, u64 bfoot, u64 btype);
 
@@ -41,7 +41,7 @@ void throwall(u8* buf, int len)
 			else if(buf[0] == 'R')type = hex64('c','h','i','p','R',0,0,0);
 			else if(buf[0] == 'V')type = hex64('c','h','i','p','V',0,0,0);
 			else type = hex32('c','h','i','p');
-			connect_write(
+			relation_write(
 				hash, 0, hex32('h','a','s','h'),
 				chip, 0, type);
 		}
@@ -56,7 +56,7 @@ void throwall(u8* buf, int len)
 			{
 				//printf("pin:%.*s\n", len, buf);
 				pin = pin_write(buf, len);
-				connect_write(
+				relation_write(
 					pin, 0, hex32('p','i','n',0),
 					chip, foot, type);
 			}

@@ -13,7 +13,7 @@
 #ifndef O_BINARY
         #define O_BINARY 0x0
 #endif
-void connect_write(void* uchip, u64 ufoot, u64 utype, void* bchip, u64 bfoot, u64 btype);
+void relation_write(void* uchip, u64 ufoot, u64 utype, void* bchip, u64 bfoot, u64 btype);
 int strhash_export(void*, void*);
 void* strhash_write(void*, int);
 void* strhash_read(u64);
@@ -59,7 +59,7 @@ void think_one(u8* buf, int len)
 	}
 
 	//hash <- hash
-	connect_write(
+	relation_write(
 		baseobj, 0, hex32('h','a','s','h'),
 		thisobj, 0, hex32('h','a','s','h')
 	);

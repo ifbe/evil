@@ -16,7 +16,12 @@ void* funcindex_read(int);
 void* filemd5_read(int);
 void* pointindex_read(int);
 void* shapeindex_read(int);
-void* connect_read(int);
+//
+void* samepinprevchip(void*);
+void* samepinnextchip(void*);
+void* samechipprevpin(void*);
+void* samechipnextpin(void*);
+void* relation_read(int);
 //
 void readthemall(int);
 int hexstr2data(void*, void*);
@@ -101,17 +106,13 @@ struct wire
 
 void chipname(u64 addr)
 {
-	u64 temp;
 	struct wire* orel;
 	struct chipindex* chip;
 
 	chip = chipindex_read(addr);
 	if(chip == 0)goto error;
 
-	temp = chip->orel;
-	if(temp == 0)goto error;
-
-	orel = connect_read(temp);
+	orel = relation_read(chip->orel);
 	if(orel == 0)goto error;
 
 	while(1)
@@ -122,10 +123,7 @@ void chipname(u64 addr)
 			break;
 		}
 
-		temp = orel->samechipnextpin;
-		if(temp == 0)break;
-
-		orel = connect_read(temp);
+		orel = samechipprevpin(orel);
 		if(orel == 0)break;
 	}
 normal:
@@ -135,17 +133,13 @@ error:
 }
 void filename(u64 addr)
 {
-	u64 temp;
 	struct wire* orel;
 	struct fileindex* file;
 
 	file = filemd5_read(addr);
 	if(file == 0)goto error;
 
-	temp = file->orel;
-	if(temp == 0)goto error;
-
-	orel = connect_read(temp);
+	orel = relation_read(file->orel);
 	if(orel == 0)goto error;
 
 	while(1)
@@ -156,10 +150,7 @@ void filename(u64 addr)
 			break;
 		}
 
-		temp = orel->samechipnextpin;
-		if(temp == 0)break;
-
-		orel = connect_read(temp);
+		orel = samechipprevpin(orel);
 		if(orel == 0)break;
 	}
 normal:
@@ -169,17 +160,13 @@ error:
 }
 void funcname(u64 addr)
 {
-	u64 temp;
 	struct wire* orel;
 	struct funcindex* func;
 
 	func = funcindex_read(addr);
 	if(func == 0)goto error;
 
-	temp = func->orel;
-	if(temp == 0)goto error;
-
-	orel = connect_read(temp);
+	orel = relation_read(func->orel);
 	if(orel == 0)goto error;
 
 	while(1)
@@ -190,10 +177,7 @@ void funcname(u64 addr)
 			break;
 		}
 
-		temp = orel->samechipnextpin;
-		if(temp == 0)break;
-
-		orel = connect_read(temp);
+		orel = samechipprevpin(orel);
 		if(orel == 0)break;
 	}
 normal:
@@ -203,17 +187,13 @@ error:
 }
 void funcpath(u64 addr)
 {
-	u64 temp;
 	struct wire* orel;
 	struct funcindex* func;
 
 	func = funcindex_read(addr);
 	if(func == 0)goto error;
 
-	temp = func->orel;
-	if(temp == 0)goto error;
-
-	orel = connect_read(temp);
+	orel = relation_read(func->orel);
 	if(orel == 0)goto error;
 
 	while(1)
@@ -224,10 +204,7 @@ void funcpath(u64 addr)
 			printf(":%lld", orel->destfoot);
 		}
 
-		temp = orel->samechipnextpin;
-		if(temp == 0)break;
-
-		orel = connect_read(temp);
+		orel = samechipprevpin(orel);
 		if(orel == 0)break;
 	}
 normal:
@@ -241,7 +218,6 @@ error:
 
 void searchpin(int offset)
 {
-	u64 temp;
 	struct fileindex* pin;
 	struct wire* irel;
 	struct wire* orel;
@@ -251,10 +227,7 @@ void searchpin(int offset)
 	printf("pin@%08x	@%llx\n", offset, (u64)pin);
 
 pinirel:
-	temp = pin->irel;
-	if(temp == 0)goto pinorel;
-
-	irel = connect_read(temp);
+	irel = relation_read(pin->irel);
 	if(irel == 0)goto pinorel;
 
 	//input
@@ -279,19 +252,13 @@ pinirel:
 			irel->selfchip, irel->selffoot, irel->destfoot);
 		}
 
-		temp = irel->samepinnextchip;
-		if(temp == 0)break;
-
-		irel = connect_read(temp);
+		irel = samepinprevchip(irel);
 		if(irel == 0)break;
 	}
 
 pinorel:
-	temp = pin->orel;
-	if(temp == 0)return;
-
-	orel = connect_read(temp);
-	if(irel == 0)return;
+	orel = relation_read(pin->orel);
+	if(orel == 0)return;
 
 	//output(many)
 	while(orel != 0)
@@ -314,13 +281,8 @@ pinorel:
 			orel->destchip, orel->destfoot);
 		}
 
-		temp = orel->samechipnextpin;
-		if(temp == 0)break;
-		//printf("temp=%x\n",temp);
-
-		orel = connect_read(temp);
+		orel = samechipprevpin(orel);
 		if(orel == 0)break;
-		//printf("orel=%x\n",temp);
 	}
 }
 
@@ -329,20 +291,16 @@ pinorel:
 
 void searchchip(int offset)
 {
-	u64 temp;
-	struct chipindex* chip;
 	struct wire* irel;
 	struct wire* orel;
+	struct chipindex* chip;
 	if(offset%0x20 != 0)printf("notfound: chip@%x",offset);
 
 	chip = chipindex_read(offset);
 	printf("chip@%08x	@%llx\n", offset, (u64)chip);
 
 chipirel:
-	temp = chip->irel;
-	if(temp == 0)goto chiporel;
-
-	irel = connect_read(temp);
+	irel = relation_read(chip->irel);
 	if(irel == 0)goto chiporel;
 
 	while(irel != 0)
@@ -360,18 +318,12 @@ chipirel:
 			irel->selfchip, irel->selffoot, irel->destfoot);
 		}
 
-		temp = irel->samepinnextchip;
-		if(temp == 0)break;
-
-		irel = connect_read(temp);
+		irel = samepinprevchip(irel);
 		if(irel == 0)break;
 	}
 
 chiporel:
-	temp = chip->orel;
-	if(temp == 0)return;
-
-	orel = connect_read(temp);
+	orel = relation_read(chip->orel);
 	if(orel == 0)return;
 
 	while(orel != 0)
@@ -394,13 +346,8 @@ chiporel:
 			orel->destchip, orel->destfoot);
 		}
 
-		temp = orel->samechipnextpin;
-		if(temp == 0)break;
-		//printf("temp=%x\n",temp);
-
-		orel = connect_read(temp);
+		orel = samechipprevpin(orel);
 		if(orel == 0)break;
-		//printf("orel=%x\n",temp);
 	}
 }
 
@@ -409,7 +356,6 @@ chiporel:
 
 void searchshape(int offset)
 {
-	u64 temp;
 	struct shapeindex* shape;
 	struct shapeindex* ss;
 	struct pointindex* pp;
@@ -421,10 +367,7 @@ void searchshape(int offset)
 	printf("shape@%08x	@%llx\n", offset, (u64)shape);
 
 shapeirel:
-	temp = shape->irel;
-	if(temp == 0)goto shapeorel;
-
-	irel = connect_read(temp);
+	irel = relation_read(shape->irel);
 	if(irel == 0)goto shapeorel;
 
 	while(irel != 0)
@@ -453,18 +396,12 @@ shapeirel:
 			(char*)&(irel->selftype), irel->selfchip, irel->selffoot);
 		}
 
-		temp = irel->samepinnextchip;
-		if(temp == 0)break;
-
-		irel = connect_read(temp);
+		irel = samepinprevchip(irel);
 		if(irel == 0)break;
 	}
 
 shapeorel:
-	temp = shape->orel;
-	if(temp == 0)return;
-
-	orel = connect_read(temp);
+	orel = relation_read(shape->orel);
 	if(orel == 0)return;
 
 	while(orel != 0)
@@ -487,13 +424,8 @@ shapeorel:
 			(char*)&(orel->desttype), orel->destchip, orel->destfoot);
 		}
 
-		temp = orel->samechipnextpin;
-		if(temp == 0)break;
-		//printf("temp=%x\n",temp);
-
-		orel = connect_read(temp);
+		orel = samechipprevpin(orel);
 		if(orel == 0)break;
-		//printf("orel=%x\n",temp);
 	}
 }
 
@@ -502,7 +434,6 @@ shapeorel:
 
 void searchfile(int offset)
 {
-	u64 temp;
 	struct fileindex* file;
 	struct wire* irel;
 	struct wire* orel;
@@ -512,10 +443,7 @@ void searchfile(int offset)
 	printf("file@%08x	@%llx\n", offset, (u64)file);
 
 fileirel:
-	temp = file->irel;
-	if(temp == 0)goto fileorel;
-
-	irel = connect_read(temp);
+	irel = relation_read(file->irel);
 	if(irel == 0)goto fileorel;
 
 	while(irel != 0)
@@ -539,18 +467,12 @@ fileirel:
 			irel->selfchip, irel->selffoot, irel->destfoot);
 		}
 
-		temp = irel->samepinnextchip;
-		if(temp == 0)break;
-
-		irel = connect_read(temp);
+		irel = samepinprevchip(irel);
 		if(irel == 0)break;
 	}
 
 fileorel:
-	temp = file->orel;
-	if(temp == 0)return;
-
-	orel = connect_read(temp);
+	orel = relation_read(file->orel);
 	if(orel == 0)return;
 
 	//output(many)
@@ -569,13 +491,8 @@ fileorel:
 			orel->destchip, orel->destfoot);
 		}
 
-		temp = orel->samechipnextpin;
-		if(temp == 0)break;
-		//printf("temp=%x\n",temp);
-
-		orel = connect_read(temp);
+		orel = samechipprevpin(orel);
 		if(orel == 0)break;
-		//printf("orel=%x\n",temp);
 	}
 }
 
@@ -584,7 +501,6 @@ fileorel:
 
 void searchfunc(int offset)
 {
-	u64 temp;
 	struct funcindex* f;
 	struct wire* irel;
 	struct wire* orel;
@@ -594,10 +510,7 @@ void searchfunc(int offset)
 	printf("func@%08x	@%llx\n", offset, (u64)f);
 
 funcirel:
-	temp = f->irel;
-	if(temp == 0)goto funcorel;
-
-	irel = connect_read(temp);
+	irel = relation_read(f->irel);
 	if(irel == 0)goto funcorel;
 
 	while(irel != 0)
@@ -616,18 +529,12 @@ funcirel:
 			printf("\n");
 		}
 
-		temp = irel->samepinnextchip;
-		if(temp == 0)break;
-
-		irel = connect_read(temp);
+		irel = samepinprevchip(irel);
 		if(irel == 0)break;
 	}
 
 funcorel:
-	temp = f->orel;
-	if(temp == 0)return;
-
-	orel = connect_read(temp);
+	orel = relation_read(f->orel);
 	if(orel == 0)return;
 
 	while(orel != 0)
@@ -650,10 +557,7 @@ funcorel:
 			orel->destchip, orel->destfoot);
 		}
 
-		temp = orel->samechipnextpin;
-		if(temp == 0)break;
-
-		orel = connect_read(temp);
+		orel = samechipprevpin(orel);
 		if(orel == 0)break;
 	}
 }
@@ -679,10 +583,7 @@ void searchhash(char* buf, int len)
 	printf("hash: %08x%08x @0x%08llx(%s)\n", h->hash1, h->hash0, (u64)h, buf);
 
 hashirel:
-	temp = h->irel;
-	if(temp == 0)goto hashorel;
-
-	irel = connect_read(temp);
+	irel = relation_read(h->irel);
 	if(irel == 0)goto hashorel;
 
 	while(irel != 0)
@@ -713,18 +614,12 @@ hashirel:
 			printf("i:	%.8s@%llx\n", (char*)&irel->selftype, irel->selfchip);
 		}
 
-		temp = irel->samepinnextchip;
-		if(temp == 0)break;
-
-		irel = connect_read(temp);
+		irel = samepinprevchip(irel);
 		if(irel == 0)break;
 	}
 
 hashorel:
-	temp = h->orel;
-	if(temp == 0)goto theend;
-
-	orel = connect_read(temp);
+	orel = relation_read(h->orel);
 	if(orel == 0)goto theend;
 
 	while(orel != 0)
@@ -754,10 +649,7 @@ hashorel:
 			printf("i:	%.8s@%llx\n", (char*)&orel->selftype, orel->selfchip);
 		}
 
-		temp = orel->samechipnextpin;
-		if(temp == 0)break;
-
-		orel = connect_read(temp);
+		orel = samechipprevpin(orel);
 		if(orel == 0)break;
 	}
 

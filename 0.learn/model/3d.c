@@ -16,10 +16,10 @@ void* shapeindex_write(void*, int);
 void* pointindex_read(int);
 void* pointindex_write(int num, float x, float y, float z, float w);
 //
-void* connect_write(
+void* relation_write(
 	void* uchip, u64 ufoot, u64 utype,
 	void* bchip, u64 bfoot, u64 btype);
-void* connect_read(int);
+void* relation_read(int);
 int decstr2data(void*, void*);
 int hexstr2data(void*, void*);
 
@@ -97,14 +97,14 @@ void three_shape(char* buf, int len)
 	if(rsp <= 0)
 	{
 		hash = strhash_write(buf, j);
-		connect_write(
+		relation_write(
 			hash, 0, hex32('h','a','s','h'),
 			shap, 0, hex32('s','h','a','p')
 		);
 	}
 	else
 	{
-		connect_write(
+		relation_write(
 			stack[rsp-1], 0, hex32('s','h','a','p'),
 			shap,         0, hex32('s','h','a','p')
 		);
@@ -129,7 +129,7 @@ void three_foot(char* buf ,int len)
 		//printf("%d	", num);
 
 		point = pointindex_read(num*0x20);
-		connect_write(
+		relation_write(
 			stack[rsp-1], 0, hex32('s', 'h', 'a', 'p'),
 			point, 0, hex32('p','o','i','n')
 		);
@@ -162,7 +162,7 @@ void three_call(u8* buf, int len)
 	}
 
 	temp = h->irel;
-	w = connect_read(temp);
+	w = relation_read(temp);
 	if((temp == 0) | (w == 0))
 	{
 		printf("no rel\n");
@@ -190,7 +190,7 @@ void three_call(u8* buf, int len)
 		temp = w->samepinnextchip;
 		if(temp == 0)break;
 
-		w = connect_read(temp);
+		w = relation_read(temp);
 		if(w == 0)break;
 	}
 	if(haha == 0)
@@ -200,7 +200,7 @@ void three_call(u8* buf, int len)
 	}
 
 	shap = shapeindex_read(haha);
-	connect_write(
+	relation_write(
 		stack[rsp-1], 0, hex32('s','h','a','p'),
 		shap, 0, hex32('s','h','a','p')
 	);
