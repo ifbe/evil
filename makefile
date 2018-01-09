@@ -1,4 +1,6 @@
-SRC = 0.learn/learn.c \
+SRC = \
+0.learn/conv.c \
+0.learn/learn.c \
 0.learn/circuit/cir.c \
 0.learn/circuit/dsn.c \
 0.learn/circuit/brd.c \

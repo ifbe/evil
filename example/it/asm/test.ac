@@ -1,0 +1,11 @@
+rax=rbx
+rdx=[rax]
+rdx+1
+rdx+rbx
+rcx<2
+r8d>8
+ecx?edx
+jb skip
+r13*46
+skip:
+rdi*rbx

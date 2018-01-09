@@ -286,7 +286,7 @@ shapeirel:
 				(rel->selfchip)/0x20, (u64)vv, vv->x, vv->y, vv->z);
 		}
 
-		rel = samepinnextchip(rel);
+		rel = samepinprevchip(rel);
 		if(rel == 0)break;
 	}
 
@@ -338,7 +338,7 @@ void* searchshapefromstr(char* buf, int len)
 			printf("%llx,%llx,%x\n", w->selfchip, w->selffoot, w->selftype);
 		}
 
-		w = samepinnextchip(w);
+		w = samepinprevchip(w);
 		if(w == 0)break;
 	}
 	if(haha == 0)

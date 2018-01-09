@@ -28,6 +28,7 @@ void relation_delete();
 void worker_create();
 void worker_delete();
 //
+int conv(int argc,char** argv);
 int learn(int argc,char** argv);
 //
 int think(int argc,char** argv);
@@ -46,6 +47,7 @@ void help(char* buf)
 {
 	if(buf != 0)printf("wrong usage: %s\n", buf);
 	printf("learn:\n");
+	printf("	a.exe conv ac2intel test.ac");
 	printf("	a.exe learn aaa.c /some/dir/bbb.cpp /my/folder/haha*\n");
 	printf("think:\n");
 	printf("	a.exe think\n");
@@ -53,7 +55,7 @@ void help(char* buf)
 	printf("	a.exe delete\n");
 	printf("	a.exe change\n");
 	printf("	a.exe search str func@c0 file@20\n");
-	printf("serve:\n");
+	printf("indite:\n");
 	printf("	a.exe serve\n");
 	printf("	a.exe graph\n");
 	printf("	a.exe trace\n");
@@ -106,26 +108,30 @@ int main(int argc, char** argv)
 
 
 	//learn
-	if(strcmp(argv[1] , "learn") == 0)
+	if(strcmp(argv[1], "conv") == 0)
+	{
+		conv(argc-1, argv+1);
+	}
+	else if(strcmp(argv[1], "learn") == 0)
 	{
 		learn(argc-1, argv+1);
 	}
 
 	//think
-	else if(strcmp(argv[1] , "think") == 0)
+	else if(strcmp(argv[1], "think") == 0)
 	{
 		think(argc-1, argv+1);
 	}
-	else if(strcmp(argv[1] , "search") == 0)
+	else if(strcmp(argv[1], "search") == 0)
 	{
 		search(argc-1, argv+1);
 	}
-	else if(strcmp(argv[1] , "delete") == 0)
+	else if(strcmp(argv[1], "delete") == 0)
 	{
 		delete(argc-1, argv+1);
 	}
 
-	//serve
+	//indite
 	else if(strcmp(argv[1], "serve") == 0)
 	{
 		serve(argc-1, argv+1);
@@ -138,7 +144,7 @@ int main(int argc, char** argv)
 	{
 		trace(argc-1, argv+1);
 	}
-	else if(strcmp(argv[1] , "kirchhoff") == 0)
+	else if(strcmp(argv[1], "kirchhoff") == 0)
 	{
 		kirchhoff(argc-1, argv+1);
 	}
