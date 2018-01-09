@@ -1,5 +1,13 @@
+rbx=0x335577
 rax=rbx
+rdx=[0x1000]
 rdx=[rax]
+rdx=[rax+80]
+rdx=[8*rbp+80]
+rdx=[rax+4*rbp+80]
+rdx=rbx+2
+rcx=rbx*8-5
+rcx=rsp+rdx*8-3
 rdx+1
 rdx+rbx
 rcx<2
@@ -7,5 +15,7 @@ r8d>8
 ecx?edx
 jb skip
 r13*46
+r13*rbx*46
 skip:
 rdi*rbx
+rax*rbx*3
