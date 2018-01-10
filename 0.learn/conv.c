@@ -18,9 +18,13 @@
 
 
 
-int att2ac(int argc, char** argv)
+void arm2ac_line(char* buf, int len)
 {
-	int j,fd,len;
+	printf("%.*s\n",len,buf);
+}
+int arm2ac(int argc, char** argv)
+{
+	int j,k,fd,len;
 	char* buf = 0;
 
 	fd = open(argv[1], O_RDONLY|O_BINARY);
@@ -33,6 +37,187 @@ int att2ac(int argc, char** argv)
 	if(len <= 0)return -3;
 
 	close(fd);
+
+	k = 0;
+	for(j=0;j<len;j++)
+	{
+		if((buf[j] == '/')&&(buf[j+1] == '*'))
+		{
+			for(;j<len;j++)
+			{
+				if((buf[j] == '*')&&(buf[j+1] == '/'))
+				{
+					j++;
+					break;
+				}
+			}
+		}
+		else if(buf[j] == '@')
+		{
+			for(;j<len;j++)
+			{
+				if(buf[j] == '\n')break;
+			}
+			buf[k] = buf[j];
+			k++;
+		}
+		else
+		{
+			buf[k] = buf[j];
+			k++;
+		}
+	}
+	len = k;
+
+	k = 0;
+	for(j=0;j<=len;j++)
+	{
+		if((j==len) | (buf[j]=='\n'))
+		{
+			arm2ac_line(buf+k, j-k);
+			k=j+1;
+		}
+	}
+}
+
+
+
+
+
+void att2ac_fmt(char* dst, char* src, int len)
+{
+	int j;
+	for(;len>0;len--)
+	{
+		if((src[len-1] != 0x9)&&(src[len-1] != 0x20))break;
+	}
+	for(j=0;j<len;j++)
+	{
+		if(	(src[j] != 0x9)&&(src[j] != 0x20) &&
+			(src[j] != '%')&&(src[j] !=  '$') )
+		{break;}
+	}
+	snprintf(dst, 32, "%.*s", len-j, src+j);
+}
+void att2ac_line(char* buf, int len)
+{
+	int j,k;
+	int type = 0;
+	char fmt1[32];
+	char fmt2[32];
+	for(j=0;j<len;j++)
+	{
+		if((buf[j] != 0x20)&&(buf[j] != 0x9))break;
+	}
+
+	if(strncmp(buf+j, "mov", 3) == 0)type = 1;
+	else if(strncmp(buf+j, "lea", 3) == 0)type = 2;
+	else if(strncmp(buf+j, "add", 3) == 0)type = 3;
+	else if(strncmp(buf+j, "sub", 3) == 0)type = 4;
+	else if(strncmp(buf+j, "xor", 3) == 0)type = 5;
+	else if(strncmp(buf+j, "and", 3) == 0)type = 6;
+	else if(strncmp(buf+j, "cmp", 3) == 0)type = 7;
+	else if(strncmp(buf+j, "not", 3) == 0)type = 20;
+	else if(strncmp(buf+j, "inc", 3) == 0)type = 21;
+	else if(strncmp(buf+j, "dec", 3) == 0)type = 22;
+	else if(strncmp(buf+j, "push", 4) == 0)type = 23;
+	else if(strncmp(buf+j, "pop", 3) == 0)type = 24;
+	else if(strncmp(buf+j, "call", 4) == 0)type = 25;
+	else if(strncmp(buf+j, "jmp", 3) == 0)type = 26;
+
+	if(type>0)
+	{
+		j+=3;
+		for(;j<len;j++)
+		{
+			if((buf[j] < 'a')|(buf[j] > 'z'))break;
+		}
+		for(;j<len;j++)
+		{
+			if((buf[j] != ' ')&&(buf[j] != '	'))break;
+		}
+
+		if(type >= 20)
+		{
+			att2ac_fmt(fmt2, buf+j, len-j);
+			if(type==20)printf("not %s\n", fmt2);
+			else if(type == 21)printf("inc %s\n", fmt2);
+			else if(type == 22)printf("dec %s\n", fmt2);
+			else if(type == 23)printf("push %s\n", fmt2);
+			else if(type == 24)printf("pop %s\n", fmt2);
+			else if(type == 25)printf("call %s\n", fmt2);
+			else if(type == 26)printf("jmp %s\n", fmt2);
+		}
+		else
+		{
+			for(k=j;k<len;k++)
+			{
+				if(buf[k] == ',')break;
+			}
+
+			att2ac_fmt(fmt1, buf+k+1, len-k-1);
+			att2ac_fmt(fmt2, buf+j, k-j);
+
+			if((type==1)|(type==2))printf("%s = %s\n",fmt1,fmt2);
+			else if(type == 3)printf("%s + %s\n",fmt1,fmt2);
+			else if(type == 4)printf("%s - %s\n",fmt1,fmt2);
+			else if(type == 5)printf("%s ^ %s\n",fmt1,fmt2);
+			else if(type == 6)printf("%s & %s\n",fmt1,fmt2);
+			else if(type == 7)printf("%s ? %s\n",fmt1,fmt2);
+		}
+	}
+	else
+	{
+		printf("%.*s\n",len-j,buf+j);
+	}
+}
+int att2ac(int argc, char** argv)
+{
+	int j,k,fd,len;
+	char* buf = 0;
+
+	fd = open(argv[1], O_RDONLY|O_BINARY);
+	if(fd <= 0)return -1;
+
+	buf = malloc(0x100000);
+	if(buf == 0)return -2;
+
+	len = read(fd, buf, 0x100000);
+	if(len <= 0)return -3;
+
+	close(fd);
+
+	k = 0;
+	for(j=0;j<len;j++)
+	{
+		if((buf[j] == '/')&&(buf[j+1] == '*'))
+		{
+			for(;j<len;j++)
+			{
+				if((buf[j] == '*')&&(buf[j+1] == '/'))
+				{
+					j++;
+					break;
+				}
+			}
+		}
+		else
+		{
+			buf[k] = buf[j];
+			k++;
+		}
+	}
+	len = k;
+
+	k = 0;
+	for(j=0;j<=len;j++)
+	{
+		if((j==len) | (buf[j]=='\n'))
+		{
+			att2ac_line(buf+k, j-k);
+			k=j+1;
+		}
+	}
 }
 int intel2ac(int argc, char** argv)
 {
@@ -49,6 +234,40 @@ int intel2ac(int argc, char** argv)
 	if(len <= 0)return -3;
 
 	close(fd);
+}
+
+
+
+
+void ac2arm_line(char* buf, int len)
+{
+	printf("%.*s\n",len,buf);
+}
+int ac2arm(int argc, char** argv)
+{
+	int j,k,fd,len;
+	char* buf = 0;
+
+	fd = open(argv[1], O_RDONLY|O_BINARY);
+	if(fd <= 0)return -1;
+
+	buf = malloc(0x100000);
+	if(buf == 0)return -2;
+
+	len = read(fd, buf, 0x100000);
+	if(len <= 0)return -3;
+
+	close(fd);
+
+	k = 0;
+	for(j=0;j<=len;j++)
+	{
+		if((j==len) | (buf[j]=='\n'))
+		{
+			ac2arm_line(buf+k, j-k);
+			k=j+1;
+		}
+	}
 }
 
 
@@ -377,13 +596,21 @@ int conv(int argc, char** argv)
 {
 	if(argc <= 2)return 0;
 
-	if(strcmp(argv[1], "att2ac") == 0)
+	if(strcmp(argv[1], "arm2ac") == 0)
+	{
+		arm2ac(argc-1, argv+1);
+	}
+	else if(strcmp(argv[1], "att2ac") == 0)
 	{
 		att2ac(argc-1, argv+1);
 	}
 	else if(strcmp(argv[1], "intel2ac") == 0)
 	{
 		intel2ac(argc-1, argv+1);
+	}
+	else if(strcmp(argv[1], "ac2arm") == 0)
+	{
+		ac2arm(argc-1, argv+1);
 	}
 	else if(strcmp(argv[1], "ac2att") == 0)
 	{

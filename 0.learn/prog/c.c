@@ -92,6 +92,7 @@ static void purec_func(char* buf)
 	if((len == 2)&&(strncmp(buf, "if", 2) == 0))return;
 	if((len == 3)&&(strncmp(buf, "for", 3) == 0))return;
 	if((len == 5)&&(strncmp(buf, "while", 5) == 0))return;
+	if((len == 6)&&(strncmp(buf, "switch", 6) == 0))return;
 
 	if(infunc == 0)worker_write(buf, len, 1, countline+1);
 	else worker_write(buf, len, 2, countline+1);
