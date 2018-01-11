@@ -8,6 +8,7 @@ SRC = \
 0.learn/data/utf8.c \
 0.learn/model/3d.c \
 0.learn/model/stl.c \
+0.learn/prog/asm.c \
 0.learn/prog/c.c \
 0.learn/prog/cpp.c \
 0.learn/prog/h.c \

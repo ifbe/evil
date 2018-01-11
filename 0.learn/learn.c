@@ -26,6 +26,8 @@ int struct_delete();
 int utf8_create(void*, void*);
 int utf8_delete();
 //prog
+int asm_create(void*, void*);
+int asm_delete();
 int c_create(void*, void*);
 int c_delete();
 int include_create(void*, void*);
@@ -392,7 +394,7 @@ void worker_create()
 	//count_create(w, j);	//how many bytes and lines in this file
 	//j += 0x100;
 
-	three_create(w, j);
+	asm_create(w, j);
 	j += 0x100;
 
 	c_create(w, j);
@@ -409,6 +411,9 @@ void worker_create()
 
 	//struct_create(w, j);
 	//j += 0x100;
+
+	three_create(w, j);
+	j += 0x100;
 
 	utf8_create(w,j);
 	j += 0x100;
