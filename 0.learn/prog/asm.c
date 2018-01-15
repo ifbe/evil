@@ -596,34 +596,88 @@ int ac2intel(int argc, char** argv)
 
 void asm_read_line(char* buf, int len)
 {
-	int j,k;
+	int j,k,t;
 	for(j=0;j<len;j++)
 	{
-		if(buf[j] == ':')break;
+		if((buf[j] != 0x20)&&(buf[j] != 0x9))break;
 	}
-	if(j >= len)return;
-	if(j <= 1)return;
-	k = buf[j-1];
-	if(	(k < 'a') | (k > 'z') &&
-		(k < 'A') | (k > 'Z') &&
-		(k < '0') | (k > '9') )
-	{return;}
+	if(	(strncmp(buf+j, "ENTRY(", 6) == 0) |
+		(strncmp(buf+j, "GLOBAL(", 7) == 0) )
+	{
+		for(;j<len;j++)
+		{
+			if(buf[j] == '(')break;
+		}
+		for(k=j+1;k<len;k++)
+		{
+			if(buf[k] == ')')break;
+		}
 
-	//printf("%.*s\n", j, buf);
-	worker_write(buf, j, 1, line);
+		//printf("%.*s\n", k-j-1, buf+j+1);
+		worker_write(buf+j+1, k-j-1, 1, line);
+		return;
+	}
+	else if(strncmp(buf+j, "call", 4) == 0)
+	{
+		for(;j<len;j++)
+		{
+			if(buf[j] == 0x9)break;
+			if(buf[j] == 0x20)break;
+		}
+		for(;j<len;j++)
+		{
+			if((buf[j] != 0x20)&&(buf[j] != 0x9))break;
+		}
+
+		if(buf[j] != '*')
+		{
+			//printf("call %.*s\n", len-j, buf+j);
+			worker_write(buf+j, len-j, 2, line);
+		}
+		return;
+	}
+
+	for(k=j;k<len;k++)
+	{
+		if(buf[k] == ':')break;
+	}
+	if(k >= len)return;
+	if(j+1 >= k)return;
+
+	for(t=j;t<k;t++)
+	{
+		if(	(buf[t] != '_') &&
+			((buf[t] < 'a') | (buf[t] > 'z')) &&
+			((buf[t] < 'A') | (buf[t] > 'Z')) &&
+			((buf[t] < '0') | (buf[t] > '9')) )
+		{return;}
+	}
+
+	//printf("::%.*s\n", k-j, buf);
+	worker_write(buf+j, k-j, 1, line);
 }
 static void asm_read(char* buf, int len)
 {
-	int j,k=0;
+	int j,k;
+	int innote;
 
 	k = 0;
+	innote = 0;
 	for(j=0;j<=len;j++)
 	{
 		if((j==len) | (buf[j]=='\n'))
 		{
-			asm_read_line(buf+k, j-k);
+			if(innote == 0)asm_read_line(buf+k, j-k);
 			k = j+1;
 			line++;
+		}
+		else if((buf[j] == '/')&&(buf[j+1] == '*'))
+		{
+			innote = 1;
+		}
+		else if((buf[j] == '*')&&(buf[j+1] == '/'))
+		{
+			innote = 0;
 		}
 	}
 }
