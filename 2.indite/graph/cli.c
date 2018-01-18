@@ -11,23 +11,29 @@ struct vertex
 	float x;
 	float y;
 	float z;
+	float w;
+};
+struct binfo
+{
+        u64 vertexcount;
+        u64 normalcount;
+        u64 colorcount;
+        u64 texturecount;
+        u64 pointcount;
+        u64 linecount;
+        u64 tricount;
+        u64 rectcount;
 };
 
 
 
 
-void graph_init()
+void graph_init(void* vertexbuf, struct binfo* info)
 {
 }
-void graph_data(
-	struct vertex* vertexbuf, int vertexlen,
-	struct vertex* normalbuf, int normallen,
-	struct vertex* colourbuf, int colourlen,
-	u16* rectbuf, int rectlen,
-	u16* tribuf, int trilen,
-	u16* linebuf, int linelen,
-	u16* pointbuf, int pointlen)
+void graph_data(void* vertexbuf, u64* info)
 {
-	printf("%d, %d, %d, %d, %d\n", vertexlen, rectlen, trilen, linelen, pointlen);
-	printf("%f, %f, %f\n", vertexbuf[1].x, vertexbuf[1].y, vertexbuf[1].z);
+	int j;
+	for(j=0;j<8;j++)printf("%08llx ", info[j]);
+	printf("\n");
 }

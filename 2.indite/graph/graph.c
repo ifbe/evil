@@ -76,15 +76,134 @@ struct vertex
 	float z;
 	float w;
 };
-static u8* origin;
-static u16 tempbuf[0x1000];
-static int templen = 0;
+struct binfo
+{
+	u64 vertexcount;
+	u64 normalcount;
+	u64 colorcount;
+	u64 texturecount;
+	u64 pointcount;
+	u64 linecount;
+	u64 tricount;
+	u64 rectcount;
+};
+static struct binfo info;
 static u8 buffer[0x800000];
-static u64 buflen[8];
+//
+struct couple
+{
+	u64 type;
+	void* addr;
+};
+static struct couple pair[0x1000];
+//
+static int templen = 0;
+static u16 tempbuf[0x1000];
+static u8* origin;
 
 
 
 
+void traverseshape_point()
+{
+	u16* ii;
+	float n[3];
+	struct vertex* vv;
+
+	//vertex
+	vv = (void*)buffer + 0x100000 + tempbuf[0]*12;
+	vv->x += 0.0;
+	vv->y += 0.0;
+	vv->z += 1.0;
+
+	//colour
+	vv = (void*)buffer + 0x200000 + tempbuf[0]*12;
+	vv->x = 1.0;
+	vv->y = 1.0;
+	vv->z = 1.0;
+
+	ii = (void*)buffer + 0x400000 + info.pointcount;
+	ii[0] = tempbuf[0];
+	info.pointcount += 1;
+}
+void traverseshape_line()
+{
+	u16* ii;
+	float n[3];
+	struct vertex* vv;
+
+	//vertex
+	vv = (void*)buffer + 0x100000 + tempbuf[0]*12;
+	vv->x += 0.0;
+	vv->y += 0.0;
+	vv->z += 1.0;
+	vv = (void*)buffer + 0x100000 + tempbuf[1]*12;
+	vv->x += 0.0;
+	vv->y += 0.0;
+	vv->z += 1.0;
+
+	//colour
+	vv = (void*)buffer + 0x200000 + tempbuf[0]*12;
+	vv->x = 1.0;
+	vv->y = 1.0;
+	vv->z = 1.0;
+	vv = (void*)buffer + 0x200000 + tempbuf[1]*12;
+	vv->x = 1.0;
+	vv->y = 1.0;
+	vv->z = 1.0;
+
+	ii = (void*)buffer + 0x500000 + info.linecount*2;
+	ii[0] = tempbuf[0];
+	ii[1] = tempbuf[1];
+	info.linecount += 2;
+}
+void traverseshape_triangle()
+{
+	u16* ii;
+	float n[3];
+	struct vertex* vv;
+
+	trianglenormal(n,
+		(void*)buffer + tempbuf[0]*12,
+		(void*)buffer + tempbuf[1]*12,
+		(void*)buffer + tempbuf[2]*12
+	);
+	printf("%f,%f,%f\n",n[0],n[1],n[2]);
+
+	//vertex
+	vv = (void*)buffer + 0x100000 + tempbuf[0]*12;
+	vv->x += n[0];
+	vv->y += n[1];
+	vv->z += n[2];
+	vv = (void*)buffer + 0x100000 + tempbuf[1]*12;
+	vv->x += n[0];
+	vv->y += n[1];
+	vv->z += n[2];
+	vv = (void*)buffer + 0x100000 + tempbuf[2]*12;
+	vv->x += n[0];
+	vv->y += n[1];
+	vv->z += n[2];
+
+	//colour
+	vv = (void*)buffer + 0x200000 + tempbuf[0]*12;
+	vv->x = 0.5;
+	vv->y = 0.28;
+	vv->z = 0.0;
+	vv = (void*)buffer + 0x200000 + tempbuf[1]*12;
+	vv->x = 0.5;
+	vv->y = 0.28;
+	vv->z = 0.0;
+	vv = (void*)buffer + 0x200000 + tempbuf[2]*12;
+	vv->x = 0.5;
+	vv->y = 0.28;
+	vv->z = 0.0;
+
+	ii = (void*)buffer + 0x600000 + info.tricount*2;
+	ii[0] = tempbuf[0];
+	ii[1] = tempbuf[1];
+	ii[2] = tempbuf[2];
+	info.tricount += 3;
+}
 void traverseshape_rectangle()
 {
 	u16* ii;
@@ -134,113 +253,12 @@ void traverseshape_rectangle()
 	vv->y = 0.28;
 	vv->z = 0.0;
 
-	ii = (void*)buffer + 0x400000 + 2*buflen[4];
+	ii = (void*)buffer + 0x700000 + info.rectcount*2;
 	ii[0] = tempbuf[0];
 	ii[1] = tempbuf[1];
 	ii[2] = tempbuf[2];
 	ii[3] = tempbuf[3];
-	buflen[4] += 4;
-}
-void traverseshape_triangle()
-{
-	u16* ii;
-	float n[3];
-	struct vertex* vv;
-
-	trianglenormal(n,
-		(void*)buffer + tempbuf[0]*12,
-		(void*)buffer + tempbuf[1]*12,
-		(void*)buffer + tempbuf[2]*12
-	);
-	printf("%f,%f,%f\n",n[0],n[1],n[2]);
-
-	//vertex
-	vv = (void*)buffer + 0x100000 + tempbuf[0]*12;
-	vv->x += n[0];
-	vv->y += n[1];
-	vv->z += n[2];
-	vv = (void*)buffer + 0x100000 + tempbuf[1]*12;
-	vv->x += n[0];
-	vv->y += n[1];
-	vv->z += n[2];
-	vv = (void*)buffer + 0x100000 + tempbuf[2]*12;
-	vv->x += n[0];
-	vv->y += n[1];
-	vv->z += n[2];
-
-	//colour
-	vv = (void*)buffer + 0x200000 + tempbuf[0]*12;
-	vv->x = 0.5;
-	vv->y = 0.28;
-	vv->z = 0.0;
-	vv = (void*)buffer + 0x200000 + tempbuf[1]*12;
-	vv->x = 0.5;
-	vv->y = 0.28;
-	vv->z = 0.0;
-	vv = (void*)buffer + 0x200000 + tempbuf[2]*12;
-	vv->x = 0.5;
-	vv->y = 0.28;
-	vv->z = 0.0;
-
-	ii = (void*)buffer + 0x500000 + 2*buflen[5];
-	ii[0] = tempbuf[0];
-	ii[1] = tempbuf[1];
-	ii[2] = tempbuf[2];
-	buflen[5] += 3;
-}
-void traverseshape_line()
-{
-	u16* ii;
-	float n[3];
-	struct vertex* vv;
-
-	//vertex
-	vv = (void*)buffer + 0x100000 + tempbuf[0]*12;
-	vv->x += 0.0;
-	vv->y += 0.0;
-	vv->z += 1.0;
-	vv = (void*)buffer + 0x100000 + tempbuf[1]*12;
-	vv->x += 0.0;
-	vv->y += 0.0;
-	vv->z += 1.0;
-
-	//colour
-	vv = (void*)buffer + 0x200000 + tempbuf[0]*12;
-	vv->x = 1.0;
-	vv->y = 1.0;
-	vv->z = 1.0;
-	vv = (void*)buffer + 0x200000 + tempbuf[1]*12;
-	vv->x = 1.0;
-	vv->y = 1.0;
-	vv->z = 1.0;
-
-	ii = (void*)buffer + 0x600000 + 2*buflen[6];
-	ii[0] = tempbuf[0];
-	ii[1] = tempbuf[1];
-	buflen[6] += 2;
-}
-
-void traverseshape_point()
-{
-	u16* ii;
-	float n[3];
-	struct vertex* vv;
-
-	//vertex
-	vv = (void*)buffer + 0x100000 + tempbuf[0]*12;
-	vv->x += 0.0;
-	vv->y += 0.0;
-	vv->z += 1.0;
-
-	//colour
-	vv = (void*)buffer + 0x200000 + tempbuf[0]*12;
-	vv->x = 1.0;
-	vv->y = 1.0;
-	vv->z = 1.0;
-
-	ii = (void*)buffer + 0x700000 + 2*buflen[7];
-	ii[0] = tempbuf[0];
-	buflen[7] += 1;
+	info.rectcount += 4;
 }
 void traverseshape_dfs(struct shapeindex* shape)
 {
@@ -350,24 +368,138 @@ void* searchshapefromstr(char* buf, int len)
 	shap = shapeindex_read(haha);
 	return shap;
 }
-
-
-
-
-void graph_one(char* buf, int len)
+void graph_one3(char* buf, int len)
 {
 	int j;
 	void* temp;
-	for(j=0;j<8;j++)buflen[j] = 0;
-	for(j=0;j<0x800000;j++)buffer[j] = 0;
+	u64* p = (u64*)&info;
+	for(j=0;j<8;j++)p[j] = 0;
 
 	temp = searchshapefromstr(buf, len);
 	traverseshape_dfs(temp);
 
-	buflen[0] = 0x1000;
-	buflen[1] = 0x1000;
-	buflen[2] = 0x1000;
-	graph_data(buffer, buflen);
+	info.vertexcount = 0x1000;
+	info.normalcount = 0x1000;
+	info.colorcount = 0x1000;
+	graph_data(buffer, &info);
+}
+
+
+
+
+int graph_add(u64 type, void* addr)
+{
+	int j,k;
+	struct vertex* vv;
+	struct vertex* nn;
+	struct vertex* cc;
+
+	k = info.vertexcount;
+	for(j=0;j<k;j++)
+	{
+		if(pair[j].type != type)continue;
+		if(pair[j].addr != addr)continue;
+		return j;
+	}
+
+       	vv = (void*)buffer + 0x000000 + 12*k;
+	vv->x = (float)(rand()&0xffff)/65536.0;
+	vv->y = (float)(rand()&0xffff)/65536.0;
+	vv->z = (float)(rand()&0xffff)/65536.0;
+
+       	nn = (void*)buffer + 0x100000 + 12*k;
+	nn->x = 0.0;
+	nn->y = 0.0;
+	nn->z = 1.0;
+
+       	cc = (void*)buffer + 0x200000 + 12*k;
+	if(type == hex32('h','a','s','h'))
+	{
+		cc->x = 1.0;
+		cc->y = 0.0;
+		cc->z = 0.0;
+	}
+	else if(type == hex32('f','i','l','e'))
+	{
+		cc->x = 0.0;
+		cc->y = 1.0;
+		cc->z = 0.0;
+	}
+	else if(type == hex32('f','u','n','c'))
+	{
+		cc->x = 0.0;
+		cc->y = 0.0;
+		cc->z = 1.0;
+	}
+	else
+	{
+		cc->x = 1.0;
+		cc->y = 1.0;
+		cc->z = 1.0;
+	}
+//printf("%f,%f,%f\n",vv->x,vv->y,vv->z);
+
+	pair[k].type = type;
+	pair[k].addr = addr;
+
+	info.vertexcount++;
+	return k;
+}
+int graph_pair(int j, int k)
+{
+	u16* ii = (void*)buffer + 0x500000 + 2*info.linecount;
+	ii[0] = j;
+	ii[1] = k;
+	info.linecount += 2;
+
+//printf("j=%d,k=%d\n",j,k);
+	return 1;
+}
+void graph_one(char* buf, int len)
+{
+	int j,k;
+	u64 temp;
+	u64* p;
+	struct hash* h;
+	struct wire* w;
+
+	p = (u64*)&info;
+	for(j=0;j<8;j++)p[j] = 0;
+
+	temp = strhash_generate(buf, len);
+	h = strhash_read(temp);
+	if(h == 0)
+	{
+		printf("no str: %.*s\n", len, buf);
+		return;
+	}
+
+	j = graph_add(hex32('h','a','s','h'), h);
+	w = relation_read(h->irel);
+	while(1)
+	{
+		if(w == 0)break;
+		p = (void*)(w->selfchip);
+		k = graph_add(w->selftype, p);
+		graph_pair(j,k);
+
+		w = samepinprevchip(w);
+	}
+	w = relation_read(h->orel);
+	while(1)
+	{
+		if(w == 0)break;
+		p = (void*)(w->selfchip);
+		k = graph_add(w->selftype, p);
+		graph_pair(j,k);
+
+		w = samechipprevpin(w);
+	}
+
+	info.vertexcount = 0x1000;
+	info.normalcount = 0x1000;
+	info.colorcount = 0x1000;
+	graph_data(buffer, &info);
 }
 void graph(int argc, char** argv)
 {
@@ -378,7 +510,7 @@ void graph(int argc, char** argv)
 	readthemall(1);
 	origin = pointdata_read(0);
 
-	graph_init(buffer, buflen);
+	graph_init(buffer, &info);
 	for(j=1;j<argc;j++)
 	{
 		graph_one(argv[j], strlen(argv[j]));
