@@ -12,6 +12,7 @@
 void vectornormalize(float* v);
 void vectorcross(float* v, float* x);
 void quaternionrotate(float* v, float* q);
+void graph_hack(void*, void*, void*, int);
 
 
 
@@ -75,8 +76,10 @@ struct binfo
         u64 tricount;
         u64 rectcount;
 };
+void* buffer = 0;
 static struct binfo* binfo = 0;
-u8* buffer = 0;
+static void* ctxbuf = 0;
+static int ctxlen = 0;
 
 
 
@@ -216,15 +219,14 @@ void initshader()
 }
 void initshape()
 {
-	void* vertexdata = (void*)buffer+0x000000;
-	void* normaldata = (void*)buffer+0x100000;
-	void* colordata = (void*)buffer+0x200000;
-	void* texturedata = (void*)buffer+0x300000;
-
-	void* pointindex = (void*)buffer+0x400000;
-	void* lineindex = (void*)buffer+0x500000;
-	void* triindex = (void*)buffer+0x600000;
-	void* rectindex = (void*)buffer+0x700000;
+	void* vertexdata  = buffer+0x000000;
+	void* normaldata  = buffer+0x100000;
+	void* colordata   = buffer+0x200000;
+	void* texturedata = buffer+0x300000;
+	void* pointindex  = buffer+0x400000;
+	void* lineindex   = buffer+0x500000;
+	void* triindex    = buffer+0x600000;
+	void* rectindex   = buffer+0x700000;
 
 	//
 	glGenBuffers(1, &vertexhandle);
@@ -322,15 +324,10 @@ void initshape()
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 0x100000, rectindex, GL_STATIC_DRAW);
 */
 }
-void graph_data(
-	void* vbuf, int vlen,
-	void* nbuf, int nlen,
-	void* cbuf, int clen,
-	u16* rbuf, int rlen,
-	u16* tbuf, int tlen,
-	u16* lbuf, int llen,
-	u16* pbuf, int plen)
+void graph_data(void* buf, void* ind, void* cb, int cl)
 {
+	ctxbuf = cb;
+	ctxlen = cl;
 	enqueue = (enqueue+1)%0x10000;
 }
 
@@ -478,10 +475,10 @@ void callback_display()
 	//glDrawElements(GL_QUADS, binfo->rectcount, GL_UNSIGNED_SHORT, 0);
 
 	glBindVertexArray(shapevao3);
-	glDrawElements(GL_TRIANGLES, binfo->tricount, GL_UNSIGNED_SHORT, 0);
+	glDrawElements(GL_TRIANGLES, 3*binfo->tricount, GL_UNSIGNED_SHORT, 0);
 
 	glBindVertexArray(shapevao2);
-	glDrawElements(GL_LINES, binfo->linecount, GL_UNSIGNED_SHORT, 0);
+	glDrawElements(GL_LINES, 2*binfo->linecount, GL_UNSIGNED_SHORT, 0);
 
 	glBindVertexArray(shapevao1);
 	glDrawElements(GL_POINTS, binfo->pointcount, GL_UNSIGNED_SHORT, 0);
@@ -500,17 +497,26 @@ void callback_idle()
 	u16* lineindex;
 	u16* triindex;
 	u16* rectindex;
-	if(enqueue == dequeue)return;
 
-	vertexdata = (void*)buffer + 0x000000;
-	normaldata = (void*)buffer + 0x100000;
-	colourdata = (void*)buffer + 0x200000;
-	texturedata = (void*)buffer + 0x300000;
+//printf("enq=%d,deq=%d\n", enqueue, dequeue);
+	if(enqueue != dequeue)
+	{
+		dequeue = (dequeue+1)%0x10000;
+	}
+	else
+	{
+//printf("haha\n");
+		graph_hack(buffer, binfo, ctxbuf, ctxlen);
+	}
 
-	pointindex = (void*)buffer + 0x400000;
-	lineindex = (void*)buffer + 0x500000;
-	triindex = (void*)buffer + 0x600000;
-	rectindex = (void*)buffer + 0x700000;
+	vertexdata  = buffer + 0x000000;
+	normaldata  = buffer + 0x100000;
+	colourdata  = buffer + 0x200000;
+	texturedata = buffer + 0x300000;
+	pointindex  = buffer + 0x400000;
+	lineindex   = buffer + 0x500000;
+	triindex    = buffer + 0x600000;
+	rectindex   = buffer + 0x700000;
 
 	if(binfo->vertexcount != 0)
 	{
@@ -557,7 +563,6 @@ void callback_idle()
 			8*binfo->rectcount, rectindex);
 	}
 */
-	dequeue = (dequeue+1)%0x10000;
 	glutPostRedisplay();
 }
 void callback_keyboard(unsigned char key,int x,int y)
@@ -662,10 +667,11 @@ void* graph_thread(void* arg)
 	int argc = 1;
 	char* argv[2] = {"a.out", 0};
 	glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
+	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB + GLUT_DEPTH);
 	glutInitWindowSize(512, 512);
 	glutInitWindowPosition(256, 256);
-	glutCreateWindow("GLSL Test : Draw a triangle");
+	glutCreateWindow("evil");
+	glEnable(GL_DEPTH_TEST);
 
 	err = glewInit();
 	if( GLEW_OK != err )printf("glewinit: %s\n", glewGetErrorString(err));  
@@ -690,10 +696,12 @@ void* graph_thread(void* arg)
 	glUseProgram(0);
 	return 0;
 }
-void graph_init(void* buf, void* ind)
+void graph_init(void* buf, void* ind, void* cb, int cl)
 {
 	buffer = buf;
 	binfo = ind;
+	ctxbuf = cb;
+	ctxlen = cl;
 
 	u64 id;
 	pthread_create((void*)&id, NULL, graph_thread, 0);

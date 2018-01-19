@@ -24,14 +24,24 @@ struct binfo
         u64 tricount;
         u64 rectcount;
 };
+static void* buf;
+static u64* info;
+static void* ctxbuf;
+static int ctxlen;
 
 
 
 
-void graph_init(void* vertexbuf, struct binfo* info)
+void graph_init(void* b, void* i, void* cb, int cl)
 {
+	buf = b;
+	info = i;
+        ctxbuf = cb;
+        ctxlen = cl;
+        enqueue = (enqueue+1)%0x10000;
 }
-void graph_data(void* vertexbuf, u64* info)
+}
+void graph_data(void* b, void* i, void* cb, int cl)
 {
 	int j;
 	for(j=0;j<8;j++)printf("%08llx ", info[j]);

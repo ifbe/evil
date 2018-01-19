@@ -9,9 +9,10 @@
 #define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
 #define hex64(a,b,c,d,e,f,g,h) (hex32(a,b,c,d) | (((u64)hex32(e,f,g,h))<<32))
 void readthemall(int);
-void graph_init(void*, void*);
-void graph_data(void*, void*);
 void trianglenormal(void* n, void* a, void* b, void* c);
+//
+void graph_init(void*, void*, void*, int);
+void graph_data(void*, void*, void*, int);
 //
 u64 strhash_generate(void*, int);
 void* strhash_read(u64);
@@ -69,13 +70,6 @@ struct wire
 	u32 samechipprevpin;
 	u32 samechipnextpin;
 };
-struct vertex
-{
-	float x;
-	float y;
-	float z;
-	float w;
-};
 struct binfo
 {
 	u64 vertexcount;
@@ -90,13 +84,21 @@ struct binfo
 static struct binfo info;
 static u8 buffer[0x800000];
 //
-struct couple
+struct context
 {
 	u64 type;
 	void* addr;
 };
-static struct couple pair[0x1000];
+static int ctxlen;
+static struct context ctxbuf[0x1000];
 //
+struct vertex
+{
+	float x;
+	float y;
+	float z;
+	float w;
+};
 static int templen = 0;
 static u16 tempbuf[0x1000];
 static u8* origin;
@@ -381,7 +383,7 @@ void graph_one3(char* buf, int len)
 	info.vertexcount = 0x1000;
 	info.normalcount = 0x1000;
 	info.colorcount = 0x1000;
-	graph_data(buffer, &info);
+	graph_data(buffer, &info, ctxbuf, ctxlen);
 }
 
 
@@ -394,11 +396,11 @@ int graph_add(u64 type, void* addr)
 	struct vertex* nn;
 	struct vertex* cc;
 
-	k = info.vertexcount;
+	k = ctxlen;
 	for(j=0;j<k;j++)
 	{
-		if(pair[j].type != type)continue;
-		if(pair[j].addr != addr)continue;
+		if(ctxbuf[j].type != type)continue;
+		if(ctxbuf[j].addr != addr)continue;
 		return j;
 	}
 
@@ -413,36 +415,15 @@ int graph_add(u64 type, void* addr)
 	nn->z = 1.0;
 
        	cc = (void*)buffer + 0x200000 + 12*k;
-	if(type == hex32('h','a','s','h'))
-	{
-		cc->x = 1.0;
-		cc->y = 0.0;
-		cc->z = 0.0;
-	}
-	else if(type == hex32('f','i','l','e'))
-	{
-		cc->x = 0.0;
-		cc->y = 1.0;
-		cc->z = 0.0;
-	}
-	else if(type == hex32('f','u','n','c'))
-	{
-		cc->x = 0.0;
-		cc->y = 0.0;
-		cc->z = 1.0;
-	}
-	else
-	{
-		cc->x = 1.0;
-		cc->y = 1.0;
-		cc->z = 1.0;
-	}
+	cc->x = 1.0;
+	cc->y = 1.0;
+	cc->z = 1.0;
 //printf("%f,%f,%f\n",vv->x,vv->y,vv->z);
 
-	pair[k].type = type;
-	pair[k].addr = addr;
+	ctxbuf[k].type = type;
+	ctxbuf[k].addr = addr;
 
-	info.vertexcount++;
+	ctxlen++;
 	return k;
 }
 int graph_pair(int j, int k)
@@ -474,7 +455,9 @@ void graph_one(char* buf, int len)
 		return;
 	}
 
+	ctxlen = 0;
 	j = graph_add(hex32('h','a','s','h'), h);
+
 	w = relation_read(h->irel);
 	while(1)
 	{
@@ -496,10 +479,7 @@ void graph_one(char* buf, int len)
 		w = samechipprevpin(w);
 	}
 
-	info.vertexcount = 0x1000;
-	info.normalcount = 0x1000;
-	info.colorcount = 0x1000;
-	graph_data(buffer, &info);
+	graph_data(buffer, &info, ctxbuf, ctxlen);
 }
 void graph(int argc, char** argv)
 {
@@ -510,7 +490,7 @@ void graph(int argc, char** argv)
 	readthemall(1);
 	origin = pointdata_read(0);
 
-	graph_init(buffer, &info);
+	graph_init(buffer, &info, ctxbuf, ctxlen);
 	for(j=1;j<argc;j++)
 	{
 		graph_one(argv[j], strlen(argv[j]));

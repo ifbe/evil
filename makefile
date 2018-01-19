@@ -23,6 +23,7 @@ SRC = \
 1.think/delete/delete.c \
 1.think/modify/modify.c \
 1.think/search/search.c \
+2.indite/graph/force.c \
 2.indite/graph/graph.c \
 2.indite/serve/serve.c \
 2.indite/trace/trace.c \
