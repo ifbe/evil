@@ -62,7 +62,7 @@ void forcedirected_3d(
 			//F = (vec/r)*(k*q1*q2)/(r^2)
 			//F = vec*(k*q1*q2*)/(r^3)
 			t = x*x + y*y + z*z;
-			t = 0.01 / t / sqrt(t);
+			t = 0.020 / t / sqrt(t);
 			x *= t;
 			y *= t;
 			z *= t;
@@ -104,9 +104,9 @@ void forcedirected_3d(
 			obuf[j].x, obuf[j].y, obuf[j].z
 		);
 */
-		vbuf[j].x += obuf[j].x / 50.0;
-		vbuf[j].y += obuf[j].y / 50.0;
-		vbuf[j].z += obuf[j].z / 50.0;
+		vbuf[j].x += obuf[j].x / 100.0;
+		vbuf[j].y += obuf[j].y / 100.0;
+		vbuf[j].z += obuf[j].z / 100.0;
 	}
 	//say("\n");
 }
@@ -266,7 +266,7 @@ void graph_hack(void* buffer, struct binfo* info,
 	int j;
 	int olen = ctxlen;
 	int vlen = ctxlen;
-	int llen = (info->linecount)/2;
+	int llen = info->linecount;
 	struct vertex* obuf = buffer+0x700000;
 	struct vertex* vbuf = buffer;
 	void* lbuf = buffer+0x500000;

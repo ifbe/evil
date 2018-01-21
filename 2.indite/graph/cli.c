@@ -38,8 +38,6 @@ void graph_init(void* b, void* i, void* cb, int cl)
 	info = i;
         ctxbuf = cb;
         ctxlen = cl;
-        enqueue = (enqueue+1)%0x10000;
-}
 }
 void graph_data(void* b, void* i, void* cb, int cl)
 {

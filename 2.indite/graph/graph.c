@@ -8,6 +8,14 @@
 #define u64 unsigned long long
 #define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
 #define hex64(a,b,c,d,e,f,g,h) (hex32(a,b,c,d) | (((u64)hex32(e,f,g,h))<<32))
+#define __hash__ hex32('h','a','s','h')
+#define __file__ hex32('f','i','l','e')
+#define __fun__ hex32('f','u','n','c')
+#define __shape__ hex32('s','h','a','p')
+#define __point__ hex32('p','o','i','n')
+#define __line__ hex32('l','i','n','e')
+#define __tri__ hex32('t','r','i',0)
+#define __rect__ hex32('r','e','c','t')
 void readthemall(int);
 void trianglenormal(void* n, void* a, void* b, void* c);
 //
@@ -19,6 +27,8 @@ void* strhash_read(u64);
 void* shapeindex_read(int);
 void* pointindex_read(int);
 void* pointdata_read(int);
+void* funcindex_read(int);
+void* filemd5_read(int);
 //
 void* samepinprevchip(void*);
 void* samepinnextchip(void*);
@@ -87,7 +97,7 @@ static u8 buffer[0x800000];
 struct context
 {
 	u64 type;
-	void* addr;
+	u64 addr;
 };
 static int ctxlen;
 static struct context ctxbuf[0x1000];
@@ -282,14 +292,14 @@ shapeirel:
 	templen = 0;
 	while(rel != 0)
 	{
-		if(rel->selftype == hex32('s','h','a','p'))
+		if(rel->selftype == __shape__)
 		{
 			ss = shapeindex_read(rel->selfchip);
 			traverseshape_dfs(ss);
 			//printf("i:	shap@%08llx	%.8s\n",
 			//rel->selfchip, &(ss->type));
 		}
-		else if(rel->selftype == hex32('p','o','i','n'))
+		else if(rel->selftype == __point__)
 		{
 			temp = (rel->selfchip)/0x20;
 			tempbuf[templen] = temp;
@@ -311,10 +321,10 @@ shapeirel:
 	}
 
 shapeorel:
-	if(type == hex32('r','e','c','t'))traverseshape_rectangle();
-	else if(type == hex32('t','r','i',0))traverseshape_triangle();
-	else if(type == hex32('l','i','n','e'))traverseshape_line();
-	else if(type == hex32('p','o','i','n'))traverseshape_point();
+	if(type == __rect__)traverseshape_rectangle();
+	else if(type == __tri__)traverseshape_triangle();
+	else if(type == __line__)traverseshape_line();
+	else if(type == __point__)traverseshape_point();
 }
 void* searchshapefromstr(char* buf, int len)
 {
@@ -343,7 +353,7 @@ void* searchshapefromstr(char* buf, int len)
 	haha = 0;
 	while(1)
 	{
-		if(w->selftype == hex32('s','h','a','p'))
+		if(w->selftype == __shape__)
 		{
 			if(haha != 0)
 			{
@@ -389,12 +399,9 @@ void graph_one3(char* buf, int len)
 
 
 
-int graph_add(u64 type, void* addr)
+int graph_add(u64 type, u64 addr)
 {
 	int j,k;
-	struct vertex* vv;
-	struct vertex* nn;
-	struct vertex* cc;
 
 	k = ctxlen;
 	for(j=0;j<k;j++)
@@ -404,22 +411,6 @@ int graph_add(u64 type, void* addr)
 		return j;
 	}
 
-       	vv = (void*)buffer + 0x000000 + 12*k;
-	vv->x = (float)(rand()&0xffff)/65536.0;
-	vv->y = (float)(rand()&0xffff)/65536.0;
-	vv->z = (float)(rand()&0xffff)/65536.0;
-
-       	nn = (void*)buffer + 0x100000 + 12*k;
-	nn->x = 0.0;
-	nn->y = 0.0;
-	nn->z = 1.0;
-
-       	cc = (void*)buffer + 0x200000 + 12*k;
-	cc->x = 1.0;
-	cc->y = 1.0;
-	cc->z = 1.0;
-//printf("%f,%f,%f\n",vv->x,vv->y,vv->z);
-
 	ctxbuf[k].type = type;
 	ctxbuf[k].addr = addr;
 
@@ -428,57 +419,119 @@ int graph_add(u64 type, void* addr)
 }
 int graph_pair(int j, int k)
 {
-	u16* ii = (void*)buffer + 0x500000 + 2*info.linecount;
-	ii[0] = j;
-	ii[1] = k;
-	info.linecount += 2;
+	int i;
+	u32 data;
+	u32* addr;
 
-//printf("j=%d,k=%d\n",j,k);
+	if(j==k)return 0;
+	if(j<k)data = (j<<16)+k;
+	else data = (k<<16)+j;
+
+       	addr = (void*)buffer + 0x500000;
+	for(i=0;i<info.linecount;i++)
+	{
+		if(addr[i] == data)return 0;
+	}
+
+	addr[info.linecount] = data;
+	printf("%d:%x\n", info.linecount, data);
+
+	info.linecount += 1;
 	return 1;
+}
+void graph_bfs(int cur, int len)
+{
+	int j,k;
+	struct hash* h;
+	struct wire* w;
+printf("[%d,%d)\n",cur,len);
+
+	for(j=cur;j<len;j++)
+	{
+printf("%x,%llx,%llx\n",j,ctxbuf[j].type, ctxbuf[j].addr);
+		if(ctxbuf[j].type == __hash__)
+		{
+			h = strhash_read(ctxbuf[j].addr);
+			if(h == 0)continue;
+		}
+		else if(ctxbuf[j].type == __file__)
+		{
+			h = filemd5_read(ctxbuf[j].addr);
+			if(h == 0)continue;
+		}
+		else if(ctxbuf[j].type == __fun__)
+		{
+			h = funcindex_read(ctxbuf[j].addr);
+			if(h == 0)continue;
+		}
+		else continue;
+
+		w = relation_read(h->irel);
+		while(1)
+		{
+			if(w == 0)break;
+			k = graph_add(w->selftype, w->selfchip);
+			if(j != k)graph_pair(j,k);
+
+			w = samepinprevchip(w);
+		}
+
+		w = relation_read(h->orel);
+		while(1)
+		{
+			if(w == 0)break;
+			k = graph_add(w->desttype, w->destchip);
+			if(j != k)graph_pair(j,k);
+
+			w = samechipprevpin(w);
+		}
+	}
+
 }
 void graph_one(char* buf, int len)
 {
-	int j,k;
+	int i,j,k;
 	u64 temp;
-	u64* p;
-	struct hash* h;
-	struct wire* w;
+	u32* p;
+	struct vertex* vv;
+	struct vertex* nn;
+	struct vertex* cc;
 
-	p = (u64*)&info;
-	for(j=0;j<8;j++)p[j] = 0;
+	p = (void*)&info;
+	for(j=0;j<16;j++)p[j] = 0;
 
 	temp = strhash_generate(buf, len);
-	h = strhash_read(temp);
-	if(h == 0)
-	{
-		printf("no str: %.*s\n", len, buf);
-		return;
-	}
 
 	ctxlen = 0;
-	j = graph_add(hex32('h','a','s','h'), h);
+	graph_add(__hash__, temp);
 
-	w = relation_read(h->irel);
-	while(1)
+	j = 0;
+	for(i=0;i<6;i++)
 	{
-		if(w == 0)break;
-		p = (void*)(w->selfchip);
-		k = graph_add(w->selftype, p);
-		graph_pair(j,k);
+		if(ctxlen > 250)break;
+		k = ctxlen;
 
-		w = samepinprevchip(w);
-	}
-	w = relation_read(h->orel);
-	while(1)
-	{
-		if(w == 0)break;
-		p = (void*)(w->selfchip);
-		k = graph_add(w->selftype, p);
-		graph_pair(j,k);
-
-		w = samechipprevpin(w);
+		graph_bfs(j, ctxlen);
+		j = k;
 	}
 
+	for(j=0;j<ctxlen;j++)
+	{
+		vv = (void*)buffer + 0x000000 + 12*j;
+		vv->x = (float)(rand()&0xffff)/65536.0;
+		vv->y = (float)(rand()&0xffff)/65536.0;
+		vv->z = (float)(rand()&0xffff)/65536.0;
+
+		nn = (void*)buffer + 0x100000 + 12*j;
+		nn->x = 0.0;
+		nn->y = 0.0;
+		nn->z = 1.0;
+
+		cc = (void*)buffer + 0x200000 + 12*j;
+		cc->x = 1.0;
+		cc->y = 1.0;
+		cc->z = 1.0;
+	}
 	graph_data(buffer, &info, ctxbuf, ctxlen);
 }
 void graph(int argc, char** argv)
