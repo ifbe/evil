@@ -104,9 +104,9 @@ void forcedirected_3d(
 			obuf[j].x, obuf[j].y, obuf[j].z
 		);
 */
-		vbuf[j].x += obuf[j].x / 100.0;
-		vbuf[j].y += obuf[j].y / 100.0;
-		vbuf[j].z += obuf[j].z / 100.0;
+		vbuf[j].x += obuf[j].x / 50.0;
+		vbuf[j].y += obuf[j].y / 50.0;
+		vbuf[j].z += obuf[j].z / 50.0;
 	}
 	//say("\n");
 }
@@ -178,21 +178,21 @@ void graph_tria(void* buffer, struct binfo* info,
 	vbuf[vlen+5].z = z-s;
 
 
-	nbuf[vlen+0].x = 0.0;
+	nbuf[vlen+0].x = 1.0;
 	nbuf[vlen+0].y = 0.0;
-	nbuf[vlen+0].z = 1.0;
+	nbuf[vlen+0].z = 0.0;
 
-	nbuf[vlen+1].x = 0.0;
+	nbuf[vlen+1].x = -1.0;
 	nbuf[vlen+1].y = 0.0;
-	nbuf[vlen+1].z = 1.0;
+	nbuf[vlen+1].z = 0.0;
 
 	nbuf[vlen+2].x = 0.0;
-	nbuf[vlen+2].y = 0.0;
-	nbuf[vlen+2].z = 1.0;
+	nbuf[vlen+2].y = 1.0;
+	nbuf[vlen+2].z = 0.0;
 
 	nbuf[vlen+3].x = 0.0;
-	nbuf[vlen+3].y = 0.0;
-	nbuf[vlen+3].z = 1.0;
+	nbuf[vlen+3].y = -1.0;
+	nbuf[vlen+3].z = 0.0;
 
 	nbuf[vlen+4].x = 0.0;
 	nbuf[vlen+4].y = 0.0;
@@ -200,7 +200,7 @@ void graph_tria(void* buffer, struct binfo* info,
 
 	nbuf[vlen+5].x = 0.0;
 	nbuf[vlen+5].y = 0.0;
-	nbuf[vlen+5].z = 1.0;
+	nbuf[vlen+5].z = -1.0;
 
 
 	cbuf[vlen+0].x = r;

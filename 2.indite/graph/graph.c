@@ -490,7 +490,7 @@ printf("%x,%llx,%llx\n",j,ctxbuf[j].type, ctxbuf[j].addr);
 }
 void graph_one(char* buf, int len)
 {
-	int i,j,k;
+	int i,j,m,n;
 	u64 temp;
 	u32* p;
 	struct vertex* vv;
@@ -506,13 +506,25 @@ void graph_one(char* buf, int len)
 	graph_add(__hash__, temp);
 
 	j = 0;
-	for(i=0;i<6;i++)
+	for(i=0;i<20;i++)
 	{
-		if(ctxlen > 250)break;
-		k = ctxlen;
+		m = ctxlen;
+		n = info.linecount;
 
+//printf("before=%d\n",info.linecount);
 		graph_bfs(j, ctxlen);
-		j = k;
+//printf("after=%d\n",info.linecount);
+
+		if(info.linecount >= 0x1000)
+		{
+			ctxlen = m;
+			info.linecount = n;
+			break;
+		}
+		if(ctxlen <= m)break;
+		if(ctxlen >= 0x2000)break;
+
+		j = m;
 	}
 
 	for(j=0;j<ctxlen;j++)
