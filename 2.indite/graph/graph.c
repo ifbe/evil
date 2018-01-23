@@ -540,9 +540,9 @@ void graph_one(char* buf, int len)
 		nn->z = 1.0;
 
 		cc = (void*)buffer + 0x200000 + 12*j;
-		cc->x = 1.0;
-		cc->y = 1.0;
-		cc->z = 1.0;
+		cc->x = 0.80;
+		cc->y = 0.80;
+		cc->z = 0.80;
 	}
 	graph_data(buffer, &info, ctxbuf, ctxlen);
 }
