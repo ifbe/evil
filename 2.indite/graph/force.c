@@ -18,12 +18,13 @@ struct binfo
 	u64 pointcount;
 	u64 linecount;
 	u64 tricount;
-	u64 rectcount;
+	u64 fontcount;
 };
 struct context
 {
 	u64 type;
-	void* addr;
+	u64 addr;
+	u8 str[16];
 };
 struct pair
 {
@@ -120,7 +121,7 @@ void graph_tria(void* buffer, struct binfo* info,
 	struct vertex* vbuf = buffer;
 	struct vertex* nbuf = buffer+0x100000;
 	struct vertex* cbuf = buffer+0x200000;
-	u16* tbuf = buffer+0x600000;
+	u16* index = buffer+0x600000;
 
 	info->vertexcount += 6;
 	info->tricount += 8;
@@ -128,13 +129,7 @@ void graph_tria(void* buffer, struct binfo* info,
 	x = vbuf[j].x;
 	y = vbuf[j].y;
 	z = vbuf[j].z;
-	if(ctxbuf[j].type == hex32('h','a','s','h'))
-	{
-		r = 1.0;
-		g = 0.0;
-		b = 0.0;
-	}
-	else if(ctxbuf[j].type == hex32('f','i','l','e'))
+	if(ctxbuf[j].type == hex32('f','i','l','e'))
 	{
 		r = 0.0;
 		g = 1.0;
@@ -228,37 +223,115 @@ void graph_tria(void* buffer, struct binfo* info,
 	cbuf[vlen+5].z = b;
 
 
-	tbuf[tlen+ 0] = vlen+0;
-	tbuf[tlen+ 1] = vlen+2;
-	tbuf[tlen+ 2] = vlen+4;
+	index[tlen+ 0] = vlen+0;
+	index[tlen+ 1] = vlen+2;
+	index[tlen+ 2] = vlen+4;
 
-	tbuf[tlen+ 3] = vlen+0;
-	tbuf[tlen+ 4] = vlen+2;
-	tbuf[tlen+ 5] = vlen+5;
+	index[tlen+ 3] = vlen+0;
+	index[tlen+ 4] = vlen+2;
+	index[tlen+ 5] = vlen+5;
 
-	tbuf[tlen+ 6] = vlen+0;
-	tbuf[tlen+ 7] = vlen+3;
-	tbuf[tlen+ 8] = vlen+4;
+	index[tlen+ 6] = vlen+0;
+	index[tlen+ 7] = vlen+3;
+	index[tlen+ 8] = vlen+4;
 
-	tbuf[tlen+ 9] = vlen+0;
-	tbuf[tlen+10] = vlen+3;
-	tbuf[tlen+11] = vlen+5;
+	index[tlen+ 9] = vlen+0;
+	index[tlen+10] = vlen+3;
+	index[tlen+11] = vlen+5;
 
-	tbuf[tlen+12] = vlen+1;
-	tbuf[tlen+13] = vlen+2;
-	tbuf[tlen+14] = vlen+4;
+	index[tlen+12] = vlen+1;
+	index[tlen+13] = vlen+2;
+	index[tlen+14] = vlen+4;
 
-	tbuf[tlen+15] = vlen+1;
-	tbuf[tlen+16] = vlen+2;
-	tbuf[tlen+17] = vlen+5;
+	index[tlen+15] = vlen+1;
+	index[tlen+16] = vlen+2;
+	index[tlen+17] = vlen+5;
 
-	tbuf[tlen+18] = vlen+1;
-	tbuf[tlen+19] = vlen+3;
-	tbuf[tlen+20] = vlen+4;
+	index[tlen+18] = vlen+1;
+	index[tlen+19] = vlen+3;
+	index[tlen+20] = vlen+4;
 
-	tbuf[tlen+21] = vlen+1;
-	tbuf[tlen+22] = vlen+3;
-	tbuf[tlen+23] = vlen+5;
+	index[tlen+21] = vlen+1;
+	index[tlen+22] = vlen+3;
+	index[tlen+23] = vlen+5;
+}
+void graph_ascii(void* buffer, struct binfo* info,
+	struct context* ctxbuf, int ctxlen,
+	float x, float y, float z,
+	float s, float t,
+	u8 dat)
+{
+	int vlen = info->vertexcount;
+	int tlen = (info->fontcount)*3;
+	struct vertex* vbuf = buffer;
+	float* tbuf = buffer+0x300000;
+	u16* index = buffer+0x700000;
+
+	info->vertexcount += 4;
+	info->fontcount += 2;
+
+	vbuf[vlen+0].x = x-s;
+	vbuf[vlen+0].y = y-t;
+	vbuf[vlen+0].z = z;
+
+	vbuf[vlen+1].x = x+s;
+	vbuf[vlen+1].y = y-t;
+	vbuf[vlen+1].z = z;
+
+	vbuf[vlen+2].x = x-s;
+	vbuf[vlen+2].y = y+t;
+	vbuf[vlen+2].z = z;
+
+	vbuf[vlen+3].x = x+s;
+	vbuf[vlen+3].y = y+t;
+	vbuf[vlen+3].z = z;
+
+
+	dat -= 0x20;
+	tbuf[2*vlen+ 0] = (dat&0xf)/15.9;
+	tbuf[2*vlen+ 1] = ((dat>>4)+1)/8.0;
+	tbuf[2*vlen+ 2] = ((dat&0xf)+1)/15.9;
+	tbuf[2*vlen+ 3] = ((dat>>4)+1)/8.0;
+	tbuf[2*vlen+ 4] = (dat&0xf)/15.9;
+	tbuf[2*vlen+ 5] = (dat>>4)/8.0;
+	tbuf[2*vlen+ 6] = ((dat&0xf)+1)/15.9;
+	tbuf[2*vlen+ 7] = (dat>>4)/8.0;
+
+
+	index[tlen+ 0] = vlen+0;
+	index[tlen+ 1] = vlen+1;
+	index[tlen+ 2] = vlen+3;
+
+	index[tlen+ 3] = vlen+0;
+	index[tlen+ 4] = vlen+2;
+	index[tlen+ 5] = vlen+3;
+}
+void graph_string(void* buffer, struct binfo* info,
+	struct context* ctxbuf, int ctxlen,
+	int j, float s)
+{
+	int k,len;
+	u8* p;
+	struct vertex* vbuf = buffer;
+	float x = vbuf[j].x;
+	float y = vbuf[j].y;
+	float z = vbuf[j].z;
+
+	p = ctxbuf[j].str;
+	for(len=0;len<16;len++)
+	{
+		if(p[len] == 0)break;
+	}
+
+	for(k=0;k<len;k++)
+	{
+		graph_ascii(
+			buffer, info, ctxbuf, ctxlen,
+			x+(k-(len/2))*s, y, z,
+			s/2, s,
+			p[k]
+		);
+	}
 }
 void graph_hack(void* buffer, struct binfo* info,
 	struct context* ctxbuf, int ctxlen)
@@ -278,8 +351,16 @@ void graph_hack(void* buffer, struct binfo* info,
 	vbuf[0].x = vbuf[0].y = vbuf[0].z = 0.0;
 
 	info->tricount = 0;
+	info->fontcount = 0;
 	for(j=0;j<ctxlen;j++)
 	{
-		graph_tria(buffer, info, ctxbuf, ctxlen, j, 0.05);
+		if(ctxbuf[j].type == hex32('h','a','s','h'))
+		{
+			graph_string(buffer, info, ctxbuf, ctxlen, j, 0.05);
+		}
+		else
+		{
+			graph_tria(buffer, info, ctxbuf, ctxlen, j, 0.05);
+		}
 	}
 }

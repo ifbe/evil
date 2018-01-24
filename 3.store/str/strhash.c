@@ -854,44 +854,29 @@ void strhash_print(u64 hash)
 	}
 	printf("%.*s", len, addr);
 }
-int strhash_export(u8* dst, u64* part)
+int strhash_export(u8* dst, u64 hash)
 {
-/*
-	int j,k,ret,len;
-	u8* buf;
+	int j,len;
 	u8* addr;
-	struct tree* t;
-	struct hash* h;
-	t = tree_search(*part);
-	if(t == 0)return 0;
+	struct leafdata* h;
 
-	ret = 0;
-	len = t->cur;
-	buf = t->buf;
-	for(j=0; j<len; j+=sizeof(struct hash))
+	h = bplus_search((void*)btnode, hash);
+	if(h == 0)return;
+
+	if((h->len) <= 8)
 	{
-		h = (void*)(buf+j);
-		//printf("%llx\n", *(u64*)h);
-
-		if((h->len) <= 8)
-		{
-			addr = (u8*)h;
-			k = 8;
-		}
-		else
-		{
-			addr = strdata_read(h->off);
-			k = h->len;
-		}
-		ret += snprintf(
-			(void*)dst+ret, 0xf0000-ret,
-			"%.*s\n", k, addr
-		);
+		addr = (char*)h;
+		len = 8;
 	}
-
-	*part = t->end;
-	return ret;
-*/
+	else
+	{
+		addr = strdata_read(h->off);
+		len = h->len;
+	}
+	//printf("%.*s", len, addr);
+	if(len > 15)len = 15;
+	for(j=0;j<len;j++)dst[j] = addr[j];
+	for(;j<16;j++)dst[j] = 0;
 }
 
 

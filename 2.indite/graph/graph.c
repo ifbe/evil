@@ -23,6 +23,7 @@ void graph_init(void*, void*, void*, int);
 void graph_data(void*, void*, void*, int);
 //
 u64 strhash_generate(void*, int);
+int strhash_export(u8* dst, u64 hash);
 void* strhash_read(u64);
 void* shapeindex_read(int);
 void* pointindex_read(int);
@@ -98,6 +99,7 @@ struct context
 {
 	u64 type;
 	u64 addr;
+	u8 str[16];
 };
 static int ctxlen;
 static struct context ctxbuf[0x1000];
@@ -413,6 +415,10 @@ int graph_add(u64 type, u64 addr)
 
 	ctxbuf[k].type = type;
 	ctxbuf[k].addr = addr;
+	if(type == __hash__)
+	{
+		strhash_export(ctxbuf[k].str, addr);
+	}
 
 	ctxlen++;
 	return k;
