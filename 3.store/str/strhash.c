@@ -861,7 +861,7 @@ int strhash_export(u8* dst, u64 hash)
 	struct leafdata* h;
 
 	h = bplus_search((void*)btnode, hash);
-	if(h == 0)return;
+	if(h == 0)return 0;
 
 	if((h->len) <= 8)
 	{
@@ -874,9 +874,16 @@ int strhash_export(u8* dst, u64 hash)
 		len = h->len;
 	}
 	//printf("%.*s", len, addr);
-	if(len > 15)len = 15;
-	for(j=0;j<len;j++)dst[j] = addr[j];
-	for(;j<16;j++)dst[j] = 0;
+	if(len >= 16)
+	{
+		for(j=0;j<16;j++)dst[j] = addr[j];
+	}
+	else
+	{
+		for(j=0;j<len;j++)dst[j] = addr[j];
+		for(;j<16;j++)dst[j] = 0;
+	}
+	return len;
 }
 
 

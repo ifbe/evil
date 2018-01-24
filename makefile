@@ -52,14 +52,14 @@ SRC = \
 3.store/str/strlib.c \
 3.store/rel/rel.c
 
-all:
+cli:
 	gcc main.c -o a.exe \
 	$(SRC) \
 	2.indite/graph/cli.c \
 	2.indite/serve/cli.c \
 	-lm
 
-linuxgl:
+linuxglut:
 	gcc main.c -o a.exe \
 	$(SRC) \
 	2.indite/graph/opengl.c \
@@ -72,9 +72,17 @@ epoll:
 	2.indite/serve/epoll.c \
 	-lm
 
-wingl:
+winapi:
 	gcc main.c -o a.exe \
 	$(SRC) \
+	2.indite/graph/ascii.c \
+	2.indite/graph/winapi.c \
+	2.indite/serve/cli.c \
+	-lgdi32 -lpthread -lm
+winglut:
+	gcc main.c -o a.exe \
+	$(SRC) \
+	2.indite/graph/ascii.c \
 	2.indite/graph/opengl.c \
 	2.indite/serve/cli.c \
 	-lglew32 -lfreeglut -lglu32 -lopengl32 -lpthread -lm
