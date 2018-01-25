@@ -11,6 +11,8 @@
 #define __hash__ hex32('h','a','s','h')
 #define __file__ hex32('f','i','l','e')
 #define __fun__ hex32('f','u','n','c')
+#define __chip__ hex32('c','h','i','p')
+#define __pin__ hex32('p','i','n',0)
 #define __shape__ hex32('s','h','a','p')
 #define __point__ hex32('p','o','i','n')
 #define __line__ hex32('l','i','n','e')
@@ -25,6 +27,8 @@ void graph_data(void*, void*, void*, int);
 u64 strhash_generate(void*, int);
 int strhash_export(u8* dst, u64 hash);
 void* strhash_read(u64);
+void* pin_read(int);
+void* chipindex_read(int);
 void* shapeindex_read(int);
 void* pointindex_read(int);
 void* pointdata_read(int);
@@ -470,6 +474,16 @@ printf("%x,%llx,%llx\n",j,ctxbuf[j].type, ctxbuf[j].addr);
 			h = funcindex_read(ctxbuf[j].addr);
 			if(h == 0)continue;
 		}
+		else if(ctxbuf[j].type == __chip__)
+		{
+			h = chipindex_read(ctxbuf[j].addr);
+			if(h == 0)continue;
+		}
+		else if(ctxbuf[j].type == __pin__)
+		{
+			h = pin_read(ctxbuf[j].addr);
+			if(h == 0)continue;
+		}
 		else continue;
 
 		w = relation_read(h->irel);
@@ -512,7 +526,7 @@ void graph_one(char* buf, int len)
 	graph_add(__hash__, temp);
 
 	j = 0;
-	for(i=0;i<3;i++)
+	for(i=0;i<20;i++)
 	{
 		m = ctxlen;
 		n = info.linecount;
