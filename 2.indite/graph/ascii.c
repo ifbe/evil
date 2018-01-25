@@ -108,28 +108,70 @@ static u8 asciitable[0x60*16]={
 
 
 
-void drawascii(u32* screen, int width, int height,
-	int xx, int yy, u8 ch
-)
+void drawline(u32* buf, u32 rgb, int w, int h,
+	int x0, int y0, int x1, int y1)
+{
+	int dx,dy,sx,sy,e1,e2;
+
+	if(x0 < x1){dx = x1-x0;sx = 1;}
+	else {dx = x0-x1;sx = -1;}
+	if(y0 < y1){dy = y1-y0;sy = 1;}
+	else {dy = y0-y1;sy = -1;}
+	if(dx > dy){e1 = dx/2;}
+	else {e1 = -dy/2;}
+
+	rgb |= 0xff000000;
+	while(1)
+	{
+		if((x0 == x1)&&(y0 == y1))break;
+
+		if((x0 >= 0)&&(x0 < w)&&(y0 >= 0)&&(y0 < h))
+		{buf[(y0*w) + x0] = rgb;}
+
+		e2 = e1;
+		if(e2 >-dx){e1 -= dy;x0 += sx;}
+		if(e2 < dy){e1 += dx;y0 += sy;}
+	}
+}
+void drawascii(u32* buf, u32 rgb, int w, int h,
+	int xx, int yy, u8 ch)
 {
 	u8 temp;
-	u32 rgb = 0xff0000ff;
-	int x,y,offset;
+	int x,y,t;
 	u8* points;
 	if((ch>0x20)&&(ch<0x80))ch -= 0x20;
 	else ch = 0;
 
+	rgb |= 0xff000000;
 	points = asciitable + (ch<<4);
 	for(y=0;y<16;y++)
 	{
 		temp = points[y];
 		for(x=0;x<8;x++)
 		{
-			offset = width*(yy+y) + xx+x;
-			if(offset < 0)continue;
-			if( (temp&0x80) != 0 )screen[offset] = rgb;
+			t = w*(yy+y) + xx+x;
+			if((t>=0)&&(t<w*h))
+			{
+				if( (temp&0x80) != 0 )buf[t] = rgb;
+			}
 
 			temp<<=1;
 		}//x
 	}//y
+}
+void drawstring(u32* buf, u32 rgb, int w, int h,
+	int xx, int yy, u8* str, int len)
+{
+	int j,k;
+	if(str == 0)return;
+	if(len == 0)return;
+	for(j=0;j<len;j++)
+	{
+		if(str[j] < 0x20){len=j;break;}
+	}
+	for(j=0;j<len;j++)
+	{
+		drawascii(buf, rgb, w, h, 
+			xx+8*(j-len/2), yy-4, str[j]);
+	}
 }

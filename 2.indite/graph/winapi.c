@@ -6,6 +6,8 @@
 #define u16 unsigned short
 #define u32 unsigned int
 #define u64 unsigned long long
+#define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
+#define hex64(a,b,c,d,e,f,g,h) (hex32(a,b,c,d) | (((u64)hex32(e,f,g,h))<<32))
 #include<stdio.h>
 #include<stdlib.h>
 #include<windows.h>
@@ -13,7 +15,11 @@
 #include<winuser.h>
 #include<commctrl.h>
 #include<pthread.h>
-void drawascii(void*, int, int, int, int, u8);
+void drawstring(void* buf, u32 rgb, int w, int h,
+	int x, int y, u8* str, int len);
+void drawline(void* buf, u32 rgb, int w, int h,
+	int x0, int y0, int x1, int y1);
+void forcedirected_2d(void*, int, void*, int, void*, int);
 
 
 
@@ -23,6 +29,7 @@ static HDC dc;
 static u8 buf[1024*1024*4];
 static int width = 1024;
 static int height = 768;
+static float scale = 128.0;
 //global
 static HANDLE hStartEvent;
 static WNDCLASS wc;
@@ -34,9 +41,31 @@ static int rightdown=0;
 static POINT pt, pe;
 static RECT rt, re;
 //
+struct binfo
+{
+	u64 vertexcount;
+	u64 normalcount;
+	u64 colorcount;
+	u64 texturecount;
+	u64 pointcount;
+	u64 linecount;
+	u64 tricount;
+	u64 fontcount;
+};
+struct context
+{
+	u64 type;
+	u64 addr;
+	u8 str[16];
+};
+struct pair
+{
+	u16 parent;
+	u16 child;
+};
 static void* buffer = 0;
 static struct binfo* binfo = 0;
-static void* ctxbuf = 0;
+static struct context* ctxbuf = 0;
 static int ctxlen = 0;
 
 
@@ -45,6 +74,13 @@ static int ctxlen = 0;
 void windowwrite()
 {
 	BITMAPINFO info;
+	int x0,y0,x1,y1,m,n,j;
+	int olen = ctxlen;
+	int vlen = ctxlen;
+	int llen = binfo->linecount;
+	float* obuf = buffer+0x700000;
+	float* vbuf = buffer;
+	struct pair* lbuf = buffer+0x500000;
 
 	info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
 	info.bmiHeader.biWidth = width;
@@ -62,11 +98,39 @@ void windowwrite()
 	info.bmiColors[0].rgbRed = 255;
 	info.bmiColors[0].rgbReserved = 255;
 
-	//
-	drawascii(
-		buf, width, height,
-		20, 99, 'j'
-	);
+	for(j=0;j<4;j++)
+	{
+		forcedirected_2d(
+			obuf, olen,
+			vbuf, vlen,
+			lbuf, llen
+		);
+		vbuf[0] = vbuf[1] = vbuf[2] = 0.0;
+	}
+
+	for(j=0;j<width*height*4;j++)buf[j] = 0;
+	for(j=0;j<llen;j++)
+	{
+		m = 3*lbuf[j].parent;
+		n = 3*lbuf[j].child;
+		x0 = 512 + (int)(scale * vbuf[m+0]);
+		y0 = 384 + (int)(scale * vbuf[m+1]);
+		x1 = 512 + (int)(scale * vbuf[n+0]);
+		y1 = 384 + (int)(scale * vbuf[n+1]);
+		drawline(buf, 0xffffff, width, height, x0,y0,x1,y1);
+	}
+	for(j=ctxlen-1;j>=0;j--)
+	{
+		x0 = 512 + (int)(scale * vbuf[3*j+0]);
+		y0 = 384 + (int)(scale * vbuf[3*j+1]);
+		if(ctxbuf[j].type == hex32('h','a','s','h'))
+		{
+			drawstring(
+				buf, 0xff0000, width, height,
+				x0, y0, ctxbuf[j].str, 16
+			);
+		}
+	}
 
 	//write bmp to win
 	SetDIBitsToDevice(
@@ -98,8 +162,16 @@ LRESULT CALLBACK WindowProc(HWND wnd, UINT msg, WPARAM wparam, LPARAM lparam)
 			GetCursorPos(&pt);
 			ScreenToClient(wnd, &pt);
 
-			if( ((wparam>>16) & 0xffff ) < 0xf000 )k = 'f';
-			else k = 'b';
+			if( ((wparam>>16) & 0xffff ) < 0xf000 )
+			{
+				scale*=2;
+				k = 'f';
+			}
+			else
+			{
+				scale/=2;
+				k = 'b';
+			}
 			x = ((lparam&0xffff)<<16);
 			y = (lparam&0xffff0000);
 			printf("%c@:%d,%d\n",k,x,y);
@@ -215,7 +287,7 @@ LRESULT CALLBACK WindowProc(HWND wnd, UINT msg, WPARAM wparam, LPARAM lparam)
 
 		case WM_PAINT:
 		{
-			windowwrite();
+			printf("WM_PAINT\n");
 			goto theend;
 		}
 	}
@@ -298,6 +370,7 @@ void* graph_thread(void* arg)
 	//wait
 	while(GetMessage(&msg, NULL, 0, 0))
 	{
+		windowwrite();
 		TranslateMessage(&msg);
 		DispatchMessage(&msg);
 	}

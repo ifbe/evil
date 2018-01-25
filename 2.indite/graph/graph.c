@@ -512,7 +512,7 @@ void graph_one(char* buf, int len)
 	graph_add(__hash__, temp);
 
 	j = 0;
-	for(i=0;i<20;i++)
+	for(i=0;i<3;i++)
 	{
 		m = ctxlen;
 		n = info.linecount;

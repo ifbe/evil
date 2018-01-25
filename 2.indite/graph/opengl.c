@@ -13,7 +13,7 @@ void vectornormalize(float* v);
 void vectorcross(float* v, float* x);
 void quaternionrotate(float* v, float* q);
 void graph_hack(void*, void*, void*, int);
-void drawascii(void*, int, int, int, int, u8);
+void drawascii(void*, u32, int, int, int, int, u8);
 
 
 
@@ -295,7 +295,7 @@ void inittexture()
 	for(ch=0x20;ch<0x80;ch++)
 	{
 		drawascii(
-			fontdata, 128, 128,
+			fontdata, 0xff, 128, 128,
 			(ch&0xf)<<3, (ch&0xf0)-32, ch
 		);
 	}
