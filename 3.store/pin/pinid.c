@@ -12,7 +12,6 @@
 #define u16 unsigned short
 #define u32 unsigned int
 #define u64 unsigned long long
-int decstr2data(void*, void*);
 
 
 
@@ -37,15 +36,12 @@ static int pinindexlen = 0;
 
 void* pin_write(u8* buf, int len)
 {
-	u64 temp=0;
 	struct pinindex* addr;
-	decstr2data(buf+3, &temp);
-	//printf("temp=%llx\n", temp);
 
-	addr = (void*)pinindexbuf + temp*0x20;
-	addr->self = temp*0x20;
+	addr = (void*)pinindexbuf + pinindexlen;
+	addr->self = pinindexlen;
 
-	pinindexlen = 0x1000;
+	pinindexlen += 0x20;
 	return addr;
 }
 void* pin_read(int offset)

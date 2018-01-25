@@ -203,6 +203,18 @@ void graph_tria(void* buffer, struct binfo* info,
 		g = 0.0;
 		b = 1.0;
 	}
+	else if(ctxbuf[j].type == hex32('c','h','i','p'))
+	{
+		r = 0.4;
+		g = 1.0;
+		b = 0.7;
+	}
+	else if(ctxbuf[j].type == hex32('p','i','n',0))
+	{
+		r = 0.8;
+		g = 0.3;
+		b = 1.0;
+	}
 	else
 	{
 		r = 0.9;

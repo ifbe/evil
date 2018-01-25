@@ -9,6 +9,8 @@
 void* pin_write(void*, int);
 void* chip_write(void*, int);
 void* strhash_write(void*, int);
+//
+u64 strhash_generate(void*, int);
 void relation_write(
 	void* uchip, u64 ufoot, u64 utype,
 	void* bchip, u64 bfoot, u64 btype);
@@ -16,6 +18,15 @@ void relation_write(
 
 
 
+struct matchtable
+{
+	u64 name;
+	void* body;
+};
+static struct matchtable mt[10];
+static int tablen = 0;
+void* pinbody;
+//
 static int countline = 0;
 static int innote = 0;
 static int inchip = 0;
@@ -23,6 +34,106 @@ static int inname = 0;
 
 
 
+
+void* cir_read_chip(u8* buf, int len)
+{
+	int j;
+	u64 name;
+	void* addr1;
+	void* addr2;
+
+	//check
+	name = strhash_generate(buf, len);
+	for(j=0;j<tablen;j++)
+	{
+		if(mt[j].name == name)return mt[j].body;
+	}
+
+	//create
+	addr1 = strhash_write(buf, len);
+	addr2 = chip_write(buf, len);
+	relation_write(
+		addr1, 0, hex32('h','a','s','h'),
+		addr2, 0, hex32('c','h','i','p')
+	);
+
+	mt[tablen].name = name;
+	mt[tablen].body = addr2;
+	tablen += 1;
+
+	return addr2;
+}
+void cir_read_line(u8* buf, int len)
+{
+	int j;
+	void* addr;
+	for(j=0;j<len;j++)
+	{
+		if('{' == buf[j])
+		{
+			printf("{%.*s}\n", j, buf);
+			addr = strhash_write(buf, j);
+			pinbody = pin_write(buf, len);
+			relation_write(
+				addr, 0, hex32('h','a','s','h'),
+				pinbody, 0, hex32('p','i','n',0)
+			);
+			return;
+		}
+		if('(' == buf[j])
+		{
+			printf("(%.*s, %.*s)\n", j, buf, len-j-2, buf+j+1);
+			addr = cir_read_chip(buf, j);
+			relation_write(
+				addr, buf[j+1], hex32('c','h','i','p'),
+				pinbody, 0, hex32('p','i','n',0)
+			);
+			return;
+		}
+	}
+	printf("????%.*s\n", len, buf);
+}
+void cir_read(u8* buf, int len)
+{
+	int j,k;
+	for(j=0;j<len;j++)
+	{
+		if(('/' == buf[j])&&('*' == buf[j+1]))
+		{
+			for(;j<len;j++)
+			{
+				if(('*' == buf[j])&&('/' == buf[j+1]))
+				{
+					j += 1;
+					break;
+				}
+				else if(0xa == buf[j])countline++;
+			}
+		}
+		else if(0xa == buf[j])
+		{
+			countline++;
+		}
+		else if(
+			(('a' <= buf[j])&&(buf[j] <= 'z')) |
+			(('A' <= buf[j])&&(buf[j] <= 'Z')) |
+			(('0' <= buf[j])&&(buf[j] <= '9')) |
+			('_' == buf[j]) )
+		{
+			for(k=j+1;k<len;k++)
+			{
+				if(buf[k] <= 0x20){break;}
+			}
+			cir_read_line(buf+j, k-j);
+			j = k-1;
+		}
+	}
+}
+
+
+
+
+/*
 static void* chip = 0;
 static u64 foot = 0;
 static u64 type = 0;
@@ -128,6 +239,7 @@ void cir_read(u8* buf, int len)
 		}
 	}
 }
+*/
 void cir_write()
 {
 }
@@ -142,10 +254,11 @@ void cir_stop()
 }
 void cir_start()
 {
-	countline = 0;
+	countline = 1;
 	innote = 0;
 	inchip = 0;
 	inname = 0;
+	tablen = 0;
 }
 void cir_delete()
 {
