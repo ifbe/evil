@@ -290,6 +290,18 @@ LRESULT CALLBACK WindowProc(HWND wnd, UINT msg, WPARAM wparam, LPARAM lparam)
 			printf("WM_PAINT\n");
 			goto theend;
 		}
+
+		case WM_CLOSE:
+		{
+			PostQuitMessage(0);
+			return 0;
+		}
+
+		case WM_DESTROY:
+		{
+			DestroyWindow(wnd);
+			return 0;
+		}
 	}
 
 theend:
@@ -374,6 +386,8 @@ void* graph_thread(void* arg)
 		TranslateMessage(&msg);
 		DispatchMessage(&msg);
 	}
+
+	exit(-1);
 	return 0;
 }
 
