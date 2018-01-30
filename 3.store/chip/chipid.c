@@ -20,8 +20,8 @@ struct chipindex
 {
 	u32 self;
 	u32 what;
-	u32 off;
-	u32 len;
+	u32 type;
+	float data;
 
 	u64 first;
 	u64 last;

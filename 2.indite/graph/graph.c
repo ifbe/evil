@@ -107,300 +107,6 @@ struct context
 };
 static int ctxlen;
 static struct context ctxbuf[0x1000];
-//
-struct vertex
-{
-	float x;
-	float y;
-	float z;
-	float w;
-};
-static int templen = 0;
-static u16 tempbuf[0x1000];
-static u8* origin;
-
-
-
-
-void traverseshape_point()
-{
-	u16* ii;
-	float n[3];
-	struct vertex* vv;
-
-	//vertex
-	vv = (void*)buffer + 0x100000 + tempbuf[0]*12;
-	vv->x += 0.0;
-	vv->y += 0.0;
-	vv->z += 1.0;
-
-	//colour
-	vv = (void*)buffer + 0x200000 + tempbuf[0]*12;
-	vv->x = 1.0;
-	vv->y = 1.0;
-	vv->z = 1.0;
-
-	ii = (void*)buffer + 0x400000 + info.pointcount;
-	ii[0] = tempbuf[0];
-	info.pointcount += 1;
-}
-void traverseshape_line()
-{
-	u16* ii;
-	float n[3];
-	struct vertex* vv;
-
-	//vertex
-	vv = (void*)buffer + 0x100000 + tempbuf[0]*12;
-	vv->x += 0.0;
-	vv->y += 0.0;
-	vv->z += 1.0;
-	vv = (void*)buffer + 0x100000 + tempbuf[1]*12;
-	vv->x += 0.0;
-	vv->y += 0.0;
-	vv->z += 1.0;
-
-	//colour
-	vv = (void*)buffer + 0x200000 + tempbuf[0]*12;
-	vv->x = 1.0;
-	vv->y = 1.0;
-	vv->z = 1.0;
-	vv = (void*)buffer + 0x200000 + tempbuf[1]*12;
-	vv->x = 1.0;
-	vv->y = 1.0;
-	vv->z = 1.0;
-
-	ii = (void*)buffer + 0x500000 + info.linecount*2;
-	ii[0] = tempbuf[0];
-	ii[1] = tempbuf[1];
-	info.linecount += 2;
-}
-void traverseshape_triangle()
-{
-	u16* ii;
-	float n[3];
-	struct vertex* vv;
-
-	trianglenormal(n,
-		(void*)buffer + tempbuf[0]*12,
-		(void*)buffer + tempbuf[1]*12,
-		(void*)buffer + tempbuf[2]*12
-	);
-	printf("%f,%f,%f\n",n[0],n[1],n[2]);
-
-	//vertex
-	vv = (void*)buffer + 0x100000 + tempbuf[0]*12;
-	vv->x += n[0];
-	vv->y += n[1];
-	vv->z += n[2];
-	vv = (void*)buffer + 0x100000 + tempbuf[1]*12;
-	vv->x += n[0];
-	vv->y += n[1];
-	vv->z += n[2];
-	vv = (void*)buffer + 0x100000 + tempbuf[2]*12;
-	vv->x += n[0];
-	vv->y += n[1];
-	vv->z += n[2];
-
-	//colour
-	vv = (void*)buffer + 0x200000 + tempbuf[0]*12;
-	vv->x = 0.5;
-	vv->y = 0.28;
-	vv->z = 0.0;
-	vv = (void*)buffer + 0x200000 + tempbuf[1]*12;
-	vv->x = 0.5;
-	vv->y = 0.28;
-	vv->z = 0.0;
-	vv = (void*)buffer + 0x200000 + tempbuf[2]*12;
-	vv->x = 0.5;
-	vv->y = 0.28;
-	vv->z = 0.0;
-
-	ii = (void*)buffer + 0x600000 + info.tricount*2;
-	ii[0] = tempbuf[0];
-	ii[1] = tempbuf[1];
-	ii[2] = tempbuf[2];
-	info.tricount += 3;
-}
-void traverseshape_rectangle()
-{
-	u16* ii;
-	float n[3];
-	struct vertex* vv;
-
-	trianglenormal(n,
-		(void*)buffer + tempbuf[0]*12,
-		(void*)buffer + tempbuf[1]*12,
-		(void*)buffer + tempbuf[2]*12
-	);
-	printf("%f,%f,%f\n",n[0],n[1],n[2]);
-
-	//normal
-	vv = (void*)buffer + 0x100000 + tempbuf[0]*12;
-	vv->x += n[0];
-	vv->y += n[1];
-	vv->z += n[2];
-	vv = (void*)buffer + 0x100000 + tempbuf[1]*12;
-	vv->x += n[0];
-	vv->y += n[1];
-	vv->z += n[2];
-	vv = (void*)buffer + 0x100000 + tempbuf[2]*12;
-	vv->x += n[0];
-	vv->y += n[1];
-	vv->z += n[2];
-	vv = (void*)buffer + 0x100000 + tempbuf[3]*12;
-	vv->x += n[0];
-	vv->y += n[1];
-	vv->z += n[2];
-
-	//colour
-	vv = (void*)buffer + 0x200000 + tempbuf[0]*12;
-	vv->x = 0.5;
-	vv->y = 0.28;
-	vv->z = 0.0;
-	vv = (void*)buffer + 0x200000 + tempbuf[1]*12;
-	vv->x = 0.5;
-	vv->y = 0.28;
-	vv->z = 0.0;
-	vv = (void*)buffer + 0x200000 + tempbuf[2]*12;
-	vv->x = 0.5;
-	vv->y = 0.28;
-	vv->z = 0.0;
-	vv = (void*)buffer + 0x200000 + tempbuf[3]*12;
-	vv->x = 0.5;
-	vv->y = 0.28;
-	vv->z = 0.0;
-
-	ii = (void*)buffer + 0x700000 + info.rectcount*2;
-	ii[0] = tempbuf[0];
-	ii[1] = tempbuf[1];
-	ii[2] = tempbuf[2];
-	ii[3] = tempbuf[3];
-	info.rectcount += 4;
-}
-void traverseshape_dfs(struct shapeindex* shape)
-{
-	u64 temp;
-	u64 type;
-	struct wire* rel;
-	struct shapeindex* ss;
-	struct pointindex* pp;
-	struct vertex* uu;
-	struct vertex* vv;
-
-shapeirel:
-	rel = relation_read(shape->irel);
-	if(rel == 0)return;
-
-	type = shape->type;
-	printf("%.8s\n", (char*)&type);
-
-	templen = 0;
-	while(rel != 0)
-	{
-		if(rel->selftype == __shape__)
-		{
-			ss = shapeindex_read(rel->selfchip);
-			traverseshape_dfs(ss);
-			//printf("i:	shap@%08llx	%.8s\n",
-			//rel->selfchip, &(ss->type));
-		}
-		else if(rel->selftype == __point__)
-		{
-			temp = (rel->selfchip)/0x20;
-			tempbuf[templen] = temp;
-			templen++;
-
-			pp = pointindex_read(rel->selfchip);
-			uu = (void*)origin + pp->ofst;
-			vv = (void*)buffer + temp*12;
-			vv->x = uu->x;
-			vv->y = uu->y;
-			vv->z = uu->z;
-
-			printf("i:	%lld@%llx	(%f, %f, %f)\n",
-				(rel->selfchip)/0x20, (u64)vv, vv->x, vv->y, vv->z);
-		}
-
-		rel = samepinprevchip(rel);
-		if(rel == 0)break;
-	}
-
-shapeorel:
-	if(type == __rect__)traverseshape_rectangle();
-	else if(type == __tri__)traverseshape_triangle();
-	else if(type == __line__)traverseshape_line();
-	else if(type == __point__)traverseshape_point();
-}
-void* searchshapefromstr(char* buf, int len)
-{
-	u64 temp;
-	u64 haha;
-	void* shap;
-	struct hash* h;
-	struct wire* w;
-	//printf("%.*s\n", len, buf);
-
-	temp = strhash_generate(buf, len);
-	h = strhash_read(temp);
-	if(h == 0)
-	{
-		printf("no str: %.*s", len, buf);
-		return 0;
-	}
-
-	w = relation_read(h->irel);
-	if(w == 0)
-	{
-		printf("no rel\n");
-		return 0;
-	}
-
-	haha = 0;
-	while(1)
-	{
-		if(w->selftype == __shape__)
-		{
-			if(haha != 0)
-			{
-				printf("more than one shap\n");
-				return 0;
-			}
-			else haha = w->selfchip;
-			printf("shap@%llx\n", w->selfchip);
-		}
-		else
-		{
-			printf("%llx,%llx,%x\n", w->selfchip, w->selffoot, w->selftype);
-		}
-
-		w = samepinprevchip(w);
-		if(w == 0)break;
-	}
-	if(haha == 0)
-	{
-		printf("no shap from hash\n");
-		return 0;
-	}
-
-	shap = shapeindex_read(haha);
-	return shap;
-}
-void graph_one3(char* buf, int len)
-{
-	int j;
-	void* temp;
-	u64* p = (u64*)&info;
-	for(j=0;j<8;j++)p[j] = 0;
-
-	temp = searchshapefromstr(buf, len);
-	traverseshape_dfs(temp);
-
-	info.vertexcount = 0x1000;
-	info.normalcount = 0x1000;
-	info.colorcount = 0x1000;
-	graph_data(buffer, &info, ctxbuf, ctxlen);
-}
 
 
 
@@ -437,7 +143,7 @@ int graph_pair(int j, int k)
 	if(j<k)data = (j<<16)+k;
 	else data = (k<<16)+j;
 
-       	addr = (void*)buffer + 0x500000;
+	addr = (void*)buffer + 0x500000;
 	for(i=0;i<info.linecount;i++)
 	{
 		if(addr[i] == data)return 0;
@@ -513,9 +219,9 @@ void graph_one(char* buf, int len)
 	int i,j,m,n;
 	u64 temp;
 	u32* p;
-	struct vertex* vv;
-	struct vertex* nn;
-	struct vertex* cc;
+	float* vv;
+	float* nn;
+	float* cc;
 
 	p = (void*)&info;
 	for(j=0;j<16;j++)p[j] = 0;
@@ -542,7 +248,7 @@ void graph_one(char* buf, int len)
 			break;
 		}
 		if(ctxlen <= m)break;
-		if(ctxlen >= 0x2000)break;
+		if(ctxlen >= 1000)break;
 
 		j = m;
 	}
@@ -550,19 +256,19 @@ void graph_one(char* buf, int len)
 	for(j=0;j<ctxlen;j++)
 	{
 		vv = (void*)buffer + 0x000000 + 12*j;
-		vv->x = (float)(rand()&0xffff)/65536.0;
-		vv->y = (float)(rand()&0xffff)/65536.0;
-		vv->z = (float)(rand()&0xffff)/65536.0;
+		vv[0] = (float)(rand()&0xffff)/65536.0;
+		vv[1] = (float)(rand()&0xffff)/65536.0;
+		vv[2] = (float)(rand()&0xffff)/65536.0;
 
 		nn = (void*)buffer + 0x100000 + 12*j;
-		nn->x = 0.0;
-		nn->y = 0.0;
-		nn->z = 1.0;
+		nn[0] = 0.0;
+		nn[1] = 0.0;
+		nn[2] = 1.0;
 
 		cc = (void*)buffer + 0x200000 + 12*j;
-		cc->x = 0.80;
-		cc->y = 0.80;
-		cc->z = 0.80;
+		cc[0] = 0.80;
+		cc[1] = 0.80;
+		cc[2] = 0.80;
 	}
 	graph_data(buffer, &info, ctxbuf, ctxlen);
 }
@@ -573,7 +279,6 @@ void graph(int argc, char** argv)
 	int j;
 
 	readthemall(1);
-	origin = pointdata_read(0);
 
 	graph_init(buffer, &info, ctxbuf, ctxlen);
 	for(j=1;j<argc;j++)
