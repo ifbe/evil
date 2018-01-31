@@ -6,11 +6,12 @@
 #define u64 unsigned long long
 #define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
 #define hex64(a,b,c,d,e,f,g,h) (hex32(a,b,c,d) | (((u64)hex32(e,f,g,h))<<32))
+void* chip_write(int, float);
 void* pin_write(void*, int);
-void* chip_write(void*, int);
-void* strhash_write(void*, int);
 //
+void* strhash_write(void*, int);
 u64 strhash_generate(void*, int);
+//
 void relation_write(
 	void* uchip, u64 ufoot, u64 utype,
 	void* bchip, u64 bfoot, u64 btype);
@@ -35,7 +36,7 @@ static int inname = 0;
 
 
 
-void* cir_read_chip(u8* buf, int len)
+void* cir_read_chip(u8* buf, int len, int type, float val)
 {
 	int j;
 	u64 name;
@@ -51,7 +52,7 @@ void* cir_read_chip(u8* buf, int len)
 
 	//create
 	addr1 = strhash_write(buf, len);
-	addr2 = chip_write(buf, len);
+	addr2 = chip_write(type, val);
 	relation_write(
 		addr1, 0, hex32('h','a','s','h'),
 		addr2, 0, hex32('c','h','i','p')
@@ -65,10 +66,16 @@ void* cir_read_chip(u8* buf, int len)
 }
 void cir_read_line(u8* buf, int len)
 {
-	int j;
+	int j,k;
+	float f;
 	void* addr;
+	if(0 == buf)return;
+	if(0 == len)return;
+	printf("%d	%.*s\n",countline, len, buf);
+
 	for(j=0;j<len;j++)
 	{
+		if('}' == buf[j])return;
 		if('{' == buf[j])
 		{
 			printf("{%.*s}\n", j, buf);
@@ -83,11 +90,33 @@ void cir_read_line(u8* buf, int len)
 		if('(' == buf[j])
 		{
 			printf("(%.*s, %.*s)\n", j, buf, len-j-2, buf+j+1);
-			addr = cir_read_chip(buf, j);
+			addr = cir_read_chip(buf, j, buf[0], 0.0);
 			relation_write(
 				addr, buf[j+1], hex32('c','h','i','p'),
 				pinbody, 0, hex32('p','i','n',0)
 			);
+			return;
+		}
+		if('=' == buf[j])
+		{
+			for(k=j+1;k<len;k++)
+			{
+				if(buf[k] > 0x20)
+				{
+					sscanf(buf+k, "%f", &f);
+					break;
+				}
+			}
+			for(k=j-1;k>=0;k--)
+			{
+				if(buf[k] > 0x20)
+				{
+					k = k+1;
+					break;
+				}
+			}
+			printf("%.*s = %f\n", k, buf, f);
+			addr = cir_read_chip(buf, k, buf[0], f);
 			return;
 		}
 	}
@@ -95,7 +124,9 @@ void cir_read_line(u8* buf, int len)
 }
 void cir_read(u8* buf, int len)
 {
-	int j,k;
+	int j,k,m,n;
+
+	k = 0;
 	for(j=0;j<len;j++)
 	{
 		if(('/' == buf[j])&&('*' == buf[j+1]))
@@ -109,23 +140,20 @@ void cir_read(u8* buf, int len)
 				}
 				else if(0xa == buf[j])countline++;
 			}
+			k = j+1;
 		}
 		else if(0xa == buf[j])
 		{
-			countline++;
-		}
-		else if(
-			(('a' <= buf[j])&&(buf[j] <= 'z')) |
-			(('A' <= buf[j])&&(buf[j] <= 'Z')) |
-			(('0' <= buf[j])&&(buf[j] <= '9')) |
-			('_' == buf[j]) )
-		{
-			for(k=j+1;k<len;k++)
+			for(m=k;m<j;m++)if(buf[m] > 0x20)break;
+			for(n=j-1;n>=m;n--)if(buf[n] > 0x20)break;
+			if(n-m > 0)
 			{
-				if(buf[k] <= 0x20){break;}
+				//printf("%d	%.*s\n", countline, n-m+1, buf+m);
+				cir_read_line(buf+m, n-m+1);
 			}
-			cir_read_line(buf+j, k-j);
-			j = k-1;
+
+			k = j+1;
+			countline++;
 		}
 	}
 }

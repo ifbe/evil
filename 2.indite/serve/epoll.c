@@ -21,7 +21,7 @@
 #define u64 unsigned long long
 #define MAXSIZE 4096
 void readthemall(int);
-void search_one(char* buf, int len);
+int search_one(void*, int, void*, int);
 
 
 
@@ -72,8 +72,8 @@ void epoll_mod(u64 fd)
 
 int servesocket_url(char* buf, int len)
 {
-	int j,ret = 0;
-	for(j=0;j<0x1000;j++)
+	int j,fd,ret = 0;
+	for(j=0;j<len;j++)
 	{
 		if(buf[j] <= 0x20)
 		{
@@ -82,22 +82,30 @@ int servesocket_url(char* buf, int len)
 			break;
 		}
 	}
+
 	if(ret == 0)
 	{
-		j = open("datafile/index.html", O_RDONLY);
-		if(j <= 0)return 0;
+		fd = open("datafile/index.html", O_RDONLY);
+		if(fd <= 0)return 0;
 	}
 	else
 	{
-		j = open(buf, O_RDONLY);
-		if(j <= 0)return 0;
+		fd = open(buf, O_RDONLY);
+		if(fd <= 0)return 0;
 	}
 
-	ret = read(j, wbuf, 0x100000);
-	close(j);
+	j = snprintf(wbuf, 0x80, "%s<html><body><pre><code>", response);
+	ret = read(fd, wbuf+j, 0xfff00);
+	if(ret <= 0)
+	{
+		close(fd);
+		return 0;
+	}
+	j += ret;
+	j += snprintf(wbuf+j, 0x80, "</code></pre></body></html>");
 
-	if(ret <= 0)return 0;
-	return ret;
+	close(fd);
+	return j;
 }
 int servesocket_search(char* buf, int len)
 {
@@ -111,13 +119,14 @@ int servesocket_search(char* buf, int len)
 			break;
 		}
 	}
-	search_one(buf, ret);
-
-	return snprintf(wbuf, 0x80, "%s%s", response, buf);
+	j = snprintf(wbuf, 0x80, "%s<html><body><pre><code>", response);
+	j += search_one(wbuf+j, 0xfff00, buf, ret);
+	j += snprintf(wbuf+j, 0x80, "</code></pre></body></html>");
+	return j;
 }
 int servesocket(char* buf, int len)
 {
-	//printf("%.*s\n\n", len, buf);
+	printf("%.*s", len, buf);
 	if(strncmp(buf, "GET /", 5) != 0)return 0;
 
 	if(buf[5] != '?')return servesocket_url(buf+5, len-5);

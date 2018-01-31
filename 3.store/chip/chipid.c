@@ -34,13 +34,15 @@ static int chipindexlen;
 
 
 
-void* chip_write(u8* buf, int len)
+void* chip_write(int type, float data)
 {
 	struct chipindex* addr;
 	//printf("chip@%d\n", linenum);
 
 	addr = (void*)chipindexbuf + chipindexlen;
 	addr->self = chipindexlen;
+	addr->type = type;
+	addr->data = data;
 
 	chipindexlen += 0x20;
 	if(chipindexlen >= maxlen)

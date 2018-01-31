@@ -5,6 +5,8 @@
 #define u16 unsigned short
 #define u32 unsigned int
 #define u64 unsigned long long
+#define f32 float
+#define f64 double
 #define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
 #define __hash__ hex32('h','a','s','h')
 #define __chip__ hex32('c','h','i','p')
@@ -57,8 +59,8 @@ struct chipindex
 {
 	u32 self;
 	u32 what;
-	u32 off;
-	u32 len;
+	u32 type;
+	f32 data;
 
 	u64 irel;
 	u64 orel;
@@ -371,24 +373,28 @@ void kirchhoff_traverseold(int offset)
 struct context
 {
 	u64 type;
-	u64 addr;
+	union{
+		u64 addr;
+		f64 data;
+	};
 	union{
 		u8 str[16];
-		struct
+		struct	//U, I, R
 		{
 			u32 P;
 			u32 N;
 		};
-		struct
+		struct	//mos
 		{
 			u32 D;
 			u32 S;
 			u32 G;
+			u32 B;
 		};
-		struct
+		struct	//pin
 		{
-			float V;
-			float I;
+			f32 V;
+			f32 I;
 		};
 	};
 };
@@ -420,10 +426,6 @@ int kirchhoff_add(u64 type, u64 addr)
 
 	ctxbuf[k].type = type;
 	ctxbuf[k].addr = addr;
-	if(type == __hash__)
-	{
-		strhash_export(ctxbuf[k].str, addr);
-	}
 
 	ctxlen++;
 	return k;
@@ -446,32 +448,6 @@ void kirchhoff_wire(u32 pin, u32 chip, u32 foot)
 
 	//printf("	%d,%d,%c\n", pin, chip, foot);
 	return;
-}
-void kirchhoff_sort()
-{
-	int j,k;
-	u64 temp;
-	u64* addr = (void*)wbuf;
-
-	for(j=0;j<wlen;j++)
-	{
-		for(k=j+1;k<wlen;k++)
-		{
-			if(addr[k-1] > addr[k])
-			{
-				temp = addr[k];
-				addr[k] = addr[k-1];
-				addr[k-1] = temp;
-			}
-		}
-	}
-	for(j=0;j<wlen;j++)
-	{
-		printf("%d,%d,%c\n",
-			(addr[j]>>48)&0xffff,
-			(addr[j]>>32)&0xffff,
-			addr[j]&0xff);
-	}
 }
 void kirchhoff_bfs(int cur, int len)
 {
@@ -531,6 +507,63 @@ printf("[%d,%d)\n",cur,len);
 		}
 	}
 }
+
+
+
+
+void kirchhoff_data()
+{
+	int j,t;
+	f32 f;
+	struct chipindex* chip;
+printf("\ndata:\n");
+
+	for(j=0;j<ctxlen;j++)
+	{
+		if(ctxbuf[j].type == __chip__)
+		{
+			chip = chipindex_read(ctxbuf[j].addr);
+			t = chip->type;
+			f = chip->data;
+
+			//printf("%d, %c, %f\n", j, t, f);
+			ctxbuf[j].type = t;
+			ctxbuf[j].data = f;
+		}
+	}
+
+	for(j=0;j<ctxlen;j++)
+	{
+		printf("%s:	%f\n", &ctxbuf[j].type, ctxbuf[j].data);
+	}
+}
+void kirchhoff_sort()
+{
+	int j,k;
+	u64 temp;
+	u64* addr = (void*)wbuf;
+printf("\nsort:\n");
+
+	for(j=0;j<wlen;j++)
+	{
+		for(k=j+1;k<wlen;k++)
+		{
+			if(addr[k-1] > addr[k])
+			{
+				temp = addr[k];
+				addr[k] = addr[k-1];
+				addr[k-1] = temp;
+			}
+		}
+	}
+	for(j=0;j<wlen;j++)
+	{
+		printf("%d,%d,%c\n",
+			(addr[j]>>48)&0xffff,
+			(addr[j]>>32)&0xffff,
+			addr[j]&0xff);
+	}
+}
 void kirchhoff(int argc, char** argv)
 {
 	int i,j,m;
@@ -568,5 +601,6 @@ void kirchhoff(int argc, char** argv)
 		j = m;
 	}
 
+	kirchhoff_data();
 	kirchhoff_sort();
 }

@@ -7,6 +7,7 @@
 #define u64 unsigned long long
 #define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
 u64 strhash_generate(void*, int);
+int strhash_export(u64, void*, int);
 void strhash_print(u64);
 void* strhash_read(u64);
 //
@@ -100,6 +101,9 @@ struct wire
 	u32 samechipprevpin;
 	u32 samechipnextpin;
 };
+//
+static u8* sb = 0;
+static int sl = 0;
 
 
 
@@ -119,7 +123,8 @@ void chipname(u64 addr)
 	{
 		if(orel->desttype == hex32('h','a','s','h'))
 		{
-			strhash_print(orel->destchip);
+			//strhash_print(orel->destchip);
+			sb += strhash_export(orel->destchip, sb, 99);
 			break;
 		}
 
@@ -129,7 +134,7 @@ void chipname(u64 addr)
 normal:
 	return;
 error:
-	printf("\n");
+	sb += snprintf(sb, sl, "?chipname?");
 }
 void filename(u64 addr)
 {
@@ -146,7 +151,8 @@ void filename(u64 addr)
 	{
 		if(orel->desttype == hex32('h','a','s','h'))
 		{
-			strhash_print(orel->destchip);
+			//strhash_print(orel->destchip);
+			sb += strhash_export(orel->destchip, sb, 99);
 			break;
 		}
 
@@ -156,7 +162,7 @@ void filename(u64 addr)
 normal:
 	return;
 error:
-	printf("\n");
+	sb += snprintf(sb, sl, "?filename?");
 }
 void funcname(u64 addr)
 {
@@ -173,7 +179,8 @@ void funcname(u64 addr)
 	{
 		if(orel->desttype == hex32('h','a','s','h'))
 		{
-			strhash_print(orel->destchip);
+			//strhash_print(orel->destchip);
+			sb += strhash_export(orel->destchip, sb, 99);
 			break;
 		}
 
@@ -183,7 +190,7 @@ void funcname(u64 addr)
 normal:
 	return;
 error:
-	printf("\n");
+	sb += snprintf(sb, sl, "?funcname?");
 }
 void funcpath(u64 addr)
 {
@@ -201,7 +208,7 @@ void funcpath(u64 addr)
 		if(orel->desttype == hex32('f','i','l','e'))
 		{
 			filename(orel->destchip);
-			printf(":%lld", orel->destfoot);
+			sb += snprintf(sb, sl, ":%lld", orel->destfoot);
 		}
 
 		orel = samechipprevpin(orel);
@@ -210,7 +217,7 @@ void funcpath(u64 addr)
 normal:
 	return;
 error:
-	printf("\n");
+	sb += snprintf(sb, sl, "?funcpath?");
 }
 
 
@@ -224,7 +231,7 @@ void searchpin(int offset)
 	if(offset%0x20 != 0)printf("notfound: pin@%x",offset);
 
 	pin = pin_read(offset);
-	printf("pin@%08x	@%llx\n", offset, (u64)pin);
+	sb += snprintf(sb, sl, "pin@%08x	@%llx\n", offset, (u64)pin);
 
 pinirel:
 	irel = relation_read(pin->irel);
@@ -235,21 +242,29 @@ pinirel:
 	{
 		if(irel->selftype == hex32('h','a','s','h'))
 		{
-			printf("i:	");
-			strhash_print(irel->selfchip);
-			printf("\n");
+			sb += snprintf(sb, sl, "i:	");
+			//strhash_print(irel->selfchip);
+			sb += strhash_export(irel->selfchip, sb, 99);
+			sb += snprintf(sb, sl, "\n");
 		}
 		else if(irel->selftype == hex32('c','h','i','p'))
 		{
-			printf("i:	");
+			sb += snprintf(sb, sl, "i:	");
 			chipname(irel->selfchip);
-			printf(":%c\n", (u32)(irel->selffoot));
+			sb += snprintf(sb, sl,
+				":%c\n",
+				(u32)(irel->selffoot)
+			);
 		}
 		else
 		{
-			printf("i:	%-s@%08llx	%08llx	(@%lld)\n",
-			(char*)&(irel->selftype),
-			irel->selfchip, irel->selffoot, irel->destfoot);
+			sb += snprintf(sb, sl,
+				"i:	%-s@%08llx	%08llx	(@%lld)\n",
+				(char*)&(irel->selftype),
+				irel->selfchip,
+				irel->selffoot,
+				irel->destfoot
+			);
 		}
 
 		irel = samepinprevchip(irel);
@@ -265,20 +280,27 @@ pinorel:
 	{
 		if(orel->desttype == hex32('h','a','s','h'))
 		{
-			printf("o:	");
-			strhash_print(orel->destchip);
-			printf("\n");
+			sb += snprintf(sb, sl, "o:	");
+			//strhash_print(orel->destchip);
+			sb += strhash_export(orel->destchip, sb, 99);
+			sb += snprintf(sb, sl, "\n");
 		}
 		else if(orel->desttype == hex32('p','i','n',0))
 		{
-			printf("o:	%c@pin%llx\n",
-				(u32)(orel->selffoot), (orel->destchip)/0x20);
+			sb += snprintf(sb, sl,
+				"o:	%c@pin%llx\n",
+				(u32)(orel->selffoot),
+				(orel->destchip)/0x20
+			);
 		}
 		else
 		{
-			printf("o:	%-s@%08llx	%08llx\n",
-			(char*)&(orel->desttype),
-			orel->destchip, orel->destfoot);
+			sb += snprintf(sb, sl,
+				"o:	%-s@%08llx	%08llx\n",
+				(char*)&(orel->desttype),
+				orel->destchip,
+				orel->destfoot
+			);
 		}
 
 		orel = samechipprevpin(orel);
@@ -297,7 +319,11 @@ void searchchip(int offset)
 	if(offset%0x20 != 0)printf("notfound: chip@%x",offset);
 
 	chip = chipindex_read(offset);
-	printf("chip@%08x	@%llx\n", offset, (u64)chip);
+	sb += snprintf(sb, sl,
+		"chip@%08x	@%llx\n",
+		offset,
+		(u64)chip
+	);
 
 chipirel:
 	irel = relation_read(chip->irel);
@@ -307,15 +333,20 @@ chipirel:
 	{
 		if(irel->selftype == hex32('h','a','s','h'))
 		{
-			printf("i:	");
-			strhash_print(irel->selfchip);
-			printf("\n");
+			sb += snprintf(sb, sl, "i:	");
+			//strhash_print(irel->selfchip);
+			sb += strhash_export(irel->selfchip, sb, 99);
+			sb += snprintf(sb, sl, "\n");
 		}
 		else
 		{
-			printf("i:	%-s@%08llx	%08llx	(@%lld)\n",
-			(char*)&(irel->selftype),
-			irel->selfchip, irel->selffoot, irel->destfoot);
+			sb += snprintf(sb, sl,
+				"i:	%-s@%08llx	%08llx	(@%lld)\n",
+				(char*)&(irel->selftype),
+				irel->selfchip,
+				irel->selffoot,
+				irel->destfoot
+			);
 		}
 
 		irel = samepinprevchip(irel);
@@ -330,20 +361,27 @@ chiporel:
 	{
 		if(orel->desttype == hex32('h','a','s','h'))
 		{
-			printf("o:	");
-			strhash_print(orel->destchip);
-			printf("\n");
+			sb += snprintf(sb, sl, "o:	");
+			//strhash_print(orel->destchip);
+			sb += strhash_export(orel->destchip, sb, 99);
+			sb += snprintf(sb, sl, "\n");
 		}
 		else if(orel->desttype == hex32('p','i','n',0))
 		{
-			printf("o:	%c@pin%llx\n",
-				(u32)(orel->selffoot), (orel->destchip)/0x20);
+			sb += snprintf(sb, sl,
+				"o:	%c@pin%llx\n",
+				(u32)(orel->selffoot),
+				(orel->destchip)/0x20
+			);
 		}
 		else
 		{
-			printf("o:	%-s@%08llx	%08llx\n",
-			(char*)&(orel->desttype),
-			orel->destchip, orel->destfoot);
+			sb += snprintf(sb, sl,
+				"o:	%-s@%08llx	%08llx\n",
+				(char*)&(orel->desttype),
+				orel->destchip,
+				orel->destfoot
+			);
 		}
 
 		orel = samechipprevpin(orel);
@@ -364,7 +402,11 @@ void searchshape(int offset)
 	if(offset%0x20 != 0)printf("notfound: shape@%x",offset);
 
 	shape = shapeindex_read(offset);
-	printf("shape@%08x	@%llx\n", offset, (u64)shape);
+	sb += snprintf(sb, sl,
+		"shape@%08x	@%llx\n",
+		offset,
+		(u64)shape
+	);
 
 shapeirel:
 	irel = relation_read(shape->irel);
@@ -374,26 +416,37 @@ shapeirel:
 	{
 		if(irel->selftype == hex32('h','a','s','h'))
 		{
-			printf("i:	");
-			strhash_print(irel->selfchip);
-			printf("\n");
+			sb += snprintf(sb, sl, "i:	");
+			//strhash_print(irel->selfchip);
+			sb += strhash_export(irel->selfchip, sb, 99);
+			sb += snprintf(sb, sl, "\n");
 		}
 		else if(irel->selftype == hex32('s','h','a','p'))
 		{
 			ss = shapeindex_read(irel->selfchip);
-			printf("i:	shap@%08llx	%.8s\n",
-			irel->selfchip, (char*)&(ss->type));
+			sb += snprintf(sb, sl,
+				"i:	shap@%08llx	%.8s\n",
+				irel->selfchip,
+				(char*)&(ss->type)
+			);
 		}
 		else if(irel->selftype == hex32('p','o','i','n'))
 		{
 			pp = pointindex_read(irel->selfchip);
-			printf("i:	poin@%08llx	%llx\n",
-			irel->selfchip, pp->haha);
+			sb += snprintf(sb, sl,
+				"i:	poin@%08llx	%llx\n",
+				irel->selfchip,
+				pp->haha
+			);
 		}
 		else
 		{
-			printf("i:	%-s@%08llx	%08llx\n",
-			(char*)&(irel->selftype), irel->selfchip, irel->selffoot);
+			sb += snprintf(sb, sl,
+				"i:	%-s@%08llx	%08llx\n",
+				(char*)&(irel->selftype),
+				irel->selfchip,
+				irel->selffoot
+			);
 		}
 
 		irel = samepinprevchip(irel);
@@ -408,20 +461,28 @@ shapeorel:
 	{
 		if(orel->desttype == hex32('h','a','s','h'))
 		{
-			printf("o:	");
-			strhash_print(orel->destchip);
-			printf("\n");
+			sb += snprintf(sb, sl, "o:	");
+			//strhash_print(orel->destchip);
+			sb += strhash_export(orel->destchip, sb, 99);
+			sb += snprintf(sb, sl, "\n");
 		}
 		else if(orel->desttype == hex32('s','h','a','p'))
 		{
 			ss = shapeindex_read(orel->destchip);
-			printf("o:	shap@%08llx	%.8s\n",
-			orel->destchip, (char*)&(ss->type));
+			sb += snprintf(sb, sl,
+				"o:	shap@%08llx	%.8s\n",
+				orel->destchip,
+				(char*)&(ss->type)
+			);
 		}
 		else
 		{
-			printf("o:	%-s@%08llx	%08llx\n",
-			(char*)&(orel->desttype), orel->destchip, orel->destfoot);
+			sb += snprintf(sb, sl,
+				"o:	%-s@%08llx	%08llx\n",
+				(char*)&(orel->desttype),
+				orel->destchip,
+				orel->destfoot
+			);
 		}
 
 		orel = samechipprevpin(orel);
@@ -440,7 +501,11 @@ void searchfile(int offset)
 	if(offset%0x20 != 0)printf("notfound: file@%x",offset);
 
 	file = filemd5_read(offset);
-	printf("file@%08x	@%llx\n", offset, (u64)file);
+	sb += snprintf(sb, sl,
+		"file@%08x	@%llx\n",
+		offset,
+		(u64)file
+	);
 
 fileirel:
 	irel = relation_read(file->irel);
@@ -450,21 +515,33 @@ fileirel:
 	{
 		if(irel->selftype == hex32('h','a','s','h'))
 		{
-			printf("i:	str	:%lld	", irel->destfoot);
-			strhash_print(irel->selfchip);
-			printf("\n");
+			sb += snprintf(sb, sl,
+				"i:	str	:%lld	",
+				irel->destfoot
+			);
+			//strhash_print(irel->selfchip);
+			sb += strhash_export(irel->selfchip, sb, 99);
+			sb += snprintf(sb, sl, "\n");
 		}
 		else if(irel->selftype == hex32('f','u','n','c'))
 		{
-			printf("i:	func@%08llx	:%lld	", irel->selfchip, irel->destfoot);
+			sb += snprintf(sb, sl,
+				"i:	func@%08llx	:%lld	",
+				irel->selfchip,
+				irel->destfoot
+			);
 			funcname(irel->selfchip);
-			printf("\n");
+			sb += snprintf(sb, sl, "\n");
 		}
 		else
 		{
-			printf("i:	%-s@%08llx	%08llx	(@%lld)\n",
-			(char*)&(irel->selftype),
-			irel->selfchip, irel->selffoot, irel->destfoot);
+			sb += snprintf(sb, sl,
+				"i:	%-s@%08llx	%08llx	(@%lld)\n",
+				(char*)&(irel->selftype),
+				irel->selfchip,
+				irel->selffoot,
+				irel->destfoot
+			);
 		}
 
 		irel = samepinprevchip(irel);
@@ -480,15 +557,19 @@ fileorel:
 	{
 		if(orel->desttype == hex32('h','a','s','h'))
 		{
-			printf("o:	");
-			strhash_print(orel->destchip);
-			printf("\n");
+			sb += snprintf(sb, sl, "o:	");
+			//strhash_print(orel->destchip);
+			sb += strhash_export(orel->destchip, sb, 99);
+			sb += snprintf(sb, sl, "\n");
 		}
 		else
 		{
-			printf("o:	%-s@%08llx	%08llx\n",
-			(char*)&(orel->desttype),
-			orel->destchip, orel->destfoot);
+			sb += snprintf(sb, sl,
+				"o:	%-s@%08llx	%08llx\n",
+				(char*)&(orel->desttype),
+				orel->destchip,
+				orel->destfoot
+			);
 		}
 
 		orel = samechipprevpin(orel);
@@ -507,7 +588,11 @@ void searchfunc(int offset)
 	if(offset%0x20 != 0)printf("notfound: func@%x",offset);
 
 	f = funcindex_read(offset);
-	printf("func@%08x	@%llx\n", offset, (u64)f);
+	sb += snprintf(sb, sl,
+		"func@%08x	@%llx\n",
+		offset,
+		(u64)f
+	);
 
 funcirel:
 	irel = relation_read(f->irel);
@@ -519,14 +604,21 @@ funcirel:
 		{
 			if(irel->selfflag == hex32('s','t','r',0))
 			{
-				printf("i:	str	:%lld	", irel->destfoot);
+				sb += snprintf(sb, sl,
+					"i:	str	:%lld	",
+					irel->destfoot
+				);
 			}
 			else
 			{
-				printf("i:	func	:%lld	", irel->destfoot);
+				sb += snprintf(sb, sl,
+					"i:	func	:%lld	",
+					irel->destfoot
+				);
 			}
-			strhash_print(irel->selfchip);
-			printf("\n");
+			//strhash_print(irel->selfchip);
+			sb += strhash_export(irel->selfchip, sb, 99);
+			sb += snprintf(sb, sl, "\n");
 		}
 
 		irel = samepinprevchip(irel);
@@ -541,20 +633,30 @@ funcorel:
 	{
 		if(orel->desttype == hex32('h','a','s','h'))
 		{
-			printf("o:	");
-			strhash_print(orel->destchip);
-			printf("\n");
+			sb += snprintf(sb, sl, "o:	");
+			//strhash_print(orel->destchip);
+			sb += strhash_export(orel->destchip, sb, 99);
+			sb += snprintf(sb, sl, "\n");
 		}
 		else if(orel->desttype == hex32('f','i','l','e'))
 		{
-			printf("o:	file@%08llx	", orel->destchip);
+			sb += snprintf(sb, sl,
+				"o:	file@%08llx	",
+				orel->destchip
+			);
 			filename(orel->destchip);
-			printf(":%lld\n", orel->destfoot);
+			sb += snprintf(sb, sl,
+				":%lld\n",
+				orel->destfoot
+			);
 		}
 		else
 		{
-			printf("o:	func@%08llx	%08llx\n",
-			orel->destchip, orel->destfoot);
+			sb += snprintf(sb, sl,
+				"o:	func@%08llx	%08llx\n",
+				orel->destchip,
+				orel->destfoot
+			);
 		}
 
 		orel = samechipprevpin(orel);
@@ -580,7 +682,13 @@ void searchhash(char* buf, int len)
 		printf("notfound: %s\n", buf);
 		return;
 	}
-	printf("hash: %08x%08x @0x%08llx(%s)\n", h->hash1, h->hash0, (u64)h, buf);
+	sb += snprintf(sb, sl,
+		"hash: %08x%08x @0x%08llx(%s)\n",
+		h->hash1,
+		h->hash0,
+		(u64)h,
+		buf
+	);
 
 hashirel:
 	irel = relation_read(h->irel);
@@ -590,28 +698,42 @@ hashirel:
 	{
 		if(irel->selftype == hex32('h','a','s','h'))
 		{
-			printf("i:	");
-			strhash_print(irel->selfchip);
-			printf("\n");
+			sb += snprintf(sb, sl, "i:	");
+			//strhash_print(irel->selfchip);
+			sb += strhash_export(irel->selfchip, sb, 99);
+			sb += snprintf(sb, sl, "\n");
 		}
 		else if(irel->selftype == hex32('f','u','n','c'))
 		{
-			printf("i:	func@%08llx	", irel->selfchip);
+			sb += snprintf(sb, sl,
+				"i:	func@%08llx	",
+				irel->selfchip
+			);
 			funcpath(irel->selfchip);
-			printf("\n");
+			sb += snprintf(sb, sl, "\n");
 		}
 		else if(irel->selftype == hex32('f','i','l','e'))
 		{
 			special = irel->selfchip;
-			printf("i:	file@%08llx\n", irel->selfchip);
+			sb += snprintf(sb, sl,
+				"i:	file@%08llx\n",
+				irel->selfchip
+			);
 		}
 		else if(irel->selftype == hex32('c','h','i','p'))
 		{
-			printf("i:	chip@%08llx\n", irel->selfchip);
+			sb += snprintf(sb, sl,
+				"i:	chip@%08llx\n",
+				irel->selfchip
+			);
 		}
 		else
 		{
-			printf("i:	%.8s@%llx\n", (char*)&irel->selftype, irel->selfchip);
+			sb += snprintf(sb, sl,
+				"i:	%.8s@%llx\n",
+				(char*)&irel->selftype,
+				irel->selfchip
+			);
 		}
 
 		irel = samepinprevchip(irel);
@@ -626,27 +748,46 @@ hashorel:
 	{
 		if(orel->desttype == hex32('h','a','s','h'))
 		{
-			printf("o:	");
-			strhash_print(orel->destchip);
-			printf("\n");
+			sb += snprintf(sb, sl, "o:	");
+			//strhash_print(orel->destchip);
+			sb += strhash_export(orel->destchip, sb, 99);
+			sb += snprintf(sb, sl, "\n");
 		}
 		else if(orel->desttype == hex32('f','u','n','c'))
 		{
-			printf("o:	func@%08llx	", orel->destchip);
+			sb += snprintf(sb, sl,
+				"o:	func@%08llx	",
+				orel->destchip
+			);
+
 			funcpath(orel->destchip);
-			printf("	");
+			sb += snprintf(sb, sl, "	");
+
 			funcname(orel->destchip);
-			printf(":%lld	\n", orel->destfoot);
+			sb += snprintf(sb, sl,
+				":%lld	\n",
+				orel->destfoot
+			);
 		}
 		else if(orel->desttype == hex32('f','i','l','e'))
 		{
-			printf("o:	file@%08llx	", orel->destchip);
+			sb += snprintf(sb, sl,
+				"o:	file@%08llx	",
+				orel->destchip
+			);
 			filename(orel->destchip);
-			printf(":%lld\n", orel->destfoot);
+			sb += snprintf(sb, sl,
+				":%lld\n",
+				orel->destfoot
+			);
 		}
 		else
 		{
-			printf("i:	%.8s@%llx\n", (char*)&orel->selftype, orel->selfchip);
+			sb += snprintf(sb, sl,
+				"i:	%.8s@%llx\n",
+				(char*)&orel->selftype,
+				orel->selfchip
+			);
 		}
 
 		orel = samechipprevpin(orel);
@@ -661,52 +802,60 @@ theend:
 
 
 
-void search_one(char* buf, int len)
+int search_one(u8* dbuf, int dlen, u8* sbuf, int slen)
 {
 	u64 temp;
-	if(len > 5)
+	sb = dbuf;
+	sl = dlen;
+
+	if(slen > 5)
 	{
-		if(strncmp(buf, "pin@", 4)==0)
+		if(strncmp(sbuf, "pin@", 4)==0)
 		{
-			hexstr2data(buf + 4, &temp);
+			hexstr2data(sbuf + 4, &temp);
 			searchpin(temp);
-			return;
+			goto byebye;
 		}
-		else if(strncmp(buf, "chip@", 5)==0)
+		else if(strncmp(sbuf, "chip@", 5)==0)
 		{
-			hexstr2data(buf + 5, &temp);
+			hexstr2data(sbuf + 5, &temp);
 			searchchip(temp);
-			return;
+			goto byebye;
 		}
-		else if(strncmp(buf, "file@", 5)==0)
+		else if(strncmp(sbuf, "file@", 5)==0)
 		{
-			hexstr2data(buf + 5, &temp);
+			hexstr2data(sbuf + 5, &temp);
 			searchfile(temp);
-			return;
+			goto byebye;
 		}
-		else if(strncmp(buf, "func@", 5)==0)
+		else if(strncmp(sbuf, "func@", 5)==0)
 		{
-			hexstr2data(buf + 5, &temp);
+			hexstr2data(sbuf + 5, &temp);
 			searchfunc(temp);
-			return;
+			goto byebye;
 		}
-		else if(strncmp(buf, "shap@", 5)==0)
+		else if(strncmp(sbuf, "shap@", 5)==0)
 		{
-			hexstr2data(buf + 5, &temp);
+			hexstr2data(sbuf + 5, &temp);
 			searchshape(temp);
-			return;
+			goto byebye;
 		}
 	}
-	searchhash(buf, len);
+	searchhash(sbuf, slen);
+byebye:
+	return sb-dbuf;
 }
 void search(int argc, char** argv)
 {
 	int j;
+	u8* buf;
+
 	readthemall(1);
+	buf = malloc(0x100000);
 
 	for(j=1;j<argc;j++)
 	{
-		search_one(argv[j], strlen(argv[j]));
-		printf("\n");
+		search_one(buf, 0x100000, argv[j], strlen(argv[j]));
+		printf("%.*s\n", sb-buf, buf);
 	}
 }

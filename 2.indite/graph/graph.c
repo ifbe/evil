@@ -24,8 +24,8 @@ void trianglenormal(void* n, void* a, void* b, void* c);
 void graph_init(void*, void*, void*, int);
 void graph_data(void*, void*, void*, int);
 //
+int strhash_export(u64 hash, u8* dst, int len);
 u64 strhash_generate(void*, int);
-int strhash_export(u8* dst, u64 hash);
 void* strhash_read(u64);
 void* pin_read(int);
 void* chipindex_read(int);
@@ -127,7 +127,7 @@ int graph_add(u64 type, u64 addr)
 	ctxbuf[k].addr = addr;
 	if(type == __hash__)
 	{
-		strhash_export(ctxbuf[k].str, addr);
+		strhash_export(addr, ctxbuf[k].str, 16);
 	}
 
 	ctxlen++;

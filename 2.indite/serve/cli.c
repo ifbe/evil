@@ -1,12 +1,13 @@
 #include<stdio.h>
 #include<string.h>
 void readthemall(int);
-void search_one(char*, int);
+int search_one(void*, int, void*, int);
 
 
 
 
-unsigned char buf[0x1000];
+unsigned char str[0x1000];
+unsigned char buf[0x100000];
 void serve(int argc, char** argv)
 {
 	int j;
@@ -15,17 +16,18 @@ void serve(int argc, char** argv)
 	while(1)
 	{
 		printf("->");
-		fgets(buf, 0x1000, stdin);
+		fgets(str, 0x1000, stdin);
 		for(j=0;j<0x1000;j++)
 		{
-			if(buf[j] <= 0xa)
+			if(str[j] <= 0xa)
 			{
-				buf[j] = 0;
+				str[j] = 0;
 				break;
 			}
 		}
-		if((buf[0] == 'q')&&(buf[1] == 0))break;
+		if((str[0] == 'q')&&(str[1] == 0))break;
 
-		search_one(buf, strlen(buf));
+		j = search_one(buf, 0x100000, str, strlen(str));
+		printf("%.*s\n", j, buf);
 	}
 }

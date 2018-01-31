@@ -59,9 +59,17 @@ cli:
 	2.indite/serve/cli.c \
 	-lm
 
+linuxxlib:
+	gcc main.c -o a.exe \
+	$(SRC) \
+	2.indite/graph/ascii.c \
+	2.indite/graph/xlib.c \
+	2.indite/serve/cli.c \
+	-lX11 -lpthread -lm
 linuxglut:
 	gcc main.c -o a.exe \
 	$(SRC) \
+	2.indite/graph/ascii.c \
 	2.indite/graph/opengl.c \
 	2.indite/serve/cli.c \
 	-lglut -lGLEW -lGLU -lGL -lpthread -lm
