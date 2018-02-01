@@ -1,9 +1,6 @@
 <!DOCTYPE html>
 <html contenteditable>
 <meta charset="UTF-8" />
-<style>
-*{margin:0; padding:0;}
-</style>
 <link rel="stylesheet" href="/www/code/ifbe/evil/datafile/highlight/styles/default.css">
 <script src="/www/code/ifbe/evil/datafile/highlight/highlight.pack.js"></script>
 <script>hljs.initHighlightingOnLoad();</script>
@@ -27,7 +24,7 @@ function display()
 		txt = txt.replace(/</g,'&lt');
 		txt = txt.replace(/>/g,'&gt');
 		//console.log(ajax.responseText);
-		document.getElementById("precode").innerHTML = txt;
+		document.getElementById("precode1").innerHTML = txt;
 		highlight();
 	}
 	}
@@ -35,26 +32,64 @@ function display()
 function search()
 {
 	var haha = document.getElementById("textdata").value;
-	window.location.href = "/?"+haha;
+
+	var ajax = new XMLHttpRequest();
+	ajax.open('get','/?'+haha);
+	ajax.send();
+	ajax.onreadystatechange = function () {
+	if (ajax.readyState==4 &&ajax.status==200) {
+		var txt = ajax.responseText;
+		txt = txt.replace(/</g,'&lt');
+		txt = txt.replace(/>/g,'&gt');
+		//console.log(ajax.responseText);
+		document.getElementById("precode1").innerHTML = txt;
+		highlight();
+	}
+	}
 }
 window.onload=function() {
 	document.onkeydown=function(ev) {
 	}
 }
 </script>
+<style>
+*{margin:0; padding:0;}
+.outbox{
+	width:50%;
+	float:left;
+}
+.inbox{
+	border-style:solid;
+	border-width:1px;
+}
+</style>
 <body style="width:100%;height:100%;background-color:#cccccc">
-<div style="background-color:#4080c0">
-	<br>
-	<input type="button" value="display" onclick="display();" style="width:10%;margin-left:20%;"></input>
-	<input id="textdata" type="search" value="start_kernel" style="width:40%;"></input>
-	<input type="button" value="search" onclick="search();" style="width:10%;"></input>
+
+<div class="outbox">
+<div>
+	<input id="textdata" type="display" value="main.c" style="margin-left:25%;width:40%;"></input>
+	<input type="button" value="display" onclick="display();" style="width:10%;"></input>
 	<div style="clear:both"></div>
-	<br>
 </div>
-<pre><code id="precode">#include&ltstdio.h&gt
+<pre class="inbox"><code id="precode1">#include&ltstdio.h&gt
 void main()
 {
 	printf("fuckyou\n");
 }</code></pre>
+</div>
+
+<div class="outbox">
+<div>
+	<input id="textdata" type="search" value="start_kernel" style="margin-left:25%;width:40%;"></input>
+	<input type="button" value="search" onclick="search();" style="width:10%;"></input>
+	<div style="clear:both"></div>
+</div>
+<pre class="inbox"><code id="precode2">#include&ltstdio.h&gt
+void main()
+{
+	printf("fuckyou\n");
+}</code></pre>
+</div>
+
 </body>
 </html>

@@ -7,7 +7,6 @@ void relation_start(int);
 void relation_stop();
 //
 void think_substr();
-void think_mergechip();
 
 
 
@@ -19,7 +18,6 @@ void think(int argc, char** argv)
 	relation_start(1);
 
 	think_substr();
-	think_mergechip();
 
 	strdata_stop();
 	strhash_stop();
