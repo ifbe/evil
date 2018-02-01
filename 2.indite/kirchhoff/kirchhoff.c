@@ -375,26 +375,36 @@ struct context
 	u64 type;
 	union{
 		u64 addr;
-		f64 data;
-	};
-	union{
-		u8 str[16];
 		struct	//U, I, R
 		{
-			u32 P;
-			u32 N;
+			u16 P;
+			u16 N;
+		};
+		struct	//bjt
+		{
+			u16 E;
+			u16 C;
+			u16 B;
 		};
 		struct	//mos
 		{
-			u32 D;
-			u32 S;
-			u32 G;
-			u32 B;
+			u16 D;
+			u16 S;
+			u16 G;
+			u16 X;
+		};
+	};
+	union{
+		u8 str[16];
+		struct{	//chip
+			f32 data;
 		};
 		struct	//pin
 		{
 			f32 V;
 			f32 I;
+			f32 Vbias;
+			f32 Ibias;
 		};
 	};
 };

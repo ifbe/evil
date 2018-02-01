@@ -99,7 +99,7 @@ iocp:
 	$(SRC) \
 	2.indite/graph/cli.c \
 	2.indite/serve/iocp.c \
-	-lm
+	-lws2_32 -lpthread -lm
 
 clean:
 	rm -f *.exe *.out
