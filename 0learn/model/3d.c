@@ -180,7 +180,7 @@ void three_call(u8* buf, int len)
 				return;
 			}
 			else haha = w->selfchip;
-			printf("shap@%llx\n", w->selfchip);
+			//printf("shap@%llx\n", w->selfchip);
 		}
 		else
 		{

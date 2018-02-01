@@ -71,14 +71,14 @@ void cir_read_line(u8* buf, int len)
 	void* addr;
 	if(0 == buf)return;
 	if(0 == len)return;
-	printf("%d	%.*s\n",countline, len, buf);
+	//printf("%d	%.*s\n",countline, len, buf);
 
 	for(j=0;j<len;j++)
 	{
 		if('}' == buf[j])return;
 		if('{' == buf[j])
 		{
-			printf("{%.*s}\n", j, buf);
+			//printf("{%.*s}\n", j, buf);
 			addr = strhash_write(buf, j);
 			pinbody = pin_write(buf, len);
 			relation_write(
@@ -89,7 +89,7 @@ void cir_read_line(u8* buf, int len)
 		}
 		if('(' == buf[j])
 		{
-			printf("(%.*s, %.*s)\n", j, buf, len-j-2, buf+j+1);
+			//printf("(%.*s, %.*s)\n", j, buf, len-j-2, buf+j+1);
 			addr = cir_read_chip(buf, j, buf[0], 0.0);
 			relation_write(
 				addr, buf[j+1], hex32('c','h','i','p'),
@@ -115,7 +115,7 @@ void cir_read_line(u8* buf, int len)
 					break;
 				}
 			}
-			printf("%.*s = %f\n", k, buf, f);
+			//printf("%.*s = %f\n", k, buf, f);
 			addr = cir_read_chip(buf, k, buf[0], f);
 			return;
 		}
