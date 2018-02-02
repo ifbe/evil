@@ -26,6 +26,8 @@ void* relation_read(int);
 //
 void readthemall(int);
 int hexstr2data(void*, void*);
+int input(void*, int);
+int output(void*, int);
 
 
 
@@ -683,11 +685,9 @@ void searchhash(char* buf, int len)
 		return;
 	}
 	sb += snprintf(sb, sl,
-		"hash: %08x%08x @0x%08llx(%s)\n",
-		h->hash1,
-		h->hash0,
-		(u64)h,
-		buf
+		"hash: %08x%08x(%.*s)\n",
+		h->hash1, h->hash0,
+		len, buf
 	);
 
 hashirel:
@@ -847,15 +847,29 @@ byebye:
 }
 void search(int argc, char** argv)
 {
-	int j;
+	int j,len;
 	u8* buf;
-
 	readthemall(1);
 	buf = malloc(0x100000);
 
-	for(j=1;j<argc;j++)
+	if(argc > 1)
 	{
-		search_one(buf, 0x100000, argv[j], strlen(argv[j]));
-		printf("%.*s\n", sb-buf, buf);
+		for(j=1;j<argc;j++)
+		{
+			len = strlen(argv[j]);
+			search_one(buf, 0x100000, argv[j], len);
+			printf("%.*s\n", sb-buf, buf);
+		}
+		return;
+	}
+
+	while(1)
+	{
+		printf("->");
+		len = input(buf, 0x1000);
+		if((buf[0] == 'q')&&(buf[1] == 0))break;
+
+		j = search_one(buf, 0x100000, buf, len);
+		printf("%.*s\n", j, buf);
 	}
 }

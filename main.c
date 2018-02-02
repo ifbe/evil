@@ -47,7 +47,7 @@ void help(char* buf)
 {
 	if(buf != 0)printf("wrong usage: %s\n", buf);
 	printf("learn:\n");
-	printf("	a.exe conv ac2intel test.ac");
+	printf("	a.exe conv ac2intel test.ac\n");
 	printf("	a.exe learn aaa.c /some/dir/bbb.cpp /my/folder/haha*\n");
 	printf("think:\n");
 	printf("	a.exe think\n");
