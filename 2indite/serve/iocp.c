@@ -11,6 +11,7 @@
 #define u16 unsigned short
 #define u32 unsigned int
 #define u64 unsigned long long
+int servesocket(char* wbuf, int wlen, char* buf, int len);
 
 
 
@@ -32,6 +33,8 @@ struct object
 static struct object obj[0x1000];
 static HANDLE iocpfd;
 static SOCKET listenfd;
+static u8 rbuf[0x100000];
+static u8 wbuf[0x100000];
 
 
 
@@ -85,11 +88,73 @@ int writesocket(u64 fd, u8* buf, u64 off, u64 len)
 	//printf("@send:len=%d,ret=%d,err=%d\n",len,ret,GetLastError());
 	return len;
 }
+int myaccept()
+{
+}
+int myread(int fd)
+{
+	int ret = servesocket(wbuf, 0x100000, rbuf, 0x1000);
+	if(ret <= 0)return 0;
+
+	ret = writesocket(fd, wbuf, ret);
+	return ret;
+}
+int stopsocket(int fd)
+{
+	LPFN_DISCONNECTEX disconnectex = NULL;
+	GUID guiddisconnectex = WSAID_DISCONNECTEX;
+	DWORD dwret = 0;
+	int ret = WSAIoctl(
+		listenfd,
+		SIO_GET_EXTENSION_FUNCTION_POINTER,
+		&guiddisconnectex,
+		sizeof(guiddisconnectex),
+		&disconnectex,
+		sizeof(disconnectex),
+		&dwret,
+		NULL,
+		NULL
+	);
+	if(ret != 0)
+	{
+		printf("error@WSAIoctl\n");
+		return 0;
+	}
+
+	disconnectex(fd*4, 0, TF_REUSE_SOCKET, 0);
+	printf("[%x]close\n",fd);
+	return 0;
+}
 int startsocket(int port)
 {
 	int ret;
 	int addrlen = sizeof(SOCKADDR_IN);
 	SOCKADDR_IN servaddr;
+
+	u64 temp;
+	iocpfd = CreateIoCompletionPort(
+		INVALID_HANDLE_VALUE,
+		NULL,
+		0,
+		4
+	);
+
+	int j;
+	SYSTEM_INFO info;
+	GetSystemInfo(&info);
+	for(j=0;j<info.dwNumberOfProcessors*2;j++)
+	{
+		pthread_create((void*)&temp, NULL, iocpthread, 0);
+	}
+
+	//socket
+	WSADATA data; 
+	WORD sockVersion = MAKEWORD(2,2);
+	if(WSAStartup(sockVersion, &data) != 0)
+	{
+		printf("error@WSAStartup\n");
+		return;
+	}
 
 	//server.1
 	listenfd = WSASocket(
@@ -172,33 +237,9 @@ int startsocket(int port)
 			(void*)pov
 		);
 	}
-	return listenfd/4;
-}
-int stopsocket(int fd)
-{
-	LPFN_DISCONNECTEX disconnectex = NULL;
-	GUID guiddisconnectex = WSAID_DISCONNECTEX;
-	DWORD dwret = 0;
-	int ret = WSAIoctl(
-		listenfd,
-		SIO_GET_EXTENSION_FUNCTION_POINTER,
-		&guiddisconnectex,
-		sizeof(guiddisconnectex),
-		&disconnectex,
-		sizeof(disconnectex),
-		&dwret,
-		NULL,
-		NULL
-	);
-	if(ret != 0)
-	{
-		printf("error@WSAIoctl\n");
-		return 0;
-	}
 
-	disconnectex(fd*4, 0, TF_REUSE_SOCKET, 0);
-	printf("[%x]close\n",fd);
-	return 0;
+	while(1)Sleep(1000000);
+	return listenfd/4;
 }
 void* WINAPI iocpthread(void* arg)
 {
@@ -257,6 +298,7 @@ void* WINAPI iocpthread(void* arg)
 			pov->bufdone.buf = pov->bufing.buf;
 			pov->bufdone.len = trans;
 			//eventwrite('@', __fd__, fd/4, 0);
+			myread(fd/4);
 
 			printf("[%x]####\n",fd/4);
 			writesocket(fd/4, "haha\n", 0, 4);
@@ -270,34 +312,4 @@ void* WINAPI iocpthread(void* arg)
 		//printf("(recv)ret=%d,err=%d\n", ret, WSAGetLastError());
 	}
 	return 0;
-}
-void serve(int argc, char** argv)
-{
-	u64 temp;
-	iocpfd = CreateIoCompletionPort(
-		INVALID_HANDLE_VALUE,
-		NULL,
-		0,
-		4
-	);
-
-	int j;
-	SYSTEM_INFO info;
-	GetSystemInfo(&info);
-	for(j=0;j<info.dwNumberOfProcessors*2;j++)
-	{
-		pthread_create((void*)&temp, NULL, iocpthread, 0);
-	}
-
-	//socket
-	WSADATA data; 
-	WORD sockVersion = MAKEWORD(2,2);
-	if(WSAStartup(sockVersion, &data) != 0)
-	{
-		printf("error@WSAStartup\n");
-		return;
-	}
-	startsocket(80);
-
-	Sleep(1000000);
 }

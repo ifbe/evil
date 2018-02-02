@@ -20,8 +20,7 @@
 #define u32 unsigned int
 #define u64 unsigned long long
 #define MAXSIZE 4096
-void readthemall(int);
-int search_one(void*, int, void*, int);
+int servesocket(void*, int, void*, int);
 
 
 
@@ -30,9 +29,6 @@ static int epollfd;
 static int tcpfd;
 static u8 rbuf[0x100000];
 static u8 wbuf[0x100000];
-static u8 response[] =
-	"HTTP/1.1 200 OK\r\n"
-	"\r\n";
 
 
 
@@ -65,126 +61,67 @@ void epoll_mod(u64 fd)
 	ev.data.fd = fd;
 	epoll_ctl(epollfd, EPOLL_CTL_MOD, fd, &ev);
 }
-
-
-
-
-int servesocket_url(char* buf, int len)
+int myaccept(int fd)
 {
-	int j,fd,ret = 0;
-	for(j=0;j<len;j++)
+	int cc;
+	while(1)
 	{
-		if(buf[j] <= 0x20)
+		struct sockaddr_in haha;
+		socklen_t len = sizeof(struct sockaddr_in);
+
+		cc = accept(fd, (struct sockaddr*)&haha, &len);
+		if(cc == -1)break;
+		if(cc >= MAXSIZE)
 		{
-			buf[j] = 0;
-			ret = j;
-			break;
+			printf("fd>MAXSIZE\n");
+			close(cc);
+			continue;
 		}
-	}
 
-	if(ret == 0)
-	{
-		fd = open("datafile/index.html", O_RDONLY);
-		if(fd <= 0)return 0;
-	}
-	else
-	{
-		fd = open(buf, O_RDONLY);
-		if(fd <= 0)return 0;
-	}
-
-	j = snprintf(wbuf, 0x80, "%s", response);
-	ret = read(fd, wbuf+j, 0xfff00);
-	if(ret <= 0)
-	{
-		close(fd);
-		return 0;
-	}
-	j += ret;
-
-	close(fd);
-	return j;
+		epoll_add(cc);
+		//printf("++++ %d\n",cc);
+	}//while
+	return 0;
 }
-int servesocket_search(char* buf, int len)
+int myread(int fd)
 {
-	int j,ret = 0;
-	for(j=0;j<0x1000;j++)
-	{
-		if(buf[j] <= 0x20)
-		{
-			buf[j] = 0;
-			ret = j;
-			break;
-		}
-	}
-	j = snprintf(wbuf, 0x80, "%s", response);
-	j += search_one(wbuf+j, 0xfff00, buf, ret);
-	return j;
-}
-int servesocket(char* buf, int len)
-{
-	printf("%.*s", len, buf);
-	if(strncmp(buf, "GET /", 5) != 0)return 0;
+	int ret = read(fd, rbuf, 0x100000);
+	if(ret <= 0)return 0;
 
-	if(buf[5] != '?')return servesocket_url(buf+5, len-5);
-	else return servesocket_search(buf+6, len-6);
+	ret = servesocket(wbuf, 0x100000, rbuf, ret);
+	if(ret <= 0)return 0;
+
+	ret = write(fd, wbuf, ret);
+	return ret;
 }
 int listensocket()
 {
-	int j, tt, ret;
-	int fd, cc;
-	struct epoll_event epollevent[16];
+	int j, fd, ret;
+	struct epoll_event ev[16];
 
 	while(1)
 	{
-		tt = epoll_wait(epollfd, epollevent, 16, -1);	//start fetch
-		if(tt <= 0)continue;
+		ret = epoll_wait(epollfd, ev, 16, -1);
+		if(ret <= 0)continue;
 
-		//printf("epoll:%d\n", tt);
-		for(j=0; j<tt; j++)
+		//printf("epoll:%d\n", ret);
+		for(j=0; j<ret; j++)
 		{
-			fd = epollevent[j].data.fd;
-			if(epollevent[j].events & EPOLLRDHUP)printf("rdhup!!!!!!!\n");
-
-			else if(epollevent[j].events & EPOLLIN)
+			fd = ev[j].data.fd;
+			if(ev[j].events & EPOLLRDHUP)
 			{
-				//accept
+				printf("rdhup!\n");
+			}//EPOLLRDHUP
+			else if(ev[j].events & EPOLLIN)
+			{
 				if(fd == tcpfd)
 				{
-					while(1)
-					{
-						struct sockaddr_in haha;
-						socklen_t len = sizeof(struct sockaddr_in);
-
-						cc = accept(fd, (struct sockaddr*)&haha, &len);
-						if(cc == -1)break;
-						if(cc >= MAXSIZE)
-						{
-							printf("fd>MAXSIZE\n");
-							close(cc);
-							continue;
-						}
-
-						epoll_add(cc);
-						//printf("++++ %d\n",cc);
-					}//while
-
-					//reset tcpfd
+					myaccept(fd);
 					epoll_mod(fd);
-				}//accept
-
-				//read
+				}
 				else
 				{
-					ret = read(fd, rbuf, 0x100000);
-					if(ret > 0)
-					{
-						ret = servesocket(rbuf, ret);
-						if(ret > 0)
-						{
-							ret = write(fd, wbuf, ret);
-						}
-					}
+					myread(fd);
 					close(fd);
 				}
 			}//EPOLLIN
@@ -198,6 +135,9 @@ int startsocket(int port)
 {
 	int ret;
 	struct sockaddr_in self;
+	struct sigaction sa;
+	sa.sa_handler = SIG_IGN;
+	sigaction(SIGPIPE, &sa, 0);
 
 	//create
 	tcpfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -234,24 +174,12 @@ int startsocket(int port)
 		return 0;
 	}
 
-	//work
-	listen(tcpfd, 5);
-
-	//done
-	epoll_add(tcpfd);
-	return tcpfd;
-}
-void serve(int argc, char** argv)
-{
-	struct sigaction sa;
-	sa.sa_handler = SIG_IGN;
-	sigaction(SIGPIPE, &sa, 0);
-
-	readthemall(1);
-
+	//epoll
 	epollfd = epoll_create(MAXSIZE);
 	if(epollfd <= 0)printf("%d,%d@epoll_create\n", epollfd, errno);
+	epoll_add(tcpfd);
 
-	startsocket(80);
+	//listen
+	listen(tcpfd, 5);
 	listensocket();
 }

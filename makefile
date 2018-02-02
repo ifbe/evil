@@ -27,8 +27,9 @@ SRC = \
 1think/clever/induction.c \
 2indite/graph/force.c \
 2indite/graph/graph.c \
-2indite/route/route.c \
 2indite/kirchhoff/kirchhoff.c \
+2indite/route/route.c \
+2indite/serve/serve.c \
 3library/load.c \
 3library/rel/rel.c \
 3library/chip/chipdata.c \
