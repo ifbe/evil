@@ -27,14 +27,13 @@ struct per_io_data
 struct object
 {
 	u64 type_sock;
-	u8 self[8];
-	u8 data[0x30];
+	u8 self[0x40];
+	struct per_io_data data[1];
 };
 static struct object obj[0x1000];
+static u8 wbuf[0x100000];
 static HANDLE iocpfd;
 static SOCKET listenfd;
-static u8 rbuf[0x100000];
-static u8 wbuf[0x100000];
 
 
 
@@ -42,24 +41,28 @@ static u8 wbuf[0x100000];
 void stopwatcher()
 {
 }
-void startwatcher(SOCKET handle)
+void startwatcher(SOCKET fd)
 {
-	u32* p = (void*)(obj[handle/4].self);
-	*p = handle;
+	u32* p = (void*)(obj[fd/4].self);
+	*p = fd;
 	CreateIoCompletionPort(
-		(void*)handle,
+		(void*)fd,
 		iocpfd,
 		(ULONG_PTR)p,
 		0
 	);
 }
-int readsocket(u64 fd, u8* buf, u64 off, u64 len)
+
+
+
+
+int readsocket(SOCKET fd, u8* buf, int len)
 {
 	int c,j;
 	char* p;
 	struct per_io_data* pov;
 
-	pov = (void*)(obj[fd].data);
+	pov = (void*)(obj[fd/4].data);
 	p = pov->bufdone.buf;
 	c = pov->bufdone.len;
 	for(j=0;j<c;j++)buf[j] = p[j];
@@ -69,21 +72,15 @@ int readsocket(u64 fd, u8* buf, u64 off, u64 len)
 	if(c == 0)return -1;	//disconnect
 	return c;
 }
-int writesocket(u64 fd, u8* buf, u64 off, u64 len)
+int writesocket(SOCKET fd, u8* buf, int len)
 {
 	int ret;
 	DWORD dwret;
-	WSABUF wbuf;
-/*
-	if(st == IPPROTO_UDP)
-	{
-		ret = sizeof(struct sockaddr_in);
-		ret = sendto(fd, buf, len, 0, (void*)&serAddr, ret);
-	}
-*/
-	wbuf.buf = buf;
-	wbuf.len = len;
-	ret = WSASend(fd*4, &wbuf, 1, &dwret, 0, 0, 0);
+	WSABUF wb;
+
+	wb.buf = buf;
+	wb.len = len;
+	ret = WSASend(fd, &wb, 1, &dwret, 0, 0, 0);
 
 	//printf("@send:len=%d,ret=%d,err=%d\n",len,ret,GetLastError());
 	return len;
@@ -91,15 +88,7 @@ int writesocket(u64 fd, u8* buf, u64 off, u64 len)
 int myaccept()
 {
 }
-int myread(int fd)
-{
-	int ret = servesocket(wbuf, 0x100000, rbuf, 0x1000);
-	if(ret <= 0)return 0;
-
-	ret = writesocket(fd, wbuf, ret);
-	return ret;
-}
-int stopsocket(int fd)
+int stopsocket(SOCKET fd)
 {
 	LPFN_DISCONNECTEX disconnectex = NULL;
 	GUID guiddisconnectex = WSAID_DISCONNECTEX;
@@ -121,10 +110,95 @@ int stopsocket(int fd)
 		return 0;
 	}
 
-	disconnectex(fd*4, 0, TF_REUSE_SOCKET, 0);
+	disconnectex(fd, 0, TF_REUSE_SOCKET, 0);
 	printf("[%x]close\n",fd);
 	return 0;
 }
+int myread(SOCKET fd)
+{
+	WSABUF* rb = &obj[fd/4].data[0].bufdone;
+	int ret = servesocket(wbuf, 0x100000, rb->buf, rb->len);
+	if(ret <= 0)return 0;
+
+	ret = writesocket(fd, wbuf, ret);
+	return ret;
+}
+void* WINAPI iocpthread(void* arg)
+{
+	struct per_io_data* pov = NULL;
+	u32* key = 0;
+	char temp[4096];
+	int th;
+	int ret;
+
+	HANDLE hh;
+	SOCKET fd;
+	DWORD trans = 0;
+	DWORD flag = 0;
+
+	th = GetCurrentThreadId();
+	//printf("%d\n",th);
+
+	while(1)
+	{
+		ret = GetQueuedCompletionStatus(
+			iocpfd,
+			&trans,
+			(void*)&key,
+			(void*)&pov,
+			INFINITE
+		);
+		if(ret == 0)continue;
+
+		fd = pov->fd;
+		printf("th=%d,ret=%d,trans=%d,listen=%d,this=%d\n",
+		th, ret, trans, *key, fd);
+
+		//accept
+		if(pov->stage == 0)
+		{
+			hh = CreateIoCompletionPort(
+				(void*)fd,
+				iocpfd,
+				(ULONG_PTR)(obj[fd/4].self),
+				0
+			);
+
+			pov->stage = 1;
+			obj[fd/4].type_sock = 't';
+
+			//eventwrite('+', __fd__, fd/4, 0);
+			printf("[%x]++++,hh=%llx\n",fd/4,hh);
+		}
+		else if(trans == 0)
+		{
+			printf("[%x]----\n",fd/4);
+			stopsocket(fd);
+			continue;
+		}
+		else
+		{
+			pov->stage = 1;
+			pov->bufdone.buf = pov->bufing.buf;
+			pov->bufdone.len = trans;
+			//eventwrite('@', __fd__, fd/4, 0);
+			printf("[%x]####\n",fd/4);
+			myread(fd);
+			stopsocket(fd);
+		}
+
+		//all
+		pov->bufing.buf = malloc(4096);
+		pov->bufing.len = 4096;
+		ret = WSARecv(fd, &(pov->bufing), 1, &trans, &flag, (void*)pov, NULL);
+		//printf("(recv)ret=%d,err=%d\n", ret, WSAGetLastError());
+	}
+	return 0;
+}
+
+
+
+
 int startsocket(int port)
 {
 	int ret;
@@ -153,7 +227,7 @@ int startsocket(int port)
 	if(WSAStartup(sockVersion, &data) != 0)
 	{
 		printf("error@WSAStartup\n");
-		return;
+		return 0;
 	}
 
 	//server.1
@@ -215,9 +289,8 @@ int startsocket(int port)
 	}
 
 	//clients.2
-	int j;
 	SOCKET tmp;
-	void* pdata = (void*)(obj[tmp/4].self);
+	void* pdata;
 	struct per_io_data* pov;
 	for(j=0;j<1000;j++)
 	{
@@ -228,6 +301,7 @@ int startsocket(int port)
 		if((tmp&0x3)|(tmp>=0x4000))printf("%d\n", tmp/4);
 
 		//
+		pdata = (void*)(obj[tmp/4].self);
 		pov = (void*)(obj[tmp/4].data);
 		pov->fd = tmp;
 		pov->stage = 0;
@@ -239,77 +313,5 @@ int startsocket(int port)
 	}
 
 	while(1)Sleep(1000000);
-	return listenfd/4;
-}
-void* WINAPI iocpthread(void* arg)
-{
-	struct per_io_data* pov = NULL;
-	u32* key = 0;
-	char temp[4096];
-	int th;
-	int ret;
-
-	HANDLE hh;
-	SOCKET fd;
-	DWORD trans = 0;
-	DWORD flag = 0;
-
-	th = GetCurrentThreadId();
-	while(1)
-	{
-		ret = GetQueuedCompletionStatus(
-			iocpfd,
-			&trans,
-			(void*)&key,
-			(void*)&pov,
-			INFINITE
-		);
-		if(ret == 0)continue;
-
-		fd = pov->fd;
-		//printf("th=%d,ret=%d,trans=%d,listen=%d,this=%d\n",
-		//th, ret, trans, *key, fd);
-
-		//accept
-		if(pov->stage == 0)
-		{
-			hh = CreateIoCompletionPort(
-				(void*)fd,
-				iocpfd,
-				(ULONG_PTR)(obj[fd/4].self),
-				0
-			);
-
-			pov->stage = 1;
-			obj[fd/4].type_sock = 't';
-
-			//eventwrite('+', __fd__, fd/4, 0);
-			printf("[%x]++++,hh=%llx\n",fd/4,hh);
-		}
-		else if(trans == 0)
-		{
-			printf("[%x]----\n",fd/4);
-			stopsocket(fd);
-			continue;
-		}
-		else
-		{
-			pov->stage = 1;
-			pov->bufdone.buf = pov->bufing.buf;
-			pov->bufdone.len = trans;
-			//eventwrite('@', __fd__, fd/4, 0);
-			myread(fd/4);
-
-			printf("[%x]####\n",fd/4);
-			writesocket(fd/4, "haha\n", 0, 4);
-			stopsocket(fd/4);
-		}
-
-		//all
-		pov->bufing.buf = malloc(4096);
-		pov->bufing.len = 4096;
-		ret = WSARecv(fd, &(pov->bufing), 1, &trans, &flag, (void*)pov, NULL);
-		//printf("(recv)ret=%d,err=%d\n", ret, WSAGetLastError());
-	}
-	return 0;
+	return listenfd;
 }

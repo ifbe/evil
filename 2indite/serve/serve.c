@@ -1,20 +1,8 @@
 #include<stdio.h>
 #include<stdlib.h>
 #include<string.h>
-#include<errno.h>
 #include<fcntl.h>
-#include<signal.h>
 #include<unistd.h>
-#include<signal.h>
-#include<arpa/inet.h>
-#include<linux/if_ether.h>
-#include<net/if.h>
-#include<netinet/in.h>
-#include<netinet/ether.h>
-#include<sys/epoll.h>
-#include<sys/ioctl.h>
-#include<sys/socket.h>
-#include<sys/types.h>
 #define u8 unsigned char
 #define u16 unsigned short
 #define u32 unsigned int
@@ -108,10 +96,7 @@ void serve(int argc, char** argv)
 {
 	int port;
 	if(argc == 1)port = 80;
-	else
-	{
-		sscanf(argv[1], "%d", &port);
-	}
+	else sscanf(argv[1], "%d", &port);
 
 	readthemall(1);
 	startsocket(port);
