@@ -32,7 +32,6 @@ static u8 rbuf[0x100000];
 static u8 wbuf[0x100000];
 static u8 response[] =
 	"HTTP/1.1 200 OK\r\n"
-	"Content-type: text/html\r\n"
 	"\r\n";
 
 
@@ -94,7 +93,7 @@ int servesocket_url(char* buf, int len)
 		if(fd <= 0)return 0;
 	}
 
-	j = snprintf(wbuf, 0x80, "%s<html><body><pre><code>", response);
+	j = snprintf(wbuf, 0x80, "%s", response);
 	ret = read(fd, wbuf+j, 0xfff00);
 	if(ret <= 0)
 	{
@@ -102,7 +101,6 @@ int servesocket_url(char* buf, int len)
 		return 0;
 	}
 	j += ret;
-	j += snprintf(wbuf+j, 0x80, "</code></pre></body></html>");
 
 	close(fd);
 	return j;
@@ -119,9 +117,8 @@ int servesocket_search(char* buf, int len)
 			break;
 		}
 	}
-	j = snprintf(wbuf, 0x80, "%s<html><body><pre><code>", response);
+	j = snprintf(wbuf, 0x80, "%s", response);
 	j += search_one(wbuf+j, 0xfff00, buf, ret);
-	j += snprintf(wbuf+j, 0x80, "</code></pre></body></html>");
 	return j;
 }
 int servesocket(char* buf, int len)

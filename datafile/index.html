@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html contenteditable>
 <meta charset="UTF-8" />
-<link rel="stylesheet" href="/www/code/ifbe/evil/datafile/highlight/styles/default.css">
-<script src="/www/code/ifbe/evil/datafile/highlight/highlight.pack.js"></script>
+<link rel="stylesheet" href="/datafile/highlight/styles/default.css" type="text/css">
+<script src="/datafile/highlight/highlight.pack.js"></script>
 <script>hljs.initHighlightingOnLoad();</script>
 <script type="text/javascript">
 function highlight()
@@ -12,11 +12,11 @@ function highlight()
 }
 function display()
 {
-	var haha = document.getElementById("textdata").value;
+	var haha = document.getElementById("display").value;
 	//window.location.href = "/"+haha;
 
 	var ajax = new XMLHttpRequest();
-	ajax.open('get','file:///D:/www/code/ifbe/evil/'+haha);
+	ajax.open('get','/'+haha);
 	ajax.send();
 	ajax.onreadystatechange = function () {
 	if (ajax.readyState==4 &&ajax.status==200) {
@@ -31,7 +31,7 @@ function display()
 }
 function search()
 {
-	var haha = document.getElementById("textdata").value;
+	var haha = document.getElementById("search").value;
 
 	var ajax = new XMLHttpRequest();
 	ajax.open('get','/?'+haha);
@@ -42,10 +42,18 @@ function search()
 		txt = txt.replace(/</g,'&lt');
 		txt = txt.replace(/>/g,'&gt');
 		//console.log(ajax.responseText);
-		document.getElementById("precode1").innerHTML = txt;
+		document.getElementById("precode2").innerHTML = txt;
 		highlight();
 	}
 	}
+}
+function enter1()
+{
+	if(event.keyCode == 13)display();
+}
+function enter2()
+{
+	if(event.keyCode == 13)search();
 }
 window.onload=function() {
 	document.onkeydown=function(ev) {
@@ -67,8 +75,8 @@ window.onload=function() {
 
 <div class="outbox">
 <div>
-	<input id="textdata" type="display" value="main.c" style="margin-left:25%;width:40%;"></input>
-	<input type="button" value="display" onclick="display();" style="width:10%;"></input>
+	<input id="display" type="search" value="main.c" onkeydown="enter1()" style="margin-left:25%;width:40%;"></input>
+	<input type="button" value="display" onclick="display()" style="width:10%;"></input>
 	<div style="clear:both"></div>
 </div>
 <pre class="inbox"><code id="precode1">#include&ltstdio.h&gt
@@ -80,8 +88,8 @@ void main()
 
 <div class="outbox">
 <div>
-	<input id="textdata" type="search" value="start_kernel" style="margin-left:25%;width:40%;"></input>
-	<input type="button" value="search" onclick="search();" style="width:10%;"></input>
+	<input id="search" type="search" value="start_kernel" onkeydown="enter2()" style="margin-left:25%;width:40%;"></input>
+	<input type="button" value="search" onclick="search()" style="width:10%;"></input>
 	<div style="clear:both"></div>
 </div>
 <pre class="inbox"><code id="precode2">#include&ltstdio.h&gt
