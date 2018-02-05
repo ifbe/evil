@@ -74,7 +74,7 @@ int servesocket_search(char* wbuf, int wlen, char* buf, int len)
 {
 	return search_one(wbuf, wlen, buf, len);
 }
-int servesocket(char* wbuf, int wlen, char* buf, int len)
+int servesocket(u8* wbuf, int wlen, u8* buf, int len)
 {
 	int j,k,ret;
 	printf("%.*s", len, buf);
@@ -84,35 +84,109 @@ int servesocket(char* wbuf, int wlen, char* buf, int len)
 		return 0;
 	}
 
-	for(j=5;j<len;j++)
+	j = 5;
+	k = 5;
+	while(1)
 	{
 		if(buf[j] <= 0x20)break;
-	}
 
-	k = snprintf(wbuf, 0x80, "%s", response);
+		else if('%' != buf[j])
+		{
+			if(j != k)buf[k] = buf[j];
+			j += 1;
+		}
+		else
+		{
+			if((buf[j+1] >= 'A')&&(buf[j+1] <= 'F'))
+			{
+				ret = (buf[j+1] - 'A' + 10)<<4;
+			}
+			else if((buf[j+1] >= '0')&&(buf[j+1] <= '9'))
+			{
+				ret = (buf[j+1] - '0')<<4;
+			}
+			else printf("error1:%x", buf[j+1]);
+
+			if((buf[j+2] >= 'A')&&(buf[j+2] <= 'F'))
+			{
+				ret |= (buf[j+2] - 'A' + 10)&0xf;
+			}
+			else if((buf[j+2] >= '0')&&(buf[j+2] <= '9'))
+			{
+				ret |= (buf[j+2] - '0')&0xf;
+			}
+			else printf("error2:%x", buf[j+2]);
+
+			buf[k] = ret;
+			j += 3;
+		}
+
+		k++;
+	}
+	for(j=5;j<k;j++)printf("%02x",buf[j]);
+	printf("\n");
+
+	j = snprintf(wbuf, 0x80, "%s", response);
 	if(buf[5] == '?')
 	{
-		ret = servesocket_search(wbuf+k, wlen, buf+6, j-6);
+		ret = servesocket_search(wbuf+j, wlen, buf+6, k-6);
 	}
 	else if(buf[5] == '!')
 	{
-		ret = servesocket_code(wbuf+k, wlen, buf+6, j-6);
+		ret = servesocket_code(wbuf+j, wlen, buf+6, k-6);
 	}
 	else
 	{
-		ret = servesocket_html(wbuf+k, wlen, buf+5, j-5);
+		ret = servesocket_html(wbuf+j, wlen, buf+5, k-5);
 	}
 
 	if(ret <= 0)return 0;
-	else return k+ret;
+	else return j+ret;
 }
+
+
+
+
 void serve(int argc, char** argv)
 {
 	int port;
-	if(argc == 1)port = 80;
-	else sscanf(argv[1], "%d", &port);
+	int j;
+	char* p;
+
+	port = 80;
+	coderoot = snprintf(codepath, 0x200, "");
 	htmlroot = snprintf(htmlpath, 0x200, "datafile/");
-	coderoot = 0;
+	for(j=1;j<argc;j++)
+	{
+		p = argv[j];
+		if((p[0] >= '0')&&(p[0] <= '9'))
+		{
+			sscanf(argv[j], "%d", &port);
+			continue;
+		}
+		if(0 == strncmp(p, "code=", 5))
+		{
+			coderoot = snprintf(codepath, 0x200, "%s", p+5);
+			if(0 == coderoot)continue;
+			if('/' == codepath[coderoot])continue;
+			codepath[coderoot] = '/';
+			coderoot++;
+			continue;
+		}
+		if(0 == strncmp(p, "html=", 5))
+		{
+			htmlroot = snprintf(htmlpath, 0x200, "%s", p+5);
+			if(0 == htmlroot)continue;
+			if('/' == htmlpath[htmlroot])continue;
+			htmlpath[htmlroot] = '/';
+			htmlroot++;
+			continue;
+		}
+	}
+	printf(
+		"port=%d, code=%s, html=%s\n",
+		port, codepath, htmlpath
+	);
 
 	readthemall(1);
 	startsocket(port);

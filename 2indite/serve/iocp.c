@@ -19,14 +19,13 @@ int servesocket(char* wbuf, int wlen, char* buf, int len);
 struct per_io_data
 {
 	OVERLAPPED overlap;
-	SOCKET fd;
-	int stage;
 	WSABUF bufing;
 	WSABUF bufdone;
+	SOCKET fd;
+	int stage;
 };
 struct object
 {
-	u64 type_sock;
 	u8 self[0x40];
 	struct per_io_data data[1];
 };
@@ -163,9 +162,7 @@ void* WINAPI iocpthread(void* arg)
 				(ULONG_PTR)(obj[fd/4].self),
 				0
 			);
-
 			pov->stage = 1;
-			obj[fd/4].type_sock = 't';
 
 			//eventwrite('+', __fd__, fd/4, 0);
 			printf("[%x]++++,hh=%llx\n",fd/4,hh);
@@ -292,13 +289,13 @@ int startsocket(int port)
 	SOCKET tmp;
 	void* pdata;
 	struct per_io_data* pov;
-	for(j=0;j<1000;j++)
+	for(j=0;j<0x400;j++)
 	{
 		tmp = WSASocket(
 			AF_INET, SOCK_STREAM, IPPROTO_TCP,
 			0, 0, WSA_FLAG_OVERLAPPED
 		);
-		if((tmp&0x3)|(tmp>=0x4000))printf("%d\n", tmp/4);
+		if(tmp&0x3)printf("%d\n", tmp);
 
 		//
 		pdata = (void*)(obj[tmp/4].self);
