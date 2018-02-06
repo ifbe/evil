@@ -230,7 +230,13 @@ void searchpin(int offset)
 	struct fileindex* pin;
 	struct wire* irel;
 	struct wire* orel;
-	if(offset%0x20 != 0)printf("notfound: pin@%x",offset);
+	if(offset%0x20 != 0)
+	{
+		sb += snprintf(sb, sl,
+			"notfound: pin@%x", offset
+		);
+		return;
+	}
 
 	pin = pin_read(offset);
 	sb += snprintf(sb, sl, "pin@%08x	@%llx\n", offset, (u64)pin);
@@ -318,7 +324,13 @@ void searchchip(int offset)
 	struct wire* irel;
 	struct wire* orel;
 	struct chipindex* chip;
-	if(offset%0x20 != 0)printf("notfound: chip@%x",offset);
+	if(offset%0x20 != 0)
+	{
+		sb += snprintf(sb, sl,
+			"notfound: chip@%x", offset
+		);
+		return;
+	}
 
 	chip = chipindex_read(offset);
 	sb += snprintf(sb, sl,
@@ -401,7 +413,13 @@ void searchshape(int offset)
 	struct pointindex* pp;
 	struct wire* irel;
 	struct wire* orel;
-	if(offset%0x20 != 0)printf("notfound: shape@%x",offset);
+	if(offset%0x20 != 0)
+	{
+		sb += snprintf(sb, sl,
+			"notfound: shape@%x", offset
+		);
+		return;
+	}
 
 	shape = shapeindex_read(offset);
 	sb += snprintf(sb, sl,
@@ -500,7 +518,13 @@ void searchfile(int offset)
 	struct fileindex* file;
 	struct wire* irel;
 	struct wire* orel;
-	if(offset%0x20 != 0)printf("notfound: file@%x",offset);
+	if(offset%0x20 != 0)
+	{
+		sb += snprintf(sb, sl,
+			"notfound: file@%x",offset
+		);
+		return;
+	}
 
 	file = filemd5_read(offset);
 	sb += snprintf(sb, sl,
@@ -587,7 +611,13 @@ void searchfunc(int offset)
 	struct funcindex* f;
 	struct wire* irel;
 	struct wire* orel;
-	if(offset%0x20 != 0)printf("notfound: func@%x",offset);
+	if(offset%0x20 != 0)
+	{
+		sb += snprintf(sb, sl,
+			"notfound: func@%x", offset
+		);
+		return;
+	}
 
 	f = funcindex_read(offset);
 	sb += snprintf(sb, sl,
@@ -681,7 +711,7 @@ void searchhash(char* buf, int len)
 	h = strhash_read(temp);
 	if(h == 0)
 	{
-		printf("notfound: %s\n", buf);
+		sb += snprintf(sb, sl, "notfound: %s\n", buf);
 		return;
 	}
 	sb += snprintf(sb, sl,
@@ -848,28 +878,43 @@ byebye:
 void search(int argc, char** argv)
 {
 	int j,len;
-	u8* buf;
-	readthemall(1);
-	buf = malloc(0x100000);
+	u8* ibuf;
+	u8* obuf;
 
+	ibuf = malloc(0x1000);
+	obuf = malloc(0x100000);
+	readthemall(1);
+
+#if (defined(_WIN32) || defined(__WIN32__))
+	if(argc > 1)
+	{
+		for(j=1;j<argc;j++)
+		{
+			fixarg(ibuf, argv[j]);
+			search_one(obuf, 0x100000, ibuf, strlen(ibuf));
+			output(obuf, sb-obuf);
+		}
+	}
+#else
 	if(argc > 1)
 	{
 		for(j=1;j<argc;j++)
 		{
 			len = strlen(argv[j]);
-			search_one(buf, 0x100000, argv[j], len);
-			printf("%.*s\n", sb-buf, buf);
+			search_one(obuf, 0x100000, argv[j], len);
+			output(obuf, sb-obuf);
 		}
 		return;
 	}
+#endif
 
 	while(1)
 	{
 		printf("->");
-		len = input(buf, 0x1000);
-		if((buf[0] == 'q')&&(buf[1] == 0))break;
+		len = input(ibuf, 0x1000);
+		if((ibuf[0] == 'q')&&(ibuf[1] == 0))break;
 
-		j = search_one(buf, 0x100000, buf, len);
-		printf("%.*s\n", j, buf);
+		j = search_one(obuf, 0x100000, ibuf, len);
+		output(obuf, j);
 	}
 }
