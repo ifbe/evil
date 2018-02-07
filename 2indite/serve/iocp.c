@@ -20,9 +20,9 @@ struct per_io_data
 {
 	OVERLAPPED overlap;
 	WSABUF bufing;
-	WSABUF bufdone;
-	SOCKET fd;
+	int count;
 	int stage;
+	SOCKET fd;
 };
 struct object
 {
@@ -37,40 +37,40 @@ static SOCKET listenfd;
 
 
 
-void stopwatcher()
+void iocp_add(SOCKET fd)
 {
-}
-void startwatcher(SOCKET fd)
-{
-	u32* p = (void*)(obj[fd/4].self);
-	*p = fd;
+	u32* pfd = (void*)(obj[fd/4].self);
+	struct per_io_data* pio = (void*)(obj[fd/4].data);
+
+	*pfd = fd;
 	CreateIoCompletionPort(
 		(void*)fd,
 		iocpfd,
-		(ULONG_PTR)p,
+		(ULONG_PTR)pfd,
 		0
 	);
+
+	pio->stage = 1;
+	pio->bufing.buf = malloc(4096);
+	pio->bufing.len = 4096;
 }
-
-
-
-
-int readsocket(SOCKET fd, u8* buf, int len)
+void iocp_del(SOCKET fd)
 {
-	int c,j;
-	char* p;
-	struct per_io_data* pov;
-
-	pov = (void*)(obj[fd/4].data);
-	p = pov->bufdone.buf;
-	c = pov->bufdone.len;
-	for(j=0;j<c;j++)buf[j] = p[j];
-//printf("(read)len=%d\n",c);
-	free(pov->bufdone.buf);
-
-	if(c == 0)return -1;	//disconnect
-	return c;
+	struct per_io_data* pio = (void*)(obj[fd/4].data);
+	if(pio->bufing.buf)free(pio->bufing.buf);
 }
+void iocp_mod(SOCKET fd)
+{
+	int ret;
+	DWORD tran = 0;
+	DWORD flag = 0;
+	struct per_io_data* pio = (void*)(obj[fd/4].data);
+	ret = WSARecv(fd, &(pio->bufing), 1, &tran, &flag, (void*)pio, NULL);
+}
+
+
+
+
 int writesocket(SOCKET fd, u8* buf, int len)
 {
 	int ret;
@@ -110,13 +110,16 @@ int stopsocket(SOCKET fd)
 	}
 
 	disconnectex(fd, 0, TF_REUSE_SOCKET, 0);
-	printf("[%x]close\n",fd);
+	//printf("[%x]close\n",fd);
 	return 0;
 }
 int myread(SOCKET fd)
 {
-	WSABUF* rb = &obj[fd/4].data[0].bufdone;
-	int ret = servesocket(wbuf, 0x100000, rb->buf, rb->len);
+	int len = obj[fd/4].data[0].count;
+	u8* buf = obj[fd/4].data[0].bufing.buf;
+
+	int ret = servesocket(wbuf, 0x100000, buf, len);
+printf("haha=%d\n",ret);
 	if(ret <= 0)return 0;
 
 	ret = writesocket(fd, wbuf, ret);
@@ -124,15 +127,13 @@ int myread(SOCKET fd)
 }
 void* WINAPI iocpthread(void* arg)
 {
-	struct per_io_data* pov = NULL;
-	u32* key = 0;
-	char temp[4096];
+	u32* pfd = 0;
+	struct per_io_data* pio = NULL;
 	int th;
 	int ret;
-
-	HANDLE hh;
 	SOCKET fd;
-	DWORD trans = 0;
+	SOCKET cc;
+	DWORD tran = 0;
 	DWORD flag = 0;
 
 	th = GetCurrentThreadId();
@@ -142,53 +143,37 @@ void* WINAPI iocpthread(void* arg)
 	{
 		ret = GetQueuedCompletionStatus(
 			iocpfd,
-			&trans,
-			(void*)&key,
-			(void*)&pov,
+			&tran,
+			(void*)&pfd,
+			(void*)&pio,
 			INFINITE
 		);
 		if(ret == 0)continue;
 
-		fd = pov->fd;
-		printf("th=%d,ret=%d,trans=%d,listen=%d,this=%d\n",
-		th, ret, trans, *key, fd);
+		fd = *pfd;
+		cc = pio->fd;
+		//printf("th=%d,tran=%d,listen=%d,this=%d\n", th, tran, fd, cc);
 
 		//accept
-		if(pov->stage == 0)
+		if(pio->stage == 0)
 		{
-			hh = CreateIoCompletionPort(
-				(void*)fd,
-				iocpfd,
-				(ULONG_PTR)(obj[fd/4].self),
-				0
-			);
-			pov->stage = 1;
+			printf("[%x,%x]++++\n", fd, cc);
 
-			//eventwrite('+', __fd__, fd/4, 0);
-			printf("[%x]++++,hh=%llx\n",fd/4,hh);
+			iocp_add(cc);
+			iocp_mod(cc);
 		}
-		else if(trans == 0)
+		else if(tran == 0)
 		{
-			printf("[%x]----\n",fd/4);
+			printf("[%x]----\n",fd);
 			stopsocket(fd);
 			continue;
 		}
 		else
 		{
-			pov->stage = 1;
-			pov->bufdone.buf = pov->bufing.buf;
-			pov->bufdone.len = trans;
-			//eventwrite('@', __fd__, fd/4, 0);
-			printf("[%x]####\n",fd/4);
+			printf("[%x]####\n",fd);
 			myread(fd);
 			stopsocket(fd);
 		}
-
-		//all
-		pov->bufing.buf = malloc(4096);
-		pov->bufing.len = 4096;
-		ret = WSARecv(fd, &(pov->bufing), 1, &trans, &flag, (void*)pov, NULL);
-		//printf("(recv)ret=%d,err=%d\n", ret, WSAGetLastError());
 	}
 	return 0;
 }
@@ -262,7 +247,7 @@ int startsocket(int port)
 	}
 
 	//server.5
-	startwatcher(listenfd);
+	iocp_add(listenfd);
 
 	//client.1
 	LPFN_ACCEPTEX acceptex = NULL;
@@ -287,8 +272,8 @@ int startsocket(int port)
 
 	//clients.2
 	SOCKET tmp;
-	void* pdata;
-	struct per_io_data* pov;
+	u32* pfd;
+	struct per_io_data* pio;
 	for(j=0;j<0x400;j++)
 	{
 		tmp = WSASocket(
@@ -297,15 +282,18 @@ int startsocket(int port)
 		);
 		if(tmp&0x3)printf("%d\n", tmp);
 
-		//
-		pdata = (void*)(obj[tmp/4].self);
-		pov = (void*)(obj[tmp/4].data);
-		pov->fd = tmp;
-		pov->stage = 0;
+		pfd = (void*)(obj[tmp/4].self);
+		*pfd = tmp;
+
+		pio = (void*)(obj[tmp/4].data);
+		pio->count = 0;
+		pio->stage = 0;
+		pio->fd = tmp;
+
 		ret = acceptex(
 			listenfd, tmp,
-			pdata, 0, 0x20, 0x20, 0,
-			(void*)pov
+			pfd, 0, 0x20, 0x20, 0,
+			(void*)pio
 		);
 	}
 

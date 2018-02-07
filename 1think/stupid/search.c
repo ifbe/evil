@@ -711,7 +711,7 @@ void searchhash(char* buf, int len)
 	h = strhash_read(temp);
 	if(h == 0)
 	{
-		sb += snprintf(sb, sl, "notfound: %s\n", buf);
+		sb += snprintf(sb, sl, "notfound: %.*s\n", len, buf);
 		return;
 	}
 	sb += snprintf(sb, sl,
