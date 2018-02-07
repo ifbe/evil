@@ -75,12 +75,10 @@ struct pinindex
 	u64 irel;
 	u64 orel;
 };
-struct context
+struct detail
 {
 	u64 type;
 	union{
-		u64 addr;
-		u64 name;
 		struct	//U, I, R
 		{
 			u16 P;
@@ -101,7 +99,6 @@ struct context
 		};
 	};
 	union{
-		u8 str[16];
 		struct{	//chip
 			f32 data;
 		};
@@ -114,6 +111,15 @@ struct context
 		};
 	};
 };
+struct context
+{
+	u64 type;
+	u64 addr;
+	union{
+		u64 name;
+		u8 str[16];
+	};
+};
 struct wirectx
 {
 	u32 foot;
@@ -121,8 +127,9 @@ struct wirectx
 	u16 pin;
 };
 static struct context ctxbuf[100];
-static int ctxlen;
+static struct detail detail[100];
 static struct wirectx wbuf[100];
+static int ctxlen;
 static int wlen;
 
 
@@ -227,11 +234,13 @@ printf("[%d,%d)\n",cur,len);
 
 
 
-u64 kirchhoff_name(struct pinindex* pin)
+u64 kirchhoff_name(void* addr)
 {
 	struct relation* w;
-	if(pin == 0)return 0;
+	struct pinindex* pin;
+	if(addr == 0)return 0;
 
+	pin = addr;
 	w = relation_read(pin->orel);
 	while(1)
 	{
@@ -242,42 +251,47 @@ u64 kirchhoff_name(struct pinindex* pin)
 	}
 	return 0;
 }
-void kirchhoff_info()
+void kirchhoff_data()
 {
-	int j,t;
+	int j;
 	f32 f;
 	struct chipindex* chip;
 	struct pinindex* pin;
-printf("\ndata:\n");
+printf("\nname:\n");
 
 	for(j=0;j<ctxlen;j++)
 	{
 		if(ctxbuf[j].type == __chip__)
 		{
 			chip = chipindex_read(ctxbuf[j].addr);
-			t = chip->type;
-			f = chip->data;
+			ctxbuf[j].name = kirchhoff_name(chip);
 
-			//printf("%d, %c, %f\n", j, t, f);
-			ctxbuf[j].type = t;
-			ctxbuf[j].data = f;
+			detail[j].type = chip->type;
+			detail[j].data = chip->data;
 
-			printf("%d,%s:	%f\n",
-				j, &ctxbuf[j].type, ctxbuf[j].data);
+			printf("%d)%.8s:	%.8s=%f\n",
+				j, &ctxbuf[j].name,
+				&detail[j].type, detail[j].data
+			);
 		}
 		else if(ctxbuf[j].type == __pin__)
 		{
 			pin = pin_read(ctxbuf[j].addr);
 			ctxbuf[j].name = kirchhoff_name(pin);
 
-			printf("%d,%s:	%llx\n",
-				j, &ctxbuf[j].type, ctxbuf[j].name);
+			detail[j].type = '?';
+			detail[j].V = 0.0;
+
+			printf("%d)%.8s:	%.8s\n",
+				j, &ctxbuf[j].name,
+				&detail[j].type
+			);
 		}
 	}
 }
 void kirchhoff_sort()
 {
-	int j,k;
+	int j, k, pin, chip;
 	u64 temp;
 	u64* addr = (void*)wbuf;
 printf("\nsort:\n");
@@ -294,29 +308,67 @@ printf("\nsort:\n");
 			}
 		}
 	}
+
+	k = -1;
 	for(j=0;j<wlen;j++)
 	{
-		printf("%d,%d,%c\n",
-			(addr[j]>>48)&0xffff,
-			(addr[j]>>32)&0xffff,
-			addr[j]&0xff);
+		pin = wbuf[j].pin;
+		chip = wbuf[j].chip;
+		temp = wbuf[j].foot;
+
+		if(pin != k)detail[pin].P = j;
+		k = pin;
+
+		if('+' == temp)detail[chip].P = pin;
+		else if('-' == temp)detail[chip].N = pin;
+
+		printf("%d)%.8s,%.8s,%c\n",
+			j,
+			&ctxbuf[pin].name,
+			&ctxbuf[chip].name,
+			temp
+		);
+	}
+}
+void kirchhoff_info()
+{
+	int j;
+	printf("\nconn:\n");
+
+	for(j=0;j<ctxlen;j++)
+	{
+		if(__pin__ == ctxbuf[j].type)
+		{
+			printf("%d)%.8s:	%d\n",
+				j, &ctxbuf[j].name,
+				detail[j].P
+			);
+		}
+		else
+		{
+			printf("%d)%.8s:	P@%d,N@%d	%.8s=%f\n",
+				j, &ctxbuf[j].name,
+				detail[j].P, detail[j].N,
+				&detail[j].type, detail[j].data
+			);
+		}
 	}
 }
 float kirchhoff_incurr(int chip, int foot)
 {
 	int pin;
-	if('I' == ctxbuf[chip].type)
+	if('I' == detail[chip].type)
 	{
-		if('-' == foot)return -ctxbuf[chip].data;
-		else if('+' == foot)return ctxbuf[chip].data;
+		if('-' == foot)return -detail[chip].data;
+		else if('+' == foot)return detail[chip].data;
 	}
-	else if('R' == ctxbuf[chip].type)
+	else if('R' == detail[chip].type)
 	{
-		if('-' == foot)pin = ctxbuf[chip].P;
-		if('+' == foot)pin = ctxbuf[chip].N;
-		return ctxbuf[pin].V / ctxbuf[chip].data;
+		if('-' == foot)pin = detail[chip].P;
+		if('+' == foot)pin = detail[chip].N;
+		return detail[pin].V / detail[chip].data;
 	}
-	else if('V' == ctxbuf[chip].type)
+	else if('V' == detail[chip].type)
 	{
 		
 	}
@@ -349,10 +401,10 @@ void kirchhoff_iter()
 
 		chip = wbuf[j].chip;
 		di += kirchhoff_incurr(chip, wbuf[j].foot);
-		if(ctxbuf[chip].type == 'R')
+		if(detail[chip].type == 'R')
 		{
-			//printf("R=%f\n",ctxbuf[chip].data);
-			sc += 1.0 / ctxbuf[chip].data;
+			//printf("R=%f\n",detail[chip].data);
+			sc += 1.0 / detail[chip].data;
 		}
 	}
 }
@@ -393,9 +445,10 @@ void kirchhoff(int argc, char** argv)
 		j = m;
 	}
 
-	kirchhoff_info();
+	kirchhoff_data();
 	kirchhoff_sort();
-
+	kirchhoff_info();
+return;
 	for(j=0;j<10;j++)
 	{
 		printf("\n%d\n", j);
