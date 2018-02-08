@@ -6,6 +6,7 @@ SRC = \
 0learn/circuit/brd.c \
 0learn/data/dts.c \
 0learn/data/utf8.c \
+0learn/map/map.c \
 0learn/model/3d.c \
 0learn/model/stl.c \
 0learn/prog/asm.c \

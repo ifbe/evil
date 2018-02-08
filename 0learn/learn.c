@@ -64,6 +64,9 @@ int cir_delete();
 int three_create(void*, void*);
 int three_delete();
 //
+int map_create(void*, void*);
+int map_delete();
+//
 int traverse_start(char* p);
 int traverse_stop();
 char* traverse_read();
@@ -418,6 +421,8 @@ void worker_create()
 	utf8_create(w,j);
 	j += 0x100;
 
+	map_create(w,j);
+	j += 0x100;
 	//worker_list();
 }
 void worker_delete()
