@@ -36,9 +36,9 @@ int search(int argc,char** argv);
 int delete(int argc,char** argv);
 //
 int graph(int argc,char** argv);
-int serve(int argc,char** argv);
-int trace(int argc,char** argv);
 int kirchhoff(int argc,char** argv);
+int route(int argc,char** argv);
+int serve(int argc,char** argv);
 
 
 
@@ -56,10 +56,10 @@ void help(char* buf)
 	printf("	a.exe change\n");
 	printf("	a.exe search str func@c0 file@20\n");
 	printf("indite:\n");
-	printf("	a.exe serve\n");
 	printf("	a.exe graph\n");
-	printf("	a.exe trace\n");
 	printf("	a.exe kirchhoff\n");
+	printf("	a.exe route\n");
+	printf("	a.exe serve\n");
 }
 int main(int argc, char** argv)
 {
@@ -132,21 +132,21 @@ int main(int argc, char** argv)
 	}
 
 	//indite
-	else if(strcmp(argv[1], "serve") == 0)
-	{
-		serve(argc-1, argv+1);
-	}
 	else if(strcmp(argv[1], "graph") == 0)
 	{
 		graph(argc-1, argv+1);
 	}
-	else if(strcmp(argv[1], "trace") == 0)
-	{
-		trace(argc-1, argv+1);
-	}
 	else if(strcmp(argv[1], "kirchhoff") == 0)
 	{
 		kirchhoff(argc-1, argv+1);
+	}
+	else if(strcmp(argv[1], "route") == 0)
+	{
+		route(argc-1, argv+1);
+	}
+	else if(strcmp(argv[1], "serve") == 0)
+	{
+		serve(argc-1, argv+1);
 	}
 
 	//
