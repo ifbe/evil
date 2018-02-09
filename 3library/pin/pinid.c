@@ -34,7 +34,7 @@ static int pinindexlen = 0;
 
 
 
-void* pin_write(u8* buf, int len)
+void* pin_write()
 {
 	struct pinindex* addr;
 

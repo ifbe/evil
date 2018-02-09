@@ -701,9 +701,11 @@ void* bplus_search(struct bplushead* head, u64 hash)
 	int mid, left, right;
 	struct bplusleaf* leaf;
 //printf("search:%llx\n", hash);
-       	leaf = bplus_findleaf(head, hash);
+
+	leaf = bplus_findleaf(head, hash);
 	if(leaf == 0)return 0;
 //printf("fuck1\n");
+
 	left = 0;
 	right = leaf->head.len;
 	while(1)
@@ -715,6 +717,7 @@ void* bplus_search(struct bplushead* head, u64 hash)
 		else if(hash < leaf->node[mid].hash)right = mid;
 		else break;
 	}
+
 //printf("fuck2:%d, %llx\n",mid, leaf->node[mid].hash);
 	if(hash != leaf->node[mid].hash)return 0;
 	return &leaf->node[mid];

@@ -6,7 +6,7 @@
 #define u64 unsigned long long
 #define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
 #define hex64(a,b,c,d,e,f,g,h) (hex32(a,b,c,d) | (((u64)hex32(e,f,g,h))<<32))
-void* chip_write(int, float);
+void* chip_write();
 void* pin_write(void*, int);
 //
 void* strhash_write(void*, int);
@@ -26,6 +26,17 @@ struct matchtable
 };
 static struct matchtable mt[10];
 static int tablen = 0;
+//
+struct chipindex
+{
+	u32 self;
+	u32 what;
+	u32 type;
+	float data;
+
+	u64 first;
+	u64 last;
+};
 void* pinbody;
 //
 static int countline = 0;
@@ -36,7 +47,7 @@ static int inname = 0;
 
 
 
-void* cir_read_chip(u8* buf, int len, int type, float val)
+void* cir_read_chip(u8* buf, int len)
 {
 	int j;
 	u64 name;
@@ -52,7 +63,7 @@ void* cir_read_chip(u8* buf, int len, int type, float val)
 
 	//create
 	addr1 = strhash_write(buf, len);
-	addr2 = chip_write(type, val);
+	addr2 = chip_write();
 	relation_write(
 		addr1, 0, hex32('h','a','s','h'),
 		addr2, 0, hex32('c','h','i','p')
@@ -69,6 +80,7 @@ void cir_read_line(u8* buf, int len)
 	int j,k;
 	float f;
 	void* addr;
+	struct chipindex* chipbody;
 	if(0 == buf)return;
 	if(0 == len)return;
 	//printf("%d	%.*s\n",countline, len, buf);
@@ -90,9 +102,10 @@ void cir_read_line(u8* buf, int len)
 		if('(' == buf[j])
 		{
 			//printf("(%.*s, %.*s)\n", j, buf, len-j-2, buf+j+1);
-			addr = cir_read_chip(buf, j, buf[0], 0.0);
+			chipbody = cir_read_chip(buf, j);
+			if(0 == chipbody->type)chipbody->type = buf[0];
 			relation_write(
-				addr, buf[j+1], hex32('c','h','i','p'),
+				chipbody, buf[j+1], hex32('c','h','i','p'),
 				pinbody, 0, hex32('p','i','n',0)
 			);
 			return;
@@ -116,7 +129,9 @@ void cir_read_line(u8* buf, int len)
 				}
 			}
 			//printf("%.*s = %f\n", k, buf, f);
-			addr = cir_read_chip(buf, k, buf[0], f);
+			chipbody = cir_read_chip(buf, k);
+			chipbody->type = buf[0];
+			chipbody->data = f;
 			return;
 		}
 	}

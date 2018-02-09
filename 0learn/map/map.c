@@ -8,18 +8,27 @@
 #define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
 #define hex64(a,b,c,d,e,f,g,h) (hex32(a,b,c,d) | (((u64)hex32(e,f,g,h))<<32))
 #define __hash__ hex32('h','a','s','h')
+#define __chip__ hex32('c','h','i','p')
+void* chip_write();
+void* pin_write();
 void* strhash_read(u64);
 void* strhash_write(u8*, int);
+//
+void* samepinprevchip(void*);
+void* samepinnextchip(void*);
+void* samechipprevpin(void*);
+void* samechipnextpin(void*);
+void* relation_read(int);
 void relation_write(
-        void* uchip, u64 ufoot, u64 utype,
-        void* bchip, u64 bfoot, u64 btype);
+	void* uchip, u64 ufoot, u64 utype,
+	void* bchip, u64 bfoot, u64 btype);
 
 
 
 
 static int count = 0;
 static int infunc = 0;
-static u64 roadname;
+static void* chip;
 
 
 
@@ -27,7 +36,6 @@ static u64 roadname;
 static void map_read_line(u8* buf, int len)
 {
 	int j;
-	void* road;
 	void* addr;
 	printf("%.*s\n", len, buf);
 
@@ -48,17 +56,20 @@ static void map_read_line(u8* buf, int len)
 	addr = strhash_write(buf, len);
 	if(0 == j)
 	{
-		roadname = *(u64*)addr;
+		chip = chip_write();
+		relation_write(
+			addr, count, __hash__,
+			chip, 0, __chip__
+		);
 		count = 0;
 	}
 	else
 	{
-		printf("%llx,%llx\n",road,addr);
-		road = strhash_read(roadname);
 		relation_write(
-			road, count, __hash__,
+			chip, count, __chip__,
 			addr, 0, __hash__
 		);
+		count++;
 	}
 }
 static void map_read(u8* buf, int len)

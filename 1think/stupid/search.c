@@ -12,7 +12,7 @@ void strhash_print(u64);
 void* strhash_read(u64);
 //
 void* pin_read(int);
-void* chipindex_read(int);
+void* chip_read(int);
 void* funcindex_read(int);
 void* filemd5_read(int);
 void* pointindex_read(int);
@@ -115,7 +115,7 @@ void chipname(u64 addr)
 	struct wire* orel;
 	struct chipindex* chip;
 
-	chip = chipindex_read(addr);
+	chip = chip_read(addr);
 	if(chip == 0)goto error;
 
 	orel = relation_read(chip->orel);
@@ -332,7 +332,7 @@ void searchchip(int offset)
 		return;
 	}
 
-	chip = chipindex_read(offset);
+	chip = chip_read(offset);
 	sb += snprintf(sb, sl,
 		"chip@%08x	@%llx\n",
 		offset,
@@ -814,9 +814,9 @@ hashorel:
 		else
 		{
 			sb += snprintf(sb, sl,
-				"i:	%.8s@%llx\n",
-				(char*)&orel->selftype,
-				orel->selfchip
+				"o:	%.8s@%llx\n",
+				(char*)&orel->desttype,
+				orel->destchip
 			);
 		}
 
@@ -885,28 +885,25 @@ void search(int argc, char** argv)
 	obuf = malloc(0x100000);
 	readthemall(1);
 
-#if (defined(_WIN32) || defined(__WIN32__))
 	if(argc > 1)
 	{
+#if (defined(_WIN32) || defined(__WIN32__))
 		for(j=1;j<argc;j++)
 		{
 			fixarg(ibuf, argv[j]);
 			search_one(obuf, 0x100000, ibuf, strlen(ibuf));
 			output(obuf, sb-obuf);
 		}
-	}
 #else
-	if(argc > 1)
-	{
 		for(j=1;j<argc;j++)
 		{
 			len = strlen(argv[j]);
 			search_one(obuf, 0x100000, argv[j], len);
 			output(obuf, sb-obuf);
 		}
+#endif
 		return;
 	}
-#endif
 
 	while(1)
 	{

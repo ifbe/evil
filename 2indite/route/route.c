@@ -14,18 +14,18 @@
 #define __pin__ hex32('p','i','n',0)
 //
 void readthemall(int);
+void fixarg(void*, void*);
 void strhash_print(u64 hash);
 int strhash_export(u64 hash, u8* dst, int len);
 u64 strhash_generate(void*, int);
 //
 void* strhash_read(u64);
 void* pin_read(int);
-void* chipindex_read(int);
+void* chip_read(int);
+void* filemd5_read(int);
+void* funcindex_read(int);
 void* shapeindex_read(int);
 void* pointindex_read(int);
-void* pointdata_read(int);
-void* funcindex_read(int);
-void* filemd5_read(int);
 //
 void* samepinprevchip(void*);
 void* samepinnextchip(void*);
@@ -120,7 +120,6 @@ void route(int argc, char** argv)
 	u64 type, data, addr;
 	struct hash* h1;
 	struct hash* h2;
-
 	//check
 	if(argc != 3)
 	{
@@ -129,25 +128,35 @@ void route(int argc, char** argv)
 	}
 	readthemall(1);
 
+#if (defined(_WIN32) || defined(__WIN32__))
+	u8 arg1[0x100];
+	u8 arg2[0x100];
+	fixarg(arg1, argv[1]);
+	fixarg(arg2, argv[2]);
+#else
+	u8* arg1 = argv[1];
+	u8* arg2 = argv[2];
+#endif
+
 	//str1
-	t1 = strhash_generate(argv[1], strlen(argv[1]));
+	t1 = strhash_generate(arg1, strlen(arg1));
 	h1 = strhash_read(t1);
 	if(0 == h1)
 	{
-		printf("(%016llx)%s: notfound\n", t1, argv[1]);
+		printf("(%016llx)%s: notfound\n", t1, arg1);
 		return;
 	}
-	printf("(%016llx)%s: %llx\n", t1, argv[1], h1);
+	printf("(%016llx)%s: %llx\n", t1, arg1, h1);
 
 	//str2
-	t2 = strhash_generate(argv[2], strlen(argv[2]));
+	t2 = strhash_generate(arg2, strlen(arg2));
 	h2 = strhash_read(t2);
 	if(0 == h2)
 	{
-		printf("(%016llx)%s: notfound\n", t2, argv[2]);
+		printf("(%016llx)%s: notfound\n", t2, arg2);
 		return;
 	}
-	printf("(%016llx)%s: %llx\n", t2, argv[2], h2);
+	printf("(%016llx)%s: %llx\n", t2, arg2, h2);
 
 	//prepare
 	st[0].type = __hash__;
@@ -178,7 +187,7 @@ printf("%d.i) %llx,%llx\n",rsp,type,data);
 			if(__hash__ == type)h1 = strhash_read(data);
 			else if(__file__ == type)h1 = filemd5_read(data);
 			else if(__fun__ == type)h1 = funcindex_read(data);
-			else if(__chip__ == type)h1 = chipindex_read(data);
+			else if(__chip__ == type)h1 = chip_read(data);
 			else if(__pin__ == type)h1 = pin_read(data);
 			else continue;
 
@@ -209,7 +218,7 @@ printf("%d.o) %llx,%llx\n",rsp,type,data);
 			if(__hash__ == type)h1 = strhash_read(data);
 			else if(__file__ == type)h1 = filemd5_read(data);
 			else if(__fun__ == type)h1 = funcindex_read(data);
-			else if(__chip__ == type)h1 = chipindex_read(data);
+			else if(__chip__ == type)h1 = chip_read(data);
 			else if(__pin__ == type)h1 = pin_read(data);
 			else continue;
 
@@ -225,7 +234,7 @@ printf("%d.o) %llx,%llx\n",rsp,type,data);
 		if(0 == rsp)break;
 		rsp--;
 	}
-	for(j=0;j<rsp;j++)
+	for(j=0;j<=rsp;j++)
 	{
 		if(__hash__ == st[j].type)
 		{
@@ -234,8 +243,8 @@ printf("%d.o) %llx,%llx\n",rsp,type,data);
 		}
 		else
 		{
-			printf("%.4s,%llx -> ", &st[j].type, st[j].data);
+			printf("%.4s@%llx -> ", &st[j].type, st[j].data);
 		}
 	}
-	printf("%s\n", argv[2]);
+	printf("%s\n", arg2);
 }

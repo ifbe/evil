@@ -21,7 +21,7 @@ struct chipindex
 	u32 self;
 	u32 what;
 	u32 type;
-	float data;
+	u32 data;
 
 	u64 first;
 	u64 last;
@@ -34,15 +34,15 @@ static int chipindexlen;
 
 
 
-void* chip_write(int type, float data)
+void* chip_write()
 {
 	struct chipindex* addr;
 	//printf("chip@%d\n", linenum);
 
 	addr = (void*)chipindexbuf + chipindexlen;
 	addr->self = chipindexlen;
-	addr->type = type;
-	addr->data = data;
+	addr->type = 0;
+	addr->data = 0;
 
 	chipindexlen += 0x20;
 	if(chipindexlen >= maxlen)
@@ -52,7 +52,7 @@ void* chip_write(int type, float data)
 	}
 	return addr;
 }
-void* chipindex_read(int offset)
+void* chip_read(int offset)
 {
 	return (void*)chipindexbuf + offset;
 }

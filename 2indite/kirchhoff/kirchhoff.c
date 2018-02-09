@@ -18,7 +18,7 @@ u64 strhash_generate(void*, int);
 void strhash_print(u64);
 void* strhash_read(u64);
 void* pin_read(int);
-void* chipindex_read(int);
+void* chip_read(int);
 //
 void* relation_read(u64);
 void* samepinprevchip(void*);
@@ -185,7 +185,7 @@ printf("[%d,%d)\n",cur,len);
 
 		if(ctxbuf[j].type == __chip__)
 		{
-			h = chipindex_read(ctxbuf[j].addr);
+			h = chip_read(ctxbuf[j].addr);
 			if(h == 0)continue;
 		}
 		else if(ctxbuf[j].type == __pin__)
@@ -263,13 +263,13 @@ printf("\nname:\n");
 	{
 		if(ctxbuf[j].type == __chip__)
 		{
-			chip = chipindex_read(ctxbuf[j].addr);
+			chip = chip_read(ctxbuf[j].addr);
 			ctxbuf[j].name = kirchhoff_name(chip);
 
 			detail[j].type = chip->type;
 			detail[j].data = chip->data;
 
-			printf("%d)%.8s:	%.8s=%f\n",
+			printf("%2d)%8.8s:	%.8s=%f\n",
 				j, &ctxbuf[j].name,
 				&detail[j].type, detail[j].data
 			);
@@ -282,7 +282,7 @@ printf("\nname:\n");
 			detail[j].type = '?';
 			detail[j].V = 0.0;
 
-			printf("%d)%.8s:	%.8s\n",
+			printf("%2d)%8.8s:	%.8s\n",
 				j, &ctxbuf[j].name,
 				&detail[j].type
 			);
@@ -322,7 +322,7 @@ printf("\nsort:\n");
 		if('+' == temp)detail[chip].P = pin;
 		else if('-' == temp)detail[chip].N = pin;
 
-		printf("%d)%.8s,%.8s,%c\n",
+		printf("%2d)%8.8s,%.8s,%c\n",
 			j,
 			&ctxbuf[pin].name,
 			&ctxbuf[chip].name,
@@ -339,14 +339,14 @@ void kirchhoff_info()
 	{
 		if(__pin__ == ctxbuf[j].type)
 		{
-			printf("%d)%.8s:	%d\n",
+			printf("%2d)%8.8s:	%d\n",
 				j, &ctxbuf[j].name,
 				detail[j].P
 			);
 		}
 		else
 		{
-			printf("%d)%.8s:	P@%d,N@%d	%.8s=%f\n",
+			printf("%2d)%8.8s:	P@%d,N@%d	%.8s=%f\n",
 				j, &ctxbuf[j].name,
 				detail[j].P, detail[j].N,
 				&detail[j].type, detail[j].data

@@ -28,7 +28,7 @@ int strhash_export(u64 hash, u8* dst, int len);
 u64 strhash_generate(void*, int);
 void* strhash_read(u64);
 void* pin_read(int);
-void* chipindex_read(int);
+void* chip_read(int);
 void* shapeindex_read(int);
 void* pointindex_read(int);
 void* pointdata_read(int);
@@ -182,7 +182,7 @@ printf("%x,%llx,%llx\n",j,ctxbuf[j].type, ctxbuf[j].addr);
 		}
 		else if(ctxbuf[j].type == __chip__)
 		{
-			h = chipindex_read(ctxbuf[j].addr);
+			h = chip_read(ctxbuf[j].addr);
 			if(h == 0)continue;
 		}
 		else if(ctxbuf[j].type == __pin__)
