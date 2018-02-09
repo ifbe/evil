@@ -133,6 +133,35 @@ void drawline(u32* buf, u32 rgb, int w, int h,
 		if(e2 < dy){e1 += dx;y0 += sy;}
 	}
 }
+
+
+
+void drawascii_alpha(u8* buf, int w, int h,
+	int xx, int yy, u8 ch)
+{
+	u8 temp;
+	int x,y,t;
+	u8* points;
+	if((ch>0x20)&&(ch<0x80))ch -= 0x20;
+	else ch = 0;
+
+	points = asciitable + (ch<<4);
+	for(y=0;y<16;y++)
+	{
+		temp = points[y];
+		for(x=0;x<8;x++)
+		{
+			t = w*(yy+y) + xx+x;
+			if((t>=0)&&(t<w*h))
+			{
+				if(0 == (temp&0x80))buf[t] = 0;
+				else buf[t] = 0xff;
+			}
+
+			temp<<=1;
+		}//x
+	}//y
+}
 void drawascii(u32* buf, u32 rgb, int w, int h,
 	int xx, int yy, u8 ch)
 {
