@@ -29,6 +29,7 @@ void worker_create();
 void worker_delete();
 //
 int conv(int argc,char** argv);
+int disasm(int argc,char** argv);
 int learn(int argc,char** argv);
 //
 int think(int argc,char** argv);
@@ -111,6 +112,10 @@ int main(int argc, char** argv)
 	if(strcmp(argv[1], "conv") == 0)
 	{
 		conv(argc-1, argv+1);
+	}
+	else if(strcmp(argv[1], "disasm") == 0)
+	{
+		disasm(argc-1, argv+1);
 	}
 	else if(strcmp(argv[1], "learn") == 0)
 	{
