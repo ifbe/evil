@@ -140,8 +140,9 @@ int graph_pair(int j, int k)
 	u32* addr;
 
 	if(j==k)return 0;
-	if(j<k)data = (j<<16)+k;
-	else data = (k<<16)+j;
+	j = 2*j;
+	k = 2*k+1;
+	data = (k<<16)+j;
 
 	addr = (void*)buffer + 0x500000;
 	for(i=0;i<info.linecount;i++)
@@ -150,7 +151,7 @@ int graph_pair(int j, int k)
 	}
 
 	addr[info.linecount] = data;
-	printf("%d:%x\n", info.linecount, data);
+	printf("%x)%x,%x\n", info.linecount, j, k);
 
 	info.linecount += 1;
 	return 1;
@@ -164,7 +165,7 @@ printf("[%d,%d)\n",cur,len);
 
 	for(j=cur;j<len;j++)
 	{
-printf("%x,%llx,%llx\n",j,ctxbuf[j].type, ctxbuf[j].addr);
+printf("%x:%llx,%llx\n",j,ctxbuf[j].type, ctxbuf[j].addr);
 		if(ctxbuf[j].type == __hash__)
 		{
 			h = strhash_read(ctxbuf[j].addr);
@@ -207,7 +208,7 @@ printf("%x,%llx,%llx\n",j,ctxbuf[j].type, ctxbuf[j].addr);
 		{
 			if(w == 0)break;
 			k = graph_add(w->desttype, w->destchip);
-			if(j != k)graph_pair(j,k);
+			if(j != k)graph_pair(k, j);
 
 			w = samechipprevpin(w);
 		}
@@ -255,20 +256,29 @@ void graph_one(char* buf, int len)
 
 	for(j=0;j<ctxlen;j++)
 	{
-		vv = (void*)buffer + 0x000000 + 12*j;
+		vv = (void*)buffer + 0x000000 + 24*j;
 		vv[0] = (float)(rand()&0xffff)/65536.0;
 		vv[1] = (float)(rand()&0xffff)/65536.0;
 		vv[2] = (float)(rand()&0xffff)/65536.0;
+		//vv[3] = vv[0];
+		//vv[4] = vv[1];
+		//vv[5] = vv[2];
 
-		nn = (void*)buffer + 0x100000 + 12*j;
+		nn = (void*)buffer + 0x100000 + 24*j;
 		nn[0] = 0.0;
 		nn[1] = 0.0;
 		nn[2] = 1.0;
+		nn[3] = 0.0;
+		nn[4] = 0.0;
+		nn[5] = 1.0;
 
-		cc = (void*)buffer + 0x200000 + 12*j;
-		cc[0] = 0.80;
-		cc[1] = 0.80;
-		cc[2] = 0.80;
+		cc = (void*)buffer + 0x200000 + 24*j;
+		cc[0] = 1.0;
+		cc[1] = 1.0;
+		cc[2] = 1.0;
+		cc[3] = 0.1;
+		cc[4] = 0.1;
+		cc[5] = 0.1;
 	}
 	graph_data(buffer, &info, ctxbuf, ctxlen);
 }

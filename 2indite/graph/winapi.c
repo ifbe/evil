@@ -106,13 +106,14 @@ void windowwrite()
 			lbuf, llen
 		);
 		vbuf[0] = vbuf[1] = vbuf[2] = 0.0;
+		vbuf[3] = vbuf[4] = vbuf[5] = 0.0;
 	}
 
 	for(j=0;j<width*height*4;j++)buf[j] = 0;
 	for(j=0;j<llen;j++)
 	{
-		m = 3*lbuf[j].parent;
-		n = 3*lbuf[j].child;
+		m = 3*(lbuf[j].parent&0xfffe);
+		n = 3*(lbuf[j].child&0xfffe);
 		x0 = 512 + (int)(scale * vbuf[m+0]);
 		y0 = 384 + (int)(scale * vbuf[m+1]);
 		x1 = 512 + (int)(scale * vbuf[n+0]);
@@ -121,8 +122,8 @@ void windowwrite()
 	}
 	for(j=ctxlen-1;j>=0;j--)
 	{
-		x0 = 512 + (int)(scale * vbuf[3*j+0]);
-		y0 = 384 + (int)(scale * vbuf[3*j+1]);
+		x0 = 512 + (int)(scale * vbuf[6*j+0]);
+		y0 = 384 + (int)(scale * vbuf[6*j+1]);
 		if(ctxbuf[j].type == hex32('h','a','s','h'))
 		{
 			drawstring(

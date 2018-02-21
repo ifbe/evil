@@ -46,14 +46,15 @@ void forcedirected_2d(
 	struct vertex* vbuf, int vlen,
 	struct pair* lbuf, int llen)
 {
-	int j,k;
+	int j,k,m,n;
 	float x,y,t;
+	vlen *= 2;
 
 	//coulomb force
-	for(j=0;j<vlen;j++)
+	for(j=0;j<vlen;j+=2)
 	{
 		obuf[j].x = obuf[j].y = obuf[j].z = 0.0;
-		for(k=0;k<vlen;k++)
+		for(k=0;k<vlen;k+=2)
 		{
 			if(j == k)continue;
 			x = vbuf[j].x - vbuf[k].x;
@@ -74,23 +75,26 @@ void forcedirected_2d(
 	//spring force
 	for(j=0;j<llen;j++)
 	{
-		x = vbuf[lbuf[j].parent].x - vbuf[lbuf[j].child].x;
-		y = vbuf[lbuf[j].parent].y - vbuf[lbuf[j].child].y;
+		m = (lbuf[j].parent)&0xfffe;
+		n = (lbuf[j].child)&0xfffe;
+
+		x = vbuf[m].x - vbuf[n].x;
+		y = vbuf[m].y - vbuf[n].y;
 
 		//F = vec*k*r
 		t = sqrt(x*x + y*y);
 		x /= t;
 		y /= t;
 
-		obuf[lbuf[j].child].x += x;
-		obuf[lbuf[j].child].y += y;
+		obuf[n].x += x;
+		obuf[n].y += y;
 
-		obuf[lbuf[j].parent].x -= x;
-		obuf[lbuf[j].parent].y -= y;
+		obuf[m].x -= x;
+		obuf[m].y -= y;
 	}
 
 	//move point
-	for(j=0;j<vlen;j++)
+	for(j=0;j<vlen;j+=2)
 	{
 /*
 		say("%f,%f,%f -> %f,%f,%f\n",
@@ -100,6 +104,8 @@ void forcedirected_2d(
 */
 		vbuf[j].x += obuf[j].x / 100.0;
 		vbuf[j].y += obuf[j].y / 100.0;
+		vbuf[j+1].x = vbuf[j].x;
+		vbuf[j+1].y = vbuf[j].y;
 	}
 	//say("\n");
 }
@@ -108,14 +114,15 @@ void forcedirected_3d(
 	struct vertex* vbuf, int vlen,
 	struct pair* lbuf, int llen)
 {
-	int j,k;
+	int j,k,m,n;
 	float x,y,z,t;
+	vlen *= 2;
 
 	//coulomb force
-	for(j=0;j<vlen;j++)
+	for(j=0;j<vlen;j+=2)
 	{
 		obuf[j].x = obuf[j].y = obuf[j].z = 0.0;
-		for(k=0;k<vlen;k++)
+		for(k=0;k<vlen;k+=2)
 		{
 			if(j == k)continue;
 			x = vbuf[j].x - vbuf[k].x;
@@ -139,9 +146,12 @@ void forcedirected_3d(
 	//spring force
 	for(j=0;j<llen;j++)
 	{
-		x = vbuf[lbuf[j].parent].x - vbuf[lbuf[j].child].x;
-		y = vbuf[lbuf[j].parent].y - vbuf[lbuf[j].child].y;
-		z = vbuf[lbuf[j].parent].z - vbuf[lbuf[j].child].z;
+		m = (lbuf[j].parent)&0xfffe;
+		n = (lbuf[j].child)&0xfffe;
+
+		x = vbuf[m].x - vbuf[n].x;
+		y = vbuf[m].y - vbuf[n].y;
+		z = vbuf[m].z - vbuf[n].z;
 
 		//F = vec*k*r
 		t = sqrt(x*x + y*y + z*z);
@@ -149,17 +159,17 @@ void forcedirected_3d(
 		y /= t;
 		z /= t;
 
-		obuf[lbuf[j].child].x += x;
-		obuf[lbuf[j].child].y += y;
-		obuf[lbuf[j].child].z += z;
+		obuf[n].x += x;
+		obuf[n].y += y;
+		obuf[n].z += z;
 
-		obuf[lbuf[j].parent].x -= x;
-		obuf[lbuf[j].parent].y -= y;
-		obuf[lbuf[j].parent].z -= z;
+		obuf[m].x -= x;
+		obuf[m].y -= y;
+		obuf[m].z -= z;
 	}
 
 	//move point
-	for(j=0;j<vlen;j++)
+	for(j=0;j<vlen;j+=2)
 	{
 /*
 		say("%f,%f,%f -> %f,%f,%f\n",
@@ -170,6 +180,9 @@ void forcedirected_3d(
 		vbuf[j].x += obuf[j].x / 50.0;
 		vbuf[j].y += obuf[j].y / 50.0;
 		vbuf[j].z += obuf[j].z / 50.0;
+		vbuf[j+1].x = vbuf[j].x;
+		vbuf[j+1].y = vbuf[j].y;
+		vbuf[j+1].z = vbuf[j].z;
 	}
 	//say("\n");
 }
@@ -188,9 +201,9 @@ void graph_tria(void* buffer, struct binfo* info,
 	info->vertexcount += 6;
 	info->tricount += 8;
 
-	x = vbuf[j].x;
-	y = vbuf[j].y;
-	z = vbuf[j].z;
+	x = vbuf[j*2].x;
+	y = vbuf[j*2].y;
+	z = vbuf[j*2].z;
 	if(ctxbuf[j].type == hex32('f','i','l','e'))
 	{
 		r = 0.0;
@@ -387,9 +400,9 @@ void graph_string(void* buffer, struct binfo* info,
 	int k,len;
 	u8* p;
 	struct vertex* vbuf = buffer;
-	float x = vbuf[j].x;
-	float y = vbuf[j].y;
-	float z = vbuf[j].z;
+	float x = vbuf[j*2].x;
+	float y = vbuf[j*2].y;
+	float z = vbuf[j*2].z;
 
 	p = ctxbuf[j].str;
 	for(len=0;len<16;len++)
@@ -418,12 +431,13 @@ void graph_hack(void* buffer, struct binfo* info,
 	struct vertex* vbuf = buffer;
 	void* lbuf = buffer+0x500000;
 
-	info->vertexcount = ctxlen;
-	info->normalcount = ctxlen;
-	info->colorcount = ctxlen;
 	forcedirected_3d(obuf, olen, vbuf, vlen, lbuf, llen);
 	vbuf[0].x = vbuf[0].y = vbuf[0].z = 0.0;
+	vbuf[1].x = vbuf[1].y = vbuf[1].z = 0.0;
 
+	info->vertexcount = ctxlen*2;
+	info->normalcount = ctxlen*2;
+	info->colorcount = ctxlen*2;
 	info->tricount = 0;
 	info->fontcount = 0;
 	for(j=0;j<ctxlen;j++)

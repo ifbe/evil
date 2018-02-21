@@ -25,9 +25,11 @@ void* samechipnextpin(void*);
 void* relation_read(int);
 //
 void readthemall(int);
-int hexstr2data(void*, void*);
+void writethemall(int);
 int input(void*, int);
 int output(void*, int);
+int fixarg(void*, void*);
+int hexstr2data(void*, void*);
 
 
 
