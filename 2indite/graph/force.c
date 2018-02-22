@@ -5,6 +5,12 @@
 #define u64 unsigned long long
 #define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
 #define hex64(a,b,c,d,e,f,g,h) (hex32(a,b,c,d) | (((u64)hex32(e,f,g,h))<<32))
+#define _hash_ hex32('h','a','s','h')
+#define _file_ hex32('f','i','l','e')
+#define _func_ hex32('f','u','n','c')
+#define _chip_ hex32('c','h','i','p')
+#define _pin_ hex32('p','i','n',0)
+#define _shape_ hex32('s','h','a','p')
 
 
 
@@ -201,39 +207,16 @@ void graph_tria(void* buffer, struct binfo* info,
 	info->vertexcount += 6;
 	info->tricount += 8;
 
+	if(_hash_ == ctxbuf[j].type){r = 1.0;g = 0.0;b = 0.0;}
+	else if(_file_ == ctxbuf[j].type){r = 0.0;g = 1.0;b = 0.0;}
+	else if(_func_ == ctxbuf[j].type){r = 0.0;g = 0.0;b = 1.0;}
+	else if(_chip_ == ctxbuf[j].type){r = 0.4;g = 1.0;b = 0.7;}
+	else if( _pin_ == ctxbuf[j].type){r = 0.8;g = 0.3;b = 1.0;}
+	else {r = 0.9;g = 0.5;b = 0.1;}
+
 	x = vbuf[j*2].x;
 	y = vbuf[j*2].y;
 	z = vbuf[j*2].z;
-	if(ctxbuf[j].type == hex32('f','i','l','e'))
-	{
-		r = 0.0;
-		g = 1.0;
-		b = 0.0;
-	}
-	else if(ctxbuf[j].type == hex32('f','u','n','c'))
-	{
-		r = 0.0;
-		g = 0.0;
-		b = 1.0;
-	}
-	else if(ctxbuf[j].type == hex32('c','h','i','p'))
-	{
-		r = 0.4;
-		g = 1.0;
-		b = 0.7;
-	}
-	else if(ctxbuf[j].type == hex32('p','i','n',0))
-	{
-		r = 0.8;
-		g = 0.3;
-		b = 1.0;
-	}
-	else
-	{
-		r = 0.9;
-		g = 0.5;
-		b = 0.1;
-	}
 
 	vbuf[vlen+0].x = x+s;
 	vbuf[vlen+0].y = y;

@@ -8,16 +8,16 @@
 #define u64 unsigned long long
 #define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
 #define hex64(a,b,c,d,e,f,g,h) (hex32(a,b,c,d) | (((u64)hex32(e,f,g,h))<<32))
-#define __hash__ hex32('h','a','s','h')
-#define __file__ hex32('f','i','l','e')
-#define __fun__ hex32('f','u','n','c')
-#define __chip__ hex32('c','h','i','p')
-#define __pin__ hex32('p','i','n',0)
-#define __shape__ hex32('s','h','a','p')
-#define __point__ hex32('p','o','i','n')
-#define __line__ hex32('l','i','n','e')
-#define __tri__ hex32('t','r','i',0)
-#define __rect__ hex32('r','e','c','t')
+#define _hash_ hex32('h','a','s','h')
+#define _file_ hex32('f','i','l','e')
+#define _func_ hex32('f','u','n','c')
+#define _chip_ hex32('c','h','i','p')
+#define _pin_ hex32('p','i','n',0)
+#define _shape_ hex32('s','h','a','p')
+#define _point_ hex32('p','o','i','n')
+#define _line_ hex32('l','i','n','e')
+#define _tri_ hex32('t','r','i',0)
+#define _rect_ hex32('r','e','c','t')
 void readthemall(int);
 void trianglenormal(void* n, void* a, void* b, void* c);
 //
@@ -125,7 +125,7 @@ int graph_add(u64 type, u64 addr)
 
 	ctxbuf[k].type = type;
 	ctxbuf[k].addr = addr;
-	if(type == __hash__)
+	if(type == _hash_)
 	{
 		strhash_export(addr, ctxbuf[k].str, 16);
 	}
@@ -166,27 +166,27 @@ printf("[%d,%d)\n",cur,len);
 	for(j=cur;j<len;j++)
 	{
 printf("%x:%llx,%llx\n",j,ctxbuf[j].type, ctxbuf[j].addr);
-		if(ctxbuf[j].type == __hash__)
+		if(_hash_ == ctxbuf[j].type)
 		{
 			h = strhash_read(ctxbuf[j].addr);
 			if(h == 0)continue;
 		}
-		else if(ctxbuf[j].type == __file__)
+		else if(_file_ == ctxbuf[j].type)
 		{
 			h = filemd5_read(ctxbuf[j].addr);
 			if(h == 0)continue;
 		}
-		else if(ctxbuf[j].type == __fun__)
+		else if(_func_ == ctxbuf[j].type)
 		{
 			h = funcindex_read(ctxbuf[j].addr);
 			if(h == 0)continue;
 		}
-		else if(ctxbuf[j].type == __chip__)
+		else if(_chip_ == ctxbuf[j].type)
 		{
 			h = chip_read(ctxbuf[j].addr);
 			if(h == 0)continue;
 		}
-		else if(ctxbuf[j].type == __pin__)
+		else if(_pin_ == ctxbuf[j].type)
 		{
 			h = pin_read(ctxbuf[j].addr);
 			if(h == 0)continue;
@@ -230,7 +230,7 @@ void graph_one(char* buf, int len)
 	temp = strhash_generate(buf, len);
 
 	ctxlen = 0;
-	graph_add(__hash__, temp);
+	graph_add(_hash_, temp);
 
 	j = 0;
 	for(i=0;i<20;i++)
@@ -273,12 +273,14 @@ void graph_one(char* buf, int len)
 		nn[5] = 1.0;
 
 		cc = (void*)buffer + 0x200000 + 24*j;
-		cc[0] = 1.0;
-		cc[1] = 1.0;
-		cc[2] = 1.0;
-		cc[3] = 0.1;
-		cc[4] = 0.1;
-		cc[5] = 0.1;
+		if(_hash_ == ctxbuf[j].type){cc[0]=1.0;cc[1]=0.0;cc[2]=0.0;}
+		else if(_file_ == ctxbuf[j].type){cc[0]=0.0;cc[1]=1.0;cc[2]=0.0;}
+		else if(_func_ == ctxbuf[j].type){cc[0]=0.0;cc[1]=0.0;cc[2]=1.0;}
+		else if(_chip_ == ctxbuf[j].type){cc[0]=0.4;cc[1]=1.0;cc[2]=0.7;}
+		else if( _pin_ == ctxbuf[j].type){cc[0]=0.8;cc[1]=0.3;cc[2]=1.0;}
+		else {cc[0] = 1.0;cc[1] = 1.0;cc[2] = 1.0;}
+
+		cc[3] = 0.1;cc[4] = 0.1;cc[5] = 0.1;
 	}
 	graph_data(buffer, &info, ctxbuf, ctxlen);
 }
