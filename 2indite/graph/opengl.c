@@ -9,13 +9,24 @@
 #define u32 unsigned int
 #define u64 unsigned long long
 #define PI 3.1415926535897932384626433832795028841971693993151
+#define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
+#define hex64(a,b,c,d,e,f,g,h) (hex32(a,b,c,d) | (((u64)hex32(e,f,g,h))<<32))
+#define _hash_ hex32('h','a','s','h')
+#define _file_ hex32('f','i','l','e')
+#define _func_ hex32('f','u','n','c')
+#define _chip_ hex32('c','h','i','p')
+#define _pin_ hex32('p','i','n',0)
+#define _shape_ hex32('s','h','a','p')
 void vectornormalize(float* v);
 void vectorcross(float* v, float* x);
 void quaternionrotate(float* v, float* q);
 //
-void graph_hack(void*, void*, void*, int);
 void drawascii(void*, u32, int, int, int, int, u8);
 void drawascii_alpha(void*, int, int, int, int, u8);
+//
+void carveshape(void* obj, u32 rgb, float x, float y, float z);
+void carvestring(void* obj, u32 rgb, float x, float y, float z, u8* buf, int len);
+void forcedirected_3d(void*, int, void*, int, void*, int);
 
 
 
@@ -31,25 +42,6 @@ static int last_y = 0;
 static GLuint simpleprogram;
 static GLuint prettyprogram;
 static GLuint myfontprogram;
-//
-static GLuint simpletexture;
-static GLuint prettytexture;
-static GLuint shadowtexture;
-static GLuint pickertexture;
-//
-static GLuint pointvao;
-static GLuint linevao;
-static GLuint trivao;
-static GLuint fontvao;
-//
-static GLuint vertexhandle;
-static GLuint normalhandle;
-static GLuint colourhandle;
-static GLuint texcorhandle;
-static GLuint pointhandle;
-static GLuint linehandle;
-static GLuint trihandle;
-static GLuint fonthandle;
 //
 static float light0[4] = {0.0f, 0.0f, 10.0f};
 static float camera[4] = {1.0f, -2.0f, 1.0f};
@@ -77,23 +69,30 @@ static GLfloat projmatrix[4*4] = {
 static GLfloat cameramvp[4*4];
 static GLfloat light0mvp[4*4];
 //
-struct binfo
+struct object
 {
-	u64 vertexcount;
-	u64 normalcount;
-	u64 colorcount;
-	u64 texturecount;
-	u64 pointcount;
-	u64 linecount;
-	u64 tricount;
-	u64 fontcount;
+	u32 vbo;
+	u32 len;
+	void* buf;
 };
-static void* buffer = 0;
-static struct binfo* binfo = 0;
-static void* ctxbuf = 0;
+struct eachone
+{
+	u32 vao;
+};
+static struct object obj[8];
+static struct eachone each[4];
+//
+struct context
+{
+	u64 type;
+	u64 addr;
+	u8 str[16];
+};
+static struct context* ctxbuf = 0;
 static int ctxlen = 0;
 //
 static u8 fontdata[128*128];
+static u8 utf8data;
 
 
 
@@ -101,7 +100,7 @@ static u8 fontdata[128*128];
 char simplevert[] = {
 	"#version 300 es\n"
 	"layout(location = 0)in mediump vec3 position;\n"
-	"layout(location = 2)in mediump vec3 color;\n"
+	"layout(location = 1)in mediump vec3 color;\n"
 	"uniform mat4 cameramvp;\n"
 	"out mediump vec3 vertexcolor;\n"
 	"void main()\n"
@@ -122,8 +121,8 @@ char simplefrag[] = {
 char prettyvert[] = {
 	"#version 300 es\n"
 	"layout(location = 0)in mediump vec3 position;\n"
-	"layout(location = 1)in mediump vec3 normal;\n"
-	"layout(location = 2)in mediump vec3 color;\n"
+	"layout(location = 1)in mediump vec3 color;\n"
+	"layout(location = 2)in mediump vec3 normal;\n"
 	"uniform mat4 cameramvp;\n"
 	"uniform mat4 shadowmvp;\n"
 	"uniform mediump vec3 ambientcolor;\n"
@@ -159,14 +158,14 @@ char prettyfrag[] = {
 char myfontvert[] = {
 	"#version 300 es\n"
 	"layout(location = 0)in mediump vec3 position;\n"
-	"layout(location = 2)in mediump vec3 color;\n"
-	"layout(location = 3)in mediump vec2 texcoord;\n"
-	"uniform mat4 prettymvp;\n"
+	"layout(location = 1)in mediump vec3 color;\n"
+	"layout(location = 2)in mediump vec2 texcoord;\n"
+	"uniform mat4 cameramvp;\n"
 	"out mediump vec3 origcolor;\n"
 	"out mediump vec2 texuv;\n"
 	"void main()\n"
 	"{\n"
-		"gl_Position = prettymvp * vec4(position,1.0);\n"
+		"gl_Position = cameramvp * vec4(position,1.0);\n"
 		"origcolor = color;\n"
 		"texuv = texcoord;\n"
 	"}\n"
@@ -179,7 +178,7 @@ char myfontfrag[] = {
 	"out mediump vec4 FragColor;\n"
 	"void main()\n"
 	"{\n"
-		"FragColor = texture(texdata, texuv).agba;\n"
+		"FragColor = vec4(origcolor,1.0)*texture(texdata, texuv).aaaa;\n"
 	"}\n"
 };
 void initshader_one(GLuint* prog, void* vert, void* frag)
@@ -293,7 +292,17 @@ void initshader()
 }
 void inittexture()
 {
+	int j;
 	u8 ch;
+	GLuint tex;
+
+	glGenTextures(1, &tex);
+	glBindTexture(GL_TEXTURE_2D, tex);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);  //GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);  //GL_REPEAT);
+
 	for(ch=0x20;ch<0x80;ch++)
 	{
 		drawascii_alpha(
@@ -301,123 +310,98 @@ void inittexture()
 			(ch&0xf)<<3, (ch&0xf0)-32, ch
 		);
 	}
-
-	glGenTextures(1, &prettytexture);
-	glBindTexture(GL_TEXTURE_2D, prettytexture);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexImage2D(GL_TEXTURE_2D, 0,
 		GL_ALPHA, 8*16, 16*8, 0,
 		GL_ALPHA, GL_UNSIGNED_BYTE, fontdata
 	);
-
 }
 void initobject()
 {
-	void* vertexdata = buffer+0x000000;
-	void* normaldata = buffer+0x100000;
-	void* colourdata = buffer+0x200000;
-	void* texcordata = buffer+0x300000;
-	void* pointindex = buffer+0x400000;
-	void* lineindex  = buffer+0x500000;
-	void* triindex   = buffer+0x600000;
-	void* fontindex  = buffer+0x700000;
+        //point: 1=obj(vertex,color)
+        glGenBuffers(1, &obj[1].vbo);
+        glBindBuffer(GL_ARRAY_BUFFER, obj[1].vbo);
+        glBufferData(GL_ARRAY_BUFFER, 0x200000, obj[1].buf, GL_STATIC_DRAW);
 
-	//
-	glGenBuffers(1, &vertexhandle);
-	glBindBuffer(GL_ARRAY_BUFFER, vertexhandle);
-	glBufferData(GL_ARRAY_BUFFER, 0x100000, vertexdata, GL_STATIC_DRAW);
 
-	glGenBuffers(1, &normalhandle);
-	glBindBuffer(GL_ARRAY_BUFFER, normalhandle);
-	glBufferData(GL_ARRAY_BUFFER, 0x100000, normaldata, GL_STATIC_DRAW);
+        //line: 2=ibo, 3=obj(vertex,color)
+        glGenBuffers(1, &obj[2].vbo);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, obj[2].vbo);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, 0x200000, obj[2].buf, GL_STATIC_DRAW);
 
-	glGenBuffers(1, &colourhandle);
-	glBindBuffer(GL_ARRAY_BUFFER, colourhandle);
-	glBufferData(GL_ARRAY_BUFFER, 0x100000, colourdata, GL_STATIC_DRAW);
+        glGenBuffers(1, &obj[3].vbo);
+        glBindBuffer(GL_ARRAY_BUFFER, obj[3].vbo);
+        glBufferData(GL_ARRAY_BUFFER, 0x200000, obj[3].buf, GL_STATIC_DRAW);
 
-	glGenBuffers(1, &texcorhandle);
-	glBindBuffer(GL_ARRAY_BUFFER, texcorhandle);
-	glBufferData(GL_ARRAY_BUFFER, 0x100000, texcordata, GL_STATIC_DRAW);
 
+        //trigon: 4=ibo, 5=obj(vertex,color,normal)
+        glGenBuffers(1, &obj[4].vbo);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, obj[4].vbo);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, 0x200000, obj[4].buf, GL_STATIC_DRAW);
+
+        glGenBuffers(1, &obj[5].vbo);
+        glBindBuffer(GL_ARRAY_BUFFER, obj[5].vbo);
+        glBufferData(GL_ARRAY_BUFFER, 0x200000, obj[5].buf, GL_STATIC_DRAW);
+
+
+        //font: 6=ibo, 7=obj(vertex,color,texcoor)
+        glGenBuffers(1, &obj[6].vbo);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, obj[6].vbo);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, 0x200000, obj[6].buf, GL_STATIC_DRAW);
+
+        glGenBuffers(1, &obj[7].vbo);
+        glBindBuffer(GL_ARRAY_BUFFER, obj[7].vbo);
+        glBufferData(GL_ARRAY_BUFFER, 0x200000, obj[7].buf, GL_STATIC_DRAW);
 
 	//point
-	glGenVertexArrays(1, &pointvao);
-	glBindVertexArray(pointvao);
-	glBindBuffer(GL_ARRAY_BUFFER, vertexhandle);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-	glEnableVertexAttribArray(0);
-	glBindBuffer(GL_ARRAY_BUFFER, normalhandle);
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
-	glEnableVertexAttribArray(1);
-	glBindBuffer(GL_ARRAY_BUFFER, colourhandle);
-	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, 0);
-	glEnableVertexAttribArray(2);
+        glGenVertexArrays(1, &each[0].vao);
+        glBindVertexArray(each[0].vao);
 
-	glGenBuffers(1, &pointhandle);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, pointhandle);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 0x100000, pointindex, GL_STATIC_DRAW);
+        glBindBuffer(GL_ARRAY_BUFFER, obj[1].vbo);
 
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 24, (void*)0);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 24, (void*)12);
+        glEnableVertexAttribArray(1);
 
-	//line
-	glGenVertexArrays(1, &linevao);
-	glBindVertexArray(linevao);
-	glBindBuffer(GL_ARRAY_BUFFER, vertexhandle);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-	glEnableVertexAttribArray(0);
-	glBindBuffer(GL_ARRAY_BUFFER, normalhandle);
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
-	glEnableVertexAttribArray(1);
-	glBindBuffer(GL_ARRAY_BUFFER, colourhandle);
-	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, 0);
-	glEnableVertexAttribArray(2);
+        //line
+        glGenVertexArrays(1, &each[1].vao);
+        glBindVertexArray(each[1].vao);
 
-	glGenBuffers(1, &linehandle);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, linehandle);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 0x100000, lineindex, GL_STATIC_DRAW);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, obj[2].vbo);
+        glBindBuffer(GL_ARRAY_BUFFER, obj[3].vbo);
 
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 24, (void*)0);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 24, (void*)12);
+        glEnableVertexAttribArray(1);
 
-	//tria
-	glGenVertexArrays(1, &trivao);
-	glBindVertexArray(trivao);
-	glBindBuffer(GL_ARRAY_BUFFER, vertexhandle);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-	glEnableVertexAttribArray(0);
-	glBindBuffer(GL_ARRAY_BUFFER, normalhandle);
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
-	glEnableVertexAttribArray(1);
-	glBindBuffer(GL_ARRAY_BUFFER, colourhandle);
-	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, 0);
-	glEnableVertexAttribArray(2);
-	glBindBuffer(GL_ARRAY_BUFFER, texcorhandle);
-	glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, 0, 0);
-	glEnableVertexAttribArray(3);
+        //trigon
+        glGenVertexArrays(1, &each[2].vao);
+        glBindVertexArray(each[2].vao);
 
-	glGenBuffers(1, &trihandle);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, trihandle);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 0x100000, triindex, GL_STATIC_DRAW);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, obj[4].vbo);
+        glBindBuffer(GL_ARRAY_BUFFER, obj[5].vbo);
 
-	//font
-	glGenVertexArrays(1, &fontvao);
-	glBindVertexArray(fontvao);
-	glBindBuffer(GL_ARRAY_BUFFER, vertexhandle);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-	glEnableVertexAttribArray(0);
-	glBindBuffer(GL_ARRAY_BUFFER, normalhandle);
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
-	glEnableVertexAttribArray(1);
-	glBindBuffer(GL_ARRAY_BUFFER, colourhandle);
-	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, 0);
-	glEnableVertexAttribArray(2);
-	glBindBuffer(GL_ARRAY_BUFFER, texcorhandle);
-	glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, 0, 0);
-	glEnableVertexAttribArray(3);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 36, (void*)0);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 36, (void*)12);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 36, (void*)24);
+        glEnableVertexAttribArray(2);
 
-	glGenBuffers(1, &fonthandle);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, fonthandle);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 0x100000, fontindex, GL_STATIC_DRAW);
+        //font
+        glGenVertexArrays(1, &each[3].vao);
+        glBindVertexArray(each[3].vao);
+
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, obj[6].vbo);
+        glBindBuffer(GL_ARRAY_BUFFER, obj[7].vbo);
+
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 36, (void*)0);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 36, (void*)12);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 36, (void*)24);
+        glEnableVertexAttribArray(2);
 }
 
 
@@ -545,8 +529,6 @@ void fixlight()
 }
 void callback_display()
 {
-	int j, type;
-
 	//set
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
@@ -560,33 +542,33 @@ void callback_display()
 	GLint mvp1 = glGetUniformLocation(simpleprogram, "cameramvp");
 	glUniformMatrix4fv(mvp1, 1, GL_FALSE, cameramvp);
 
-	glBindVertexArray(pointvao);
-	glDrawElements(GL_POINTS, binfo->pointcount, GL_UNSIGNED_SHORT, 0);
+	glBindVertexArray(each[0].vao);
+	glDrawArrays(GL_POINTS, 0, obj[1].len);
 
-	glBindVertexArray(linevao);
-	glDrawElements(GL_LINES, 2*binfo->linecount, GL_UNSIGNED_SHORT, 0);
+	glBindVertexArray(each[1].vao);
+	glDrawElements(GL_LINES, 2*obj[2].len, GL_UNSIGNED_SHORT, 0);
 
 	//have light
 	glUseProgram(prettyprogram);
 	GLint mvp2 = glGetUniformLocation(prettyprogram, "cameramvp");
 	glUniformMatrix4fv(mvp2, 1, GL_FALSE, cameramvp);
 
-	glBindVertexArray(trivao);
-	glDrawElements(GL_TRIANGLES, 3*binfo->tricount, GL_UNSIGNED_SHORT, 0);
+	glBindVertexArray(each[2].vao);
+	glDrawElements(GL_TRIANGLES, 3*obj[4].len, GL_UNSIGNED_SHORT, 0);
 
-	//texture
+	//utf8
 	glDepthMask(GL_FALSE);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glUseProgram(myfontprogram);
 
-	GLint mvp3 = glGetUniformLocation(myfontprogram, "prettymvp");
+	GLint mvp3 = glGetUniformLocation(myfontprogram, "cameramvp");
 	glUniformMatrix4fv(mvp3, 1, GL_FALSE, cameramvp);
 	GLint tex = glGetUniformLocation(myfontprogram, "texdata");
 	glUniform1i(tex, 0);
 
-	glBindVertexArray(fontvao);
-	glDrawElements(GL_TRIANGLES, 3*binfo->fontcount, GL_UNSIGNED_SHORT, 0);
+	glBindVertexArray(each[3].vao);
+	glDrawElements(GL_TRIANGLES, 3*obj[6].len, GL_UNSIGNED_SHORT, 0);
 
 	glDisable(GL_BLEND);
 	glDepthMask(GL_TRUE);
@@ -595,84 +577,81 @@ void callback_display()
 	glFlush();
 	glutSwapBuffers();
 }
+
+
+
+
+void graph_hack(struct context* ctxbuf, int ctxlen)
+{
+	int j,k;
+	u32 c;
+	int llen = obj[2].len;
+	u16* lbuf = obj[2].buf;
+	int vlen = obj[3].len;
+	float* vbuf = obj[3].buf;
+	float* obuf = obj[5].buf;
+
+	forcedirected_3d(obuf, vlen, vbuf, vlen, lbuf, llen);
+	vbuf[0] = vbuf[1] = vbuf[2] = 0.0;
+	vbuf[6] = vbuf[7] = vbuf[8] = 0.0;
+
+	obj[4].len = 0;
+	obj[5].len = 0;
+	obj[6].len = 0;
+	obj[7].len = 0;
+	for(j=0;j<ctxlen;j++)
+	{
+		if(_hash_ == ctxbuf[j].type)c=0xff0000;
+		else if(_file_ == ctxbuf[j].type)c = 0x00ff00;
+		else if(_func_ == ctxbuf[j].type)c = 0x0000ff;
+		else if(_chip_ == ctxbuf[j].type)c = 0x6619b3;
+		else if( _pin_ == ctxbuf[j].type)c = 0xcd4dff;
+		else c = 0xe68019;
+
+		if(hex32('h','a','s','h') == ctxbuf[j].type)
+		{
+			k = 12*j;
+			carvestring(
+				obj, c,
+				vbuf[k+0], vbuf[k+1], vbuf[k+2],
+				ctxbuf[j].str, 0
+			);
+		}
+		else
+		{
+			k = 12*j;
+			carveshape(
+				obj, c,
+				vbuf[k+0], vbuf[k+1], vbuf[k+2]
+			);
+		}
+	}
+}
 void callback_idle()
 {
-	float* vertexdata;
-	float* normaldata;
-	float* colourdata;
-	float* texcordata;
-	u16* pointindex;
-	u16* lineindex;
-	u16* triindex;
-	u16* fontindex;
+	if(enqueue != dequeue)dequeue = (dequeue+1)%0x10000;
+	else graph_hack(ctxbuf, ctxlen);
 
-//printf("enq=%d,deq=%d\n", enqueue, dequeue);
-	if(enqueue != dequeue)
-	{
-		dequeue = (dequeue+1)%0x10000;
-	}
-	else
-	{
-//printf("haha\n");
-		graph_hack(buffer, binfo, ctxbuf, ctxlen);
-	}
+	glBindBuffer(GL_ARRAY_BUFFER, obj[1].vbo);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, 24*obj[1].len, obj[1].buf);
 
-	vertexdata = buffer + 0x000000;
-	normaldata = buffer + 0x100000;
-	colourdata = buffer + 0x200000;
-	texcordata = buffer + 0x300000;
-	pointindex = buffer + 0x400000;
-	lineindex  = buffer + 0x500000;
-	triindex   = buffer + 0x600000;
-	fontindex  = buffer + 0x700000;
+	glBindBuffer(GL_ARRAY_BUFFER, obj[3].vbo);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, 24*obj[3].len, obj[3].buf);
 
-	if(binfo->vertexcount != 0)
-	{
-//printf("vertexcount=%d\n",binfo->vertexcount);
-		glBindBuffer(GL_ARRAY_BUFFER, vertexhandle);
-		glBufferSubData(GL_ARRAY_BUFFER, 0,
-			12 * binfo->vertexcount, vertexdata);
+	glBindBuffer(GL_ARRAY_BUFFER, obj[5].vbo);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, 36*obj[5].len, obj[5].buf);
 
-		glBindBuffer(GL_ARRAY_BUFFER, normalhandle);
-		glBufferSubData(GL_ARRAY_BUFFER, 0,
-			12 * binfo->vertexcount, normaldata);
+	glBindBuffer(GL_ARRAY_BUFFER, obj[7].vbo);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, 36*obj[7].len, obj[7].buf);
 
-		glBindBuffer(GL_ARRAY_BUFFER, colourhandle);
-		glBufferSubData(GL_ARRAY_BUFFER, 0,
-			12 * binfo->vertexcount, colourdata);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, obj[2].vbo);
+	glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, 4*obj[2].len, obj[2].buf);
 
-		glBindBuffer(GL_ARRAY_BUFFER, texcorhandle);
-		glBufferSubData(GL_ARRAY_BUFFER, 0,
-			8 * binfo->vertexcount, texcordata);
-	}
-	if(binfo->pointcount != 0)
-	{
-//printf("pointcount=%d\n",binfo->pointcount);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, pointhandle);
-		glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0,
-			2*binfo->pointcount, pointindex);
-	}
-	if(binfo->linecount != 0)
-	{
-//printf("linecount=%d\n",binfo->linecount);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, linehandle);
-		glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0,
-			4*binfo->linecount, lineindex);
-	}
-	if(binfo->tricount != 0)
-	{
-//printf("tricount=%d\n",binfo->tricount);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, trihandle);
-		glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0,
-			6*binfo->tricount, triindex);
-	}
-	if(binfo->fontcount != 0)
-	{
-//printf("fontcount=%d\n",binfo->fontcount);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, fonthandle);
-		glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0,
-			6*binfo->fontcount, fontindex);
-	}
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, obj[4].vbo);
+	glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, 6*obj[4].len, obj[4].buf);
+
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, obj[6].vbo);
+	glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, 6*obj[6].len, obj[6].buf);
 
 	glutPostRedisplay();
 }
@@ -778,19 +757,21 @@ void* graph_thread(void* arg)
 	int argc = 1;
 	char* argv[2] = {"a.out", 0};
 	glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB + GLUT_DEPTH);
+	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH);
 	glutInitWindowSize(512, 512);
 	glutInitWindowPosition(256, 256);
 	glutCreateWindow("evil");
-	glEnable(GL_DEPTH_TEST);
 
 	err = glewInit();
 	if( GLEW_OK != err )printf("glewinit: %s\n", glewGetErrorString(err));  
 
 	glPointSize(2.0);
 	glViewport(0, 0, 512, 512);
-	inittexture();
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_TEXTURE_2D);
+	glActiveTexture(GL_TEXTURE0);
 	initshader();
+	inittexture();
 	initobject();
 
 	glutIdleFunc(callback_idle);
@@ -805,19 +786,76 @@ void* graph_thread(void* arg)
 	glUseProgram(0);
 	return 0;
 }
-void graph_init(void* buf, void* ind, void* cb, int cl)
+void graph_init(void* cb, int cl, void* lb, int ll)
 {
-	buffer = buf;
-	binfo = ind;
 	ctxbuf = cb;
 	ctxlen = cl;
+
+	//point
+	obj[0].len = 0;
+	obj[0].buf = 0;
+	obj[1].len = 0;
+	obj[1].buf = malloc(0x200000);
+
+	//line
+	obj[2].len = 0;
+	obj[2].buf = lb;
+	obj[3].len = 0;
+	obj[3].buf = malloc(0x200000);
+
+	//trigon
+	obj[4].len = 0;
+	obj[4].buf = malloc(0x200000);
+	obj[5].len = 0;
+	obj[5].buf = malloc(0x200000);
+
+	//utf8
+	obj[6].len = 0;
+	obj[6].buf = malloc(0x200000);
+	obj[7].len = 0;
+	obj[7].buf = malloc(0x200000);
 
 	u64 id;
 	pthread_create((void*)&id, NULL, graph_thread, 0);
 }
-void graph_data(void* buf, void* ind, void* cb, int cl)
+void graph_data(void* cb, int cl, void* lb, int ll)
 {
+	int j;
+        float r,g,b;
+	float* vv;
+	void* buf;
+
+	enqueue = (enqueue+1)%0x10000;
 	ctxbuf = cb;
 	ctxlen = cl;
-	enqueue = (enqueue+1)%0x10000;
+	obj[2].len = ll;
+	obj[3].len = cl*2;
+
+	buf = (void*)(obj[3].buf);
+	for(j=0;j<ctxlen;j++)
+	{
+		vv = buf + 48*j;
+
+		vv[ 0] = (rand()&0xffff) / 65536.0;
+		vv[ 1] = (rand()&0xffff) / 65536.0;
+		vv[ 2] = (rand()&0xffff) / 65536.0;
+
+		if(     _hash_ == ctxbuf[j].type){r=1.0;g=0.0;b=0.0;}
+		else if(_file_ == ctxbuf[j].type){r=0.0;g=1.0;b=0.0;}
+		else if(_func_ == ctxbuf[j].type){r=0.0;g=0.0;b=1.0;}
+		else if(_chip_ == ctxbuf[j].type){r=0.4;g=1.0;b=0.7;}
+		else if( _pin_ == ctxbuf[j].type){r=0.8;g=0.3;b=1.0;}
+		else {r=1.0;g=1.0;b=1.0;}
+		vv[ 3] = r;
+		vv[ 4] = g;
+		vv[ 5] = b;
+
+		vv[ 6] = 0.0;
+		vv[ 7] = 0.0;
+		vv[ 8] = 0.0;
+
+		vv[ 9] = 0.1;
+		vv[10] = 0.1;
+		vv[11] = 0.1;
+	}
 }

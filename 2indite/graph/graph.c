@@ -21,8 +21,8 @@
 void readthemall(int);
 void trianglenormal(void* n, void* a, void* b, void* c);
 //
-void graph_init(void*, void*, void*, int);
-void graph_data(void*, void*, void*, int);
+void graph_init(void*, int, void*, int);
+void graph_data(void*, int, void*, int);
 //
 int strhash_export(u64 hash, u8* dst, int len);
 u64 strhash_generate(void*, int);
@@ -85,28 +85,16 @@ struct wire
 	u32 samechipprevpin;
 	u32 samechipnextpin;
 };
-struct binfo
-{
-	u64 vertexcount;
-	u64 normalcount;
-	u64 colorcount;
-	u64 texturecount;
-	u64 pointcount;
-	u64 linecount;
-	u64 tricount;
-	u64 rectcount;
-};
-static struct binfo info;
-static u8 buffer[0x800000];
-//
 struct context
 {
 	u64 type;
 	u64 addr;
 	u8 str[16];
 };
-static int ctxlen;
-static struct context ctxbuf[0x1000];
+static struct context ctxbuf[0x100000/0x20];
+static int ctxlen = 0;
+static u32 linebuf[0x100000/4];
+static int linelen = 0;
 
 
 
@@ -137,23 +125,21 @@ int graph_pair(int j, int k)
 {
 	int i;
 	u32 data;
-	u32* addr;
 
 	if(j==k)return 0;
 	j = 2*j;
 	k = 2*k+1;
 	data = (k<<16)+j;
 
-	addr = (void*)buffer + 0x500000;
-	for(i=0;i<info.linecount;i++)
+	for(i=0;i<linelen;i++)
 	{
-		if(addr[i] == data)return 0;
+		if(linebuf[i] == data)return 0;
 	}
 
-	addr[info.linecount] = data;
-	printf("%x)%x,%x\n", info.linecount, j, k);
+	linebuf[linelen] = data;
+	printf("%x)%x,%x\n", linelen, j, k);
 
-	info.linecount += 1;
+	linelen += 1;
 	return 1;
 }
 void graph_bfs(int cur, int len)
@@ -220,13 +206,8 @@ void graph_one(char* buf, int len)
 	int i,j,m,n;
 	u64 temp;
 	u32* p;
-	float* vv;
-	float* nn;
-	float* cc;
 
-	p = (void*)&info;
-	for(j=0;j<16;j++)p[j] = 0;
-
+	linelen = 0;
 	temp = strhash_generate(buf, len);
 
 	ctxlen = 0;
@@ -236,16 +217,16 @@ void graph_one(char* buf, int len)
 	for(i=0;i<20;i++)
 	{
 		m = ctxlen;
-		n = info.linecount;
+		n = linelen;
 
-//printf("before=%d\n",info.linecount);
+//printf("before=%d\n", linelen);
 		graph_bfs(j, ctxlen);
-//printf("after=%d\n",info.linecount);
+//printf("after=%d\n", linelen);
 
-		if(info.linecount >= 0x1000)
+		if(linelen >= 0x1000)
 		{
 			ctxlen = m;
-			info.linecount = n;
+			linelen = n;
 			break;
 		}
 		if(ctxlen <= m)break;
@@ -254,35 +235,7 @@ void graph_one(char* buf, int len)
 		j = m;
 	}
 
-	for(j=0;j<ctxlen;j++)
-	{
-		vv = (void*)buffer + 0x000000 + 24*j;
-		vv[0] = (float)(rand()&0xffff)/65536.0;
-		vv[1] = (float)(rand()&0xffff)/65536.0;
-		vv[2] = (float)(rand()&0xffff)/65536.0;
-		//vv[3] = vv[0];
-		//vv[4] = vv[1];
-		//vv[5] = vv[2];
-
-		nn = (void*)buffer + 0x100000 + 24*j;
-		nn[0] = 0.0;
-		nn[1] = 0.0;
-		nn[2] = 1.0;
-		nn[3] = 0.0;
-		nn[4] = 0.0;
-		nn[5] = 1.0;
-
-		cc = (void*)buffer + 0x200000 + 24*j;
-		if(_hash_ == ctxbuf[j].type){cc[0]=1.0;cc[1]=0.0;cc[2]=0.0;}
-		else if(_file_ == ctxbuf[j].type){cc[0]=0.0;cc[1]=1.0;cc[2]=0.0;}
-		else if(_func_ == ctxbuf[j].type){cc[0]=0.0;cc[1]=0.0;cc[2]=1.0;}
-		else if(_chip_ == ctxbuf[j].type){cc[0]=0.4;cc[1]=1.0;cc[2]=0.7;}
-		else if( _pin_ == ctxbuf[j].type){cc[0]=0.8;cc[1]=0.3;cc[2]=1.0;}
-		else {cc[0] = 1.0;cc[1] = 1.0;cc[2] = 1.0;}
-
-		cc[3] = 0.1;cc[4] = 0.1;cc[5] = 0.1;
-	}
-	graph_data(buffer, &info, ctxbuf, ctxlen);
+	graph_data(ctxbuf, ctxlen, linebuf, linelen);
 }
 void graph(int argc, char** argv)
 {
@@ -292,7 +245,7 @@ void graph(int argc, char** argv)
 
 	readthemall(1);
 
-	graph_init(buffer, &info, ctxbuf, ctxlen);
+	graph_init(ctxbuf, ctxlen, linebuf, linelen);
 	for(j=1;j<argc;j++)
 	{
 		graph_one(argv[j], strlen(argv[j]));

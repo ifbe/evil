@@ -15,17 +15,6 @@
 
 
 
-struct binfo
-{
-	u64 vertexcount;
-	u64 normalcount;
-	u64 colorcount;
-	u64 texturecount;
-	u64 pointcount;
-	u64 linecount;
-	u64 tricount;
-	u64 fontcount;
-};
 struct context
 {
 	u64 type;
@@ -42,7 +31,200 @@ struct vertex
 	float x;
 	float y;
 	float z;
+	float r;
+	float g;
+	float b;
 };
+struct object
+{
+	u32 vbo;
+	u32 len;
+	void* buf;
+};
+void carveshape(struct object* obj, u32 rgb, float x, float y, float z)
+{
+	int j,k;
+	float r = ((rgb>>16)&0xff)/256.0;
+	float g = ((rgb>>8)&0xff)/256.0;
+	float b = (rgb&0xff)/256.0;
+	int ilen = obj[4].len;
+	u16* ibuf = obj[4].buf + (6*ilen);
+	int vlen = obj[5].len;
+	float* vbuf = obj[5].buf + (36*vlen);
+	obj[4].len += 8;
+	obj[5].len += 6;
+
+	vbuf[ 0] = x-0.04;
+	vbuf[ 1] = y;
+	vbuf[ 2] = z;
+	vbuf[ 3] = r;
+	vbuf[ 4] = g;
+	vbuf[ 5] = b;
+	vbuf[ 6] = -1.0;
+	vbuf[ 7] = 0.0;
+	vbuf[ 8] = 0.0;
+
+	vbuf[ 9] = x+0.04;
+	vbuf[10] = y;
+	vbuf[11] = z;
+	vbuf[12] = r;
+	vbuf[13] = g;
+	vbuf[14] = b;
+	vbuf[15] = 1.0;
+	vbuf[16] = 0.0;
+	vbuf[17] = 0.0;
+
+	vbuf[18] = x;
+	vbuf[19] = y-0.04;
+	vbuf[20] = z;
+	vbuf[21] = r;
+	vbuf[22] = g;
+	vbuf[23] = b;
+	vbuf[24] = 0.0;
+	vbuf[25] = -1.0;
+	vbuf[26] = 0.0;
+
+	vbuf[27] = x;
+	vbuf[28] = y+0.04;
+	vbuf[29] = z;
+	vbuf[30] = r;
+	vbuf[31] = g;
+	vbuf[32] = b;
+	vbuf[33] = 0.0;
+	vbuf[34] = 1.0;
+	vbuf[35] = 0.0;
+
+	vbuf[36] = x;
+	vbuf[37] = y;
+	vbuf[38] = z-0.04;
+	vbuf[39] = r;
+	vbuf[40] = g;
+	vbuf[41] = b;
+	vbuf[42] = 0.0;
+	vbuf[43] = 0.0;
+	vbuf[44] = -1.0;
+
+	vbuf[45] = x;
+	vbuf[46] = y;
+	vbuf[47] = z+0.04;
+	vbuf[48] = r;
+	vbuf[49] = g;
+	vbuf[50] = b;
+	vbuf[51] = 0.0;
+	vbuf[52] = 0.0;
+	vbuf[53] = 1.0;
+
+	ibuf[ 0] = vlen+0;
+	ibuf[ 1] = vlen+2;
+	ibuf[ 2] = vlen+4;
+
+	ibuf[ 3] = vlen+0;
+	ibuf[ 4] = vlen+2;
+	ibuf[ 5] = vlen+5;
+
+	ibuf[ 6] = vlen+0;
+	ibuf[ 7] = vlen+3;
+	ibuf[ 8] = vlen+4;
+
+	ibuf[ 9] = vlen+0;
+	ibuf[10] = vlen+3;
+	ibuf[11] = vlen+5;
+
+	ibuf[12] = vlen+1;
+	ibuf[13] = vlen+2;
+	ibuf[14] = vlen+4;
+
+	ibuf[15] = vlen+1;
+	ibuf[16] = vlen+2;
+	ibuf[17] = vlen+5;
+
+	ibuf[18] = vlen+1;
+	ibuf[19] = vlen+3;
+	ibuf[20] = vlen+4;
+
+	ibuf[21] = vlen+1;
+	ibuf[22] = vlen+3;
+	ibuf[23] = vlen+5;
+}
+void carveascii(
+	struct object* obj, u32 rgb,
+	float x, float y, float z, u8 ch)
+{
+	float r = ((rgb>>16)&0xff)/256.0;
+	float g = ((rgb>>8)&0xff)/256.0;
+	float b = (rgb&0xff)/256.0;
+	int ilen = obj[6].len;
+	u16* ibuf = obj[6].buf + (6*ilen);
+	int vlen = obj[7].len;
+	float* vbuf = obj[7].buf + (36*vlen);
+	obj[6].len += 2;
+	obj[7].len += 4;
+
+	ch -= 0x20;
+
+	vbuf[ 0] = x-0.02;
+	vbuf[ 1] = y-0.04;
+	vbuf[ 2] = z;
+	vbuf[ 3] = r;
+	vbuf[ 4] = g;
+	vbuf[ 5] = b;
+	vbuf[ 6] = (ch&0xf)/15.9;
+	vbuf[ 7] = ((ch>>4)+1)/8.0;
+
+	vbuf[ 9] = x+0.02;
+	vbuf[10] = y-0.04;
+	vbuf[11] = z;
+	vbuf[12] = r;
+	vbuf[13] = g;
+	vbuf[14] = b;
+	vbuf[15] = ((ch&0xf)+1)/15.9;
+	vbuf[16] = ((ch>>4)+1)/8.0;
+
+	vbuf[18] = x-0.02;
+	vbuf[19] = y+0.04;
+	vbuf[20] = z;
+	vbuf[21] = r;
+	vbuf[22] = g;
+	vbuf[23] = b;
+	vbuf[24] = (ch&0xf)/15.9;
+	vbuf[25] = (ch>>4)/8.0;
+
+	vbuf[27] = x+0.02;
+	vbuf[28] = y+0.04;
+	vbuf[29] = z;
+	vbuf[30] = r;
+	vbuf[31] = g;
+	vbuf[32] = b;
+	vbuf[33] = ((ch&0xf)+1)/15.9;
+	vbuf[34] = (ch>>4)/8.0;
+
+	ibuf[0] = vlen+0;
+	ibuf[1] = vlen+1;
+	ibuf[2] = vlen+3;
+
+	ibuf[3] = vlen+0;
+	ibuf[4] = vlen+2;
+	ibuf[5] = vlen+3;
+}
+void carvestring(
+	struct object* obj, u32 rgb,
+	float x, float y, float z,
+	u8* buf, int len)
+{
+	int j;
+	for(len=0;len<16;len++)
+	{
+		if(buf[len] == 0)break;
+	}
+	for(j=0;j<len;j++)
+	{
+		carveascii(
+			obj, rgb,
+			x+(j-(len/2))*0.04, y, z,
+			buf[j]
+		);
+	}
+}
 
 
 
@@ -122,7 +304,6 @@ void forcedirected_3d(
 {
 	int j,k,m,n;
 	float x,y,z,t;
-	vlen *= 2;
 
 	//coulomb force
 	for(j=0;j<vlen;j+=2)
@@ -178,7 +359,7 @@ void forcedirected_3d(
 	for(j=0;j<vlen;j+=2)
 	{
 /*
-		say("%f,%f,%f -> %f,%f,%f\n",
+		printf("%f,%f,%f -> %f,%f,%f\n",
 			vbuf[j].x, vbuf[j].y, vbuf[j].z,
 			obuf[j].x, obuf[j].y, obuf[j].z
 		);
@@ -191,247 +372,4 @@ void forcedirected_3d(
 		vbuf[j+1].z = vbuf[j].z;
 	}
 	//say("\n");
-}
-void graph_tria(void* buffer, struct binfo* info,
-	struct context* ctxbuf, int ctxlen,
-	int j, float s)
-{
-	float r,g,b,x,y,z;
-	int vlen = info->vertexcount;
-	int tlen = (info->tricount)*3;
-	struct vertex* vbuf = buffer;
-	struct vertex* nbuf = buffer+0x100000;
-	struct vertex* cbuf = buffer+0x200000;
-	u16* index = buffer+0x600000;
-
-	info->vertexcount += 6;
-	info->tricount += 8;
-
-	if(_hash_ == ctxbuf[j].type){r = 1.0;g = 0.0;b = 0.0;}
-	else if(_file_ == ctxbuf[j].type){r = 0.0;g = 1.0;b = 0.0;}
-	else if(_func_ == ctxbuf[j].type){r = 0.0;g = 0.0;b = 1.0;}
-	else if(_chip_ == ctxbuf[j].type){r = 0.4;g = 1.0;b = 0.7;}
-	else if( _pin_ == ctxbuf[j].type){r = 0.8;g = 0.3;b = 1.0;}
-	else {r = 0.9;g = 0.5;b = 0.1;}
-
-	x = vbuf[j*2].x;
-	y = vbuf[j*2].y;
-	z = vbuf[j*2].z;
-
-	vbuf[vlen+0].x = x+s;
-	vbuf[vlen+0].y = y;
-	vbuf[vlen+0].z = z;
-
-	vbuf[vlen+1].x = x-s;
-	vbuf[vlen+1].y = y;
-	vbuf[vlen+1].z = z;
-
-	vbuf[vlen+2].x = x;
-	vbuf[vlen+2].y = y+s;
-	vbuf[vlen+2].z = z;
-
-	vbuf[vlen+3].x = x;
-	vbuf[vlen+3].y = y-s;
-	vbuf[vlen+3].z = z;
-
-	vbuf[vlen+4].x = x;
-	vbuf[vlen+4].y = y;
-	vbuf[vlen+4].z = z+s;
-
-	vbuf[vlen+5].x = x;
-	vbuf[vlen+5].y = y;
-	vbuf[vlen+5].z = z-s;
-
-
-	nbuf[vlen+0].x = 1.0;
-	nbuf[vlen+0].y = 0.0;
-	nbuf[vlen+0].z = 0.0;
-
-	nbuf[vlen+1].x = -1.0;
-	nbuf[vlen+1].y = 0.0;
-	nbuf[vlen+1].z = 0.0;
-
-	nbuf[vlen+2].x = 0.0;
-	nbuf[vlen+2].y = 1.0;
-	nbuf[vlen+2].z = 0.0;
-
-	nbuf[vlen+3].x = 0.0;
-	nbuf[vlen+3].y = -1.0;
-	nbuf[vlen+3].z = 0.0;
-
-	nbuf[vlen+4].x = 0.0;
-	nbuf[vlen+4].y = 0.0;
-	nbuf[vlen+4].z = 1.0;
-
-	nbuf[vlen+5].x = 0.0;
-	nbuf[vlen+5].y = 0.0;
-	nbuf[vlen+5].z = -1.0;
-
-
-	cbuf[vlen+0].x = r;
-	cbuf[vlen+0].y = g;
-	cbuf[vlen+0].z = b;
-
-	cbuf[vlen+1].x = r;
-	cbuf[vlen+1].y = g;
-	cbuf[vlen+1].z = b;
-
-	cbuf[vlen+2].x = r;
-	cbuf[vlen+2].y = g;
-	cbuf[vlen+2].z = b;
-
-	cbuf[vlen+3].x = r;
-	cbuf[vlen+3].y = g;
-	cbuf[vlen+3].z = b;
-
-	cbuf[vlen+4].x = r;
-	cbuf[vlen+4].y = g;
-	cbuf[vlen+4].z = b;
-
-	cbuf[vlen+5].x = r;
-	cbuf[vlen+5].y = g;
-	cbuf[vlen+5].z = b;
-
-
-	index[tlen+ 0] = vlen+0;
-	index[tlen+ 1] = vlen+2;
-	index[tlen+ 2] = vlen+4;
-
-	index[tlen+ 3] = vlen+0;
-	index[tlen+ 4] = vlen+2;
-	index[tlen+ 5] = vlen+5;
-
-	index[tlen+ 6] = vlen+0;
-	index[tlen+ 7] = vlen+3;
-	index[tlen+ 8] = vlen+4;
-
-	index[tlen+ 9] = vlen+0;
-	index[tlen+10] = vlen+3;
-	index[tlen+11] = vlen+5;
-
-	index[tlen+12] = vlen+1;
-	index[tlen+13] = vlen+2;
-	index[tlen+14] = vlen+4;
-
-	index[tlen+15] = vlen+1;
-	index[tlen+16] = vlen+2;
-	index[tlen+17] = vlen+5;
-
-	index[tlen+18] = vlen+1;
-	index[tlen+19] = vlen+3;
-	index[tlen+20] = vlen+4;
-
-	index[tlen+21] = vlen+1;
-	index[tlen+22] = vlen+3;
-	index[tlen+23] = vlen+5;
-}
-void graph_ascii(void* buffer, struct binfo* info,
-	struct context* ctxbuf, int ctxlen,
-	float x, float y, float z,
-	float s, float t,
-	u8 dat)
-{
-	int vlen = info->vertexcount;
-	int tlen = (info->fontcount)*3;
-	struct vertex* vbuf = buffer;
-	float* tbuf = buffer+0x300000;
-	u16* index = buffer+0x700000;
-
-	info->vertexcount += 4;
-	info->fontcount += 2;
-
-	vbuf[vlen+0].x = x-s;
-	vbuf[vlen+0].y = y-t;
-	vbuf[vlen+0].z = z;
-
-	vbuf[vlen+1].x = x+s;
-	vbuf[vlen+1].y = y-t;
-	vbuf[vlen+1].z = z;
-
-	vbuf[vlen+2].x = x-s;
-	vbuf[vlen+2].y = y+t;
-	vbuf[vlen+2].z = z;
-
-	vbuf[vlen+3].x = x+s;
-	vbuf[vlen+3].y = y+t;
-	vbuf[vlen+3].z = z;
-
-
-	dat -= 0x20;
-	tbuf[2*vlen+ 0] = (dat&0xf)/15.9;
-	tbuf[2*vlen+ 1] = ((dat>>4)+1)/8.0;
-	tbuf[2*vlen+ 2] = ((dat&0xf)+1)/15.9;
-	tbuf[2*vlen+ 3] = ((dat>>4)+1)/8.0;
-	tbuf[2*vlen+ 4] = (dat&0xf)/15.9;
-	tbuf[2*vlen+ 5] = (dat>>4)/8.0;
-	tbuf[2*vlen+ 6] = ((dat&0xf)+1)/15.9;
-	tbuf[2*vlen+ 7] = (dat>>4)/8.0;
-
-
-	index[tlen+ 0] = vlen+0;
-	index[tlen+ 1] = vlen+1;
-	index[tlen+ 2] = vlen+3;
-
-	index[tlen+ 3] = vlen+0;
-	index[tlen+ 4] = vlen+2;
-	index[tlen+ 5] = vlen+3;
-}
-void graph_string(void* buffer, struct binfo* info,
-	struct context* ctxbuf, int ctxlen,
-	int j, float s)
-{
-	int k,len;
-	u8* p;
-	struct vertex* vbuf = buffer;
-	float x = vbuf[j*2].x;
-	float y = vbuf[j*2].y;
-	float z = vbuf[j*2].z;
-
-	p = ctxbuf[j].str;
-	for(len=0;len<16;len++)
-	{
-		if(p[len] == 0)break;
-	}
-
-	for(k=0;k<len;k++)
-	{
-		graph_ascii(
-			buffer, info, ctxbuf, ctxlen,
-			x+(k-(len/2))*s, y, z,
-			s/2, s,
-			p[k]
-		);
-	}
-}
-void graph_hack(void* buffer, struct binfo* info,
-	struct context* ctxbuf, int ctxlen)
-{
-	int j;
-	int olen = ctxlen;
-	int vlen = ctxlen;
-	int llen = info->linecount;
-	struct vertex* obuf = buffer+0x700000;
-	struct vertex* vbuf = buffer;
-	void* lbuf = buffer+0x500000;
-
-	forcedirected_3d(obuf, olen, vbuf, vlen, lbuf, llen);
-	vbuf[0].x = vbuf[0].y = vbuf[0].z = 0.0;
-	vbuf[1].x = vbuf[1].y = vbuf[1].z = 0.0;
-
-	info->vertexcount = ctxlen*2;
-	info->normalcount = ctxlen*2;
-	info->colorcount = ctxlen*2;
-	info->tricount = 0;
-	info->fontcount = 0;
-	for(j=0;j<ctxlen;j++)
-	{
-		if(ctxbuf[j].type == hex32('h','a','s','h'))
-		{
-			graph_string(buffer, info, ctxbuf, ctxlen, j, 0.05);
-		}
-		else
-		{
-			graph_tria(buffer, info, ctxbuf, ctxlen, j, 0.05);
-		}
-	}
 }
