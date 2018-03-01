@@ -821,7 +821,7 @@ void graph_init(void* cb, int cl, void* lb, int ll)
 void graph_data(void* cb, int cl, void* lb, int ll)
 {
 	int j;
-        float r,g,b;
+	float r,g,b;
 	float* vv;
 	void* buf;
 

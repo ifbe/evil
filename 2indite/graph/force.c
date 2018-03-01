@@ -26,6 +26,12 @@ struct pair
 	u16 parent;
 	u16 child;
 };
+struct vvvvvv
+{
+	float x;
+	float y;
+	float z;
+};
 struct vertex
 {
 	float x;
@@ -230,13 +236,12 @@ void carvestring(
 
 
 void forcedirected_2d(
-	struct vertex* obuf, int olen,
-	struct vertex* vbuf, int vlen,
+	struct vvvvvv* obuf, int olen,
+	struct vvvvvv* vbuf, int vlen,
 	struct pair* lbuf, int llen)
 {
 	int j,k,m,n;
 	float x,y,t;
-	vlen *= 2;
 
 	//coulomb force
 	for(j=0;j<vlen;j+=2)

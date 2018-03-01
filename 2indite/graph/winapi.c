@@ -41,17 +41,6 @@ static int rightdown=0;
 static POINT pt, pe;
 static RECT rt, re;
 //
-struct binfo
-{
-	u64 vertexcount;
-	u64 normalcount;
-	u64 colorcount;
-	u64 texturecount;
-	u64 pointcount;
-	u64 linecount;
-	u64 tricount;
-	u64 fontcount;
-};
 struct context
 {
 	u64 type;
@@ -63,10 +52,14 @@ struct pair
 	u16 parent;
 	u16 child;
 };
-static void* buffer = 0;
-static struct binfo* binfo = 0;
 static struct context* ctxbuf = 0;
 static int ctxlen = 0;
+//
+static struct pair* lbuf;
+static int llen;
+static float* vbuf;
+static int vlen;
+static float* obuf;
 
 
 
@@ -75,12 +68,6 @@ void windowwrite()
 {
 	BITMAPINFO info;
 	int x0,y0,x1,y1,m,n,j;
-	int olen = ctxlen;
-	int vlen = ctxlen;
-	int llen = binfo->linecount;
-	float* obuf = buffer+0x700000;
-	float* vbuf = buffer;
-	struct pair* lbuf = buffer+0x500000;
 
 	info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
 	info.bmiHeader.biWidth = width;
@@ -101,7 +88,7 @@ void windowwrite()
 	for(j=0;j<4;j++)
 	{
 		forcedirected_2d(
-			obuf, olen,
+			obuf, vlen,
 			vbuf, vlen,
 			lbuf, llen
 		);
@@ -395,13 +382,15 @@ void* graph_thread(void* arg)
 
 
 
-void graph_init(void* buf, void* ind, void* cb, int cl)
+void graph_init(void* cb, int cl, void* lb, int ll)
 {
 	u64 id;
-	buffer = buf;
-	binfo = ind;
 	ctxbuf = cb;
 	ctxlen = cl;
+
+	lbuf = lb;
+	vbuf = malloc(0x200000);
+	obuf = malloc(0x200000);
 
 	//createevent
 	hStartEvent = CreateEvent(0,FALSE,FALSE,0);
@@ -415,8 +404,29 @@ void graph_init(void* buf, void* ind, void* cb, int cl)
 	//deleteevent
     CloseHandle(hStartEvent);
 }
-void graph_data(void* buf, void* ind, void* cb, int cl)
+void graph_data(void* cb, int cl, void* lb, int ll)
 {
+	int j;
+	float r,g,b;
+	float* vv;
+	void* buf;
+
 	ctxbuf = cb;
 	ctxlen = cl;
+	llen = ll;
+	vlen = cl*2;
+
+	buf = (void*)vbuf;
+	for(j=0;j<ctxlen;j++)
+	{
+		vv = buf + 24*j;
+
+		vv[0] = (rand()&0xffff) / 65536.0;
+		vv[1] = (rand()&0xffff) / 65536.0;
+		vv[2] = (rand()&0xffff) / 65536.0;
+
+		vv[3] = 0.0;
+		vv[4] = 0.0;
+		vv[5] = 0.0;
+	}
 }
