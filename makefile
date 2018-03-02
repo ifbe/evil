@@ -27,7 +27,6 @@ SRC = \
 1think/normal/substring.c \
 1think/clever/deduction.c \
 1think/clever/induction.c \
-2indite/graph/force.c \
 2indite/graph/graph.c \
 2indite/kirchhoff/kirchhoff.c \
 2indite/route/route.c \
@@ -55,7 +54,9 @@ SRC = \
 3library/str/strdata.c \
 3library/str/strhash.c \
 3library/str/strlib.c \
-3library/extra/ascii.c \
+3library/extra/2d.c \
+3library/extra/3d.c \
+3library/extra/force.c \
 3library/extra/inout.c
 
 winglut:

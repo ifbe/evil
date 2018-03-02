@@ -108,8 +108,7 @@ static u8 asciitable[0x60*16]={
 
 
 
-void drawline(u32* buf, u32 rgb, int w, int h,
-	int x0, int y0, int x1, int y1)
+void drawline(u32* buf, u32 rgb, int w, int h, int x0, int y0, int x1, int y1)
 {
 	int dx,dy,sx,sy,e1,e2;
 
@@ -136,8 +135,7 @@ void drawline(u32* buf, u32 rgb, int w, int h,
 
 
 
-void drawascii_alpha(u8* buf, int w, int h,
-	int xx, int yy, u8 ch)
+void drawascii_alpha(u8* buf, int w, int h, int xx, int yy, u8 ch)
 {
 	u8 temp;
 	int x,y,t;
@@ -162,8 +160,7 @@ void drawascii_alpha(u8* buf, int w, int h,
 		}//x
 	}//y
 }
-void drawascii(u32* buf, u32 rgb, int w, int h,
-	int xx, int yy, u8 ch)
+void drawascii(u32* buf, u32 rgb, int w, int h, int xx, int yy, u8 ch)
 {
 	u8 temp;
 	int x,y,t;
@@ -188,8 +185,20 @@ void drawascii(u32* buf, u32 rgb, int w, int h,
 		}//x
 	}//y
 }
-void drawstring(u32* buf, u32 rgb, int w, int h,
-	int xx, int yy, u8* str, int len)
+
+
+
+void drawunicode_alpha(u8* buf, int w, int h, int xx, int yy, u32 code)
+{
+}
+void drawunicode(u8* buf, int w, int h, int xx, int yy, u32 code)
+{
+}
+
+
+
+
+void drawstring(u32* buf, u32 rgb, int w, int h, int xx, int yy, u8* str, int len)
 {
 	int j,k;
 	if(str == 0)return;
