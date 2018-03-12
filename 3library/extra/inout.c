@@ -143,8 +143,44 @@ int lowlevel_input()
 			if(ret < 0x80)return ret;
 
 			k1 = irInBuf[1].Event.KeyEvent;
-			ret = ret | (k1.uChar.UnicodeChar << 8);
-			//printf("%x\n", ret);
+			return ret | (k1.uChar.UnicodeChar << 8);
+		}
+	}
+	return 0;
+}
+int input(u8* buf, int len)
+{
+	int j, ret, tmp;
+
+	j = 0;
+	while(1)
+	{
+		ret = lowlevel_input();
+		if(0x8 == ret)
+		{
+			if(0 != j)
+			{
+				if(buf[j-1] < 0x80)
+				{
+					printf("\b \b");
+					j--;
+				}
+				else
+				{
+					printf("\b\b  \b\b");
+					j -= 3;
+				}
+				buf[j] = 0;
+			}
+		}
+		else if(0xd >= ret)break;
+		else if(0x80 > ret)
+		{
+			printf("%c", ret);
+		}
+		else
+		{
+			printf("%s", (void*)&ret);
 
 			tmp = 0;
 			MultiByteToWideChar(
@@ -162,22 +198,7 @@ int lowlevel_input()
 				NULL, NULL
 			);
 			//printf("%x\n", ret);
-
-			return ret;
 		}
-	}
-	return 0;
-}
-int input(u8* buf, int len)
-{
-	int j, ret;
-
-	j = 0;
-	while(1)
-	{
-		ret = lowlevel_input();
-		if(ret <= 0xd)break;
-		//printf("%x\n", ret);
 
 		*(u32*)(buf+j) = ret;
 		for(ret=0;ret<4;ret++)

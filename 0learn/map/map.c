@@ -37,7 +37,7 @@ static void map_read_line(u8* buf, int len)
 {
 	int j;
 	void* addr;
-	printf("%.*s\n", len, buf);
+	//printf("%.*s\n", len, buf);
 
 	if('}' == buf[len-1])
 	{
