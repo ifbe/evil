@@ -1,69 +1,18 @@
-#include<stdio.h>
-#include<stdlib.h>
-#include<string.h>
-#include<fcntl.h>
-#include<unistd.h>
-#include<sys/stat.h>
-#include<sys/types.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include "evil.h"
 #ifndef O_BINARY
         #define O_BINARY 0x0
 #endif
-#define u8 unsigned char
-#define u16 unsigned short
-#define u32 unsigned int
-#define u64 unsigned long long
-#define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
-//void* stringhash_read(u64 hash);
 
 
 
 
-struct hash
-{
-	u32 hash0;
-	u32 hash1;
-	u32 off;
-	u32 len;
-
-	u64 irel;
-	u64 orel;
-};
-struct fileindex
-{
-	u32 self;
-	u32 what;
-	u32 off;
-	u32 len;
-
-	u64 irel;
-	u64 orel;
-};
-struct funcindex
-{
-	u32 self;
-	u32 what;
-	u32 off;
-	u32 len;
-
-	u64 irel;
-	u64 orel;
-};
-struct wire
-{
-	u64 destchip;
-	u64 destfoot;
-	u32 desttype;		//eg: 'hash', 'dir', 'file', 'func'
-	u32 destflag;		//eg: 'bad', 'ok'
-	u32 samepinprevchip;
-	u32 samepinnextchip;
-
-	u64 selfchip;
-	u64 selffoot;
-	u32 selftype;		//eg: 'dir', 'file', 'func', 'hash'
-	u32 selfflag;		//eg: 'bad', 'ok'
-	u32 samechipprevpin;
-	u32 samechipnextpin;
-};
 static u8* wirebuf;
 static int wirefd;
 static int wirecur;
@@ -76,8 +25,8 @@ void* relation_generate(
 	struct hash* uchip, u64 ufoot, u64 utype,
 	struct hash* bchip, u64 bfoot, u64 btype)
 {
-	struct wire* w = (void*)wirebuf + wirecur;
-	wirecur += sizeof(struct wire);
+	struct relation* w = (void*)wirebuf + wirecur;
+	wirecur += sizeof(struct relation);
 
 	//1.dest
 	w->desttype = utype&0xffffffff;
@@ -116,8 +65,8 @@ int relation_write(
 {
 	struct hash* h1;
 	struct hash* h2;
-	struct wire* ww;
-	struct wire* wc;
+	struct relation* ww;
+	struct relation* wc;
 	if(wirecur >= wirelen)
 	{
 		lseek(wirefd, 0, SEEK_SET);
@@ -156,25 +105,25 @@ int relation_write(
 
 
 
-void* samepinprevchip(struct wire* w)
+void* samepinprevchip(struct relation* w)
 {
 	if(w == 0)return 0;
 	if(w->samepinprevchip == 0)return 0;
 	return (void*)wirebuf + (w->samepinprevchip);
 }
-void* samepinnextchip(struct wire* w)
+void* samepinnextchip(struct relation* w)
 {
 	if(w == 0)return 0;
 	if(w->samepinnextchip == 0)return 0;
 	return (void*)wirebuf + (w->samepinnextchip);
 }
-void* samechipprevpin(struct wire* w)
+void* samechipprevpin(struct relation* w)
 {
 	if(w == 0)return 0;
 	if(w->samechipprevpin == 0)return 0;
 	return (void*)wirebuf + (w->samechipprevpin);
 }
-void* samechipnextpin(struct wire* w)
+void* samechipnextpin(struct relation* w)
 {
 	if(w == 0)return 0;
 	if(w->samechipnextpin == 0)return 0;
@@ -219,7 +168,7 @@ void relation_start(int type)
 	wirebuf = malloc(wirelen);
 
 	//read
-	if(type == 0)wirecur = sizeof(struct wire);
+	if(type == 0)wirecur = sizeof(struct relation);
 	else
 	{
 		wirecur = 0;

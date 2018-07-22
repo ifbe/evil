@@ -1,15 +1,11 @@
-#include<stdio.h>
-#include<stdlib.h>
-#include<string.h>
-#include<fcntl.h>
-#include<unistd.h>
-#include<sys/stat.h>
-#include<sys/types.h>
-#define u8 unsigned char
-#define u16 unsigned short
-#define u32 unsigned int
-#define u64 unsigned long long
-#define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include "evil.h"
 #ifndef O_BINARY
         #define O_BINARY 0x0
 #endif
@@ -21,16 +17,6 @@ void* strhash_read(u64);
 
 
 
-struct hash
-{
-	u32 hash0;
-	u32 hash1;
-	u32 off;
-	u32 len;
-
-	u64 first;
-	u64 last;
-};
 static u8* sbuf = 0;
 static int scur = 0;
 

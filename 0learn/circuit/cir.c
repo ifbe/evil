@@ -1,11 +1,6 @@
-#include<stdio.h>
-#include<string.h>
-#define u8 unsigned char
-#define u16 unsigned short
-#define u32 unsigned int
-#define u64 unsigned long long
-#define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
-#define hex64(a,b,c,d,e,f,g,h) (hex32(a,b,c,d) | (((u64)hex32(e,f,g,h))<<32))
+#include <stdio.h>
+#include <string.h>
+#include "evil.h"
 void* chip_write();
 void* pin_write(void*, int);
 //
@@ -27,18 +22,7 @@ struct matchtable
 static struct matchtable mt[10];
 static int tablen = 0;
 //
-struct chipindex
-{
-	u32 self;
-	u32 what;
-	u32 type;
-	float data;
-
-	u64 first;
-	u64 last;
-};
 void* pinbody;
-//
 static int countline = 0;
 static int innote = 0;
 static int inchip = 0;

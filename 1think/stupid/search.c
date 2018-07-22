@@ -1,11 +1,7 @@
-#include<stdio.h>
-#include<stdlib.h>
-#include<string.h>
-#define u8 unsigned char
-#define u16 unsigned short
-#define u32 unsigned int
-#define u64 unsigned long long
-#define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "evil.h"
 u64 strhash_generate(void*, int);
 int strhash_export(u64, void*, int);
 void strhash_print(u64);
@@ -34,78 +30,6 @@ int hexstr2data(void*, void*);
 
 
 
-struct pointindex
-{
-	u64 self;
-	u64 haha;
-
-	u64 irel;
-	u64 orel;
-};
-struct shapeindex
-{
-	u64 self;
-	u64 type;
-	u64 irel;
-	u64 orel;
-};
-struct chipindex
-{
-	u32 self;
-	u32 what;
-	u32 off;
-	u32 len;
-
-	u64 irel;
-	u64 orel;
-};
-struct funcindex
-{
-	u32 self;
-	u32 what;
-	u32 off;
-	u32 len;
-
-	u64 irel;
-	u64 orel;
-};
-struct fileindex
-{
-	u32 self;
-	u32 what;
-	u32 off;
-	u32 len;
-
-	u64 irel;
-	u64 orel;
-};
-struct hash
-{
-	u32 hash0;
-	u32 hash1;
-	u32 off;
-	u32 len;
-
-	u64 irel;
-	u64 orel;
-};
-struct wire
-{
-	u64 destchip;
-	u64 destfoot;
-	u32 desttype;		//eg: 'hash', 'dir', 'file', 'func'
-	u32 destflag;
-	u32 samepinprevchip;
-	u32 samepinnextchip;
-
-	u64 selfchip;
-	u64 selffoot;
-	u32 selftype;		//eg: 'dir', 'file', 'func', 'hash'
-	u32 selfflag;
-	u32 samechipprevpin;
-	u32 samechipnextpin;
-};
-//
 static u8* sb = 0;
 static int sl = 0;
 
@@ -114,7 +38,7 @@ static int sl = 0;
 
 void chipname(u64 addr)
 {
-	struct wire* orel;
+	struct relation* orel;
 	struct chipindex* chip;
 
 	chip = chip_read(addr);
@@ -142,7 +66,7 @@ error:
 }
 void filename(u64 addr)
 {
-	struct wire* orel;
+	struct relation* orel;
 	struct fileindex* file;
 
 	file = filemd5_read(addr);
@@ -170,7 +94,7 @@ error:
 }
 void funcname(u64 addr)
 {
-	struct wire* orel;
+	struct relation* orel;
 	struct funcindex* func;
 
 	func = funcindex_read(addr);
@@ -198,7 +122,7 @@ error:
 }
 void funcpath(u64 addr)
 {
-	struct wire* orel;
+	struct relation* orel;
 	struct funcindex* func;
 
 	func = funcindex_read(addr);
@@ -230,8 +154,8 @@ error:
 void searchpin(int offset)
 {
 	struct fileindex* pin;
-	struct wire* irel;
-	struct wire* orel;
+	struct relation* irel;
+	struct relation* orel;
 	if(offset%0x20 != 0)
 	{
 		sb += snprintf(sb, sl,
@@ -323,8 +247,8 @@ pinorel:
 
 void searchchip(int offset)
 {
-	struct wire* irel;
-	struct wire* orel;
+	struct relation* irel;
+	struct relation* orel;
 	struct chipindex* chip;
 	if(offset%0x20 != 0)
 	{
@@ -413,8 +337,8 @@ void searchshape(int offset)
 	struct shapeindex* shape;
 	struct shapeindex* ss;
 	struct pointindex* pp;
-	struct wire* irel;
-	struct wire* orel;
+	struct relation* irel;
+	struct relation* orel;
 	if(offset%0x20 != 0)
 	{
 		sb += snprintf(sb, sl,
@@ -458,7 +382,7 @@ shapeirel:
 			sb += snprintf(sb, sl,
 				"i:	poin@%08llx	%llx\n",
 				irel->selfchip,
-				pp->haha
+				pp->pppp
 			);
 		}
 		else
@@ -518,8 +442,8 @@ shapeorel:
 void searchfile(int offset)
 {
 	struct fileindex* file;
-	struct wire* irel;
-	struct wire* orel;
+	struct relation* irel;
+	struct relation* orel;
 	if(offset%0x20 != 0)
 	{
 		sb += snprintf(sb, sl,
@@ -611,8 +535,8 @@ fileorel:
 void searchfunc(int offset)
 {
 	struct funcindex* f;
-	struct wire* irel;
-	struct wire* orel;
+	struct relation* irel;
+	struct relation* orel;
 	if(offset%0x20 != 0)
 	{
 		sb += snprintf(sb, sl,
@@ -706,8 +630,8 @@ void searchhash(char* buf, int len)
 	u64 temp;
 	u64 special = 0;
 	struct hash* h;
-	struct wire* irel;
-	struct wire* orel;
+	struct relation* irel;
+	struct relation* orel;
 
 	temp = strhash_generate(buf, len);
 	h = strhash_read(temp);

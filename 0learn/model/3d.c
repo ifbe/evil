@@ -1,12 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#define u8 unsigned char
-#define u16 unsigned short
-#define u32 unsigned int
-#define u64 unsigned long long
-#define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
-#define hex64(a,b,c,d,e,f,g,h) (hex32(a,b,c,d) | (((u64)hex32(e,f,g,h))<<32))
+#include "evil.h"
 u64 strhash_generate(void*, int);
 void* strhash_read(u64);
 void* strhash_write(void*, int);
@@ -26,32 +21,6 @@ int hexstr2data(void*, void*);
 
 
 
-struct hash
-{
-	u32 hash0;
-	u32 hash1;
-	u32 off;
-	u32 len;
-
-	u64 irel;
-	u64 orel;
-};
-struct wire
-{
-	u64 destchip;
-	u64 destfoot;
-	u32 desttype;		//eg: 'hash', 'dir', 'file', 'func'
-	u32 destflag;
-	u32 samepinprevchip;
-	u32 samepinnextchip;
-
-	u64 selfchip;
-	u64 selffoot;
-	u32 selftype;		//eg: 'dir', 'file', 'func', 'hash'
-	u32 selfflag;
-	u32 samechipprevpin;
-	u32 samechipnextpin;
-};
 static int innote = 0;
 static int inname = 0;
 static int inpoint = 0;
@@ -150,7 +119,7 @@ void three_call(u8* buf, int len)
 	u64 haha;
 	void* shap;
 	struct hash* h;
-	struct wire* w;
+	struct relation* w;
 	//printf("%.*s\n", len, buf);
 
 	temp = strhash_generate(buf, len);

@@ -1,16 +1,7 @@
-#include<stdio.h>
-#include<stdlib.h>
-#include<string.h>
-#define u8 unsigned char
-#define u16 unsigned short
-#define u32 unsigned int
-#define u64 unsigned long long
-#define f32 float
-#define f64 double
-#define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
-#define __hash__ hex32('h','a','s','h')
-#define __chip__ hex32('c','h','i','p')
-#define __pin__ hex32('p','i','n',0)
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "evil.h"
 void readthemall(int);
 void writethemall(int);
 //
@@ -29,52 +20,6 @@ void* samechipnextpin(void*);
 
 
 
-struct relation
-{
-	u64 destchip;
-	u64 destfoot;
-	u32 desttype;		//eg: 'hash', 'dir', 'file', 'func'
-	u32 destflag;
-	u32 samepinprevchip;
-	u32 samepinnextchip;
-
-	u64 selfchip;
-	u64 selffoot;
-	u32 selftype;		//eg: 'dir', 'file', 'func', 'hash'
-	u32 selfflag;
-	u32 samechipprevpin;
-	u32 samechipnextpin;
-};
-struct hash
-{
-	u32 hash0;
-	u32 hash1;
-	u32 off;
-	u32 len;
-
-	u64 irel;
-	u64 orel;
-};
-struct chipindex
-{
-	u32 self;
-	u32 what;
-	u32 type;
-	f32 data;
-
-	u64 irel;
-	u64 orel;
-};
-struct pinindex
-{
-	u32 self;
-	u32 what;
-	u32 off;
-	u32 len;
-
-	u64 irel;
-	u64 orel;
-};
 struct detail
 {
 	u64 type;
@@ -183,12 +128,12 @@ printf("[%d,%d)\n",cur,len);
 	{
 		printf("%d:%.4s,%llx\n",j,&ctxbuf[j].type, ctxbuf[j].addr);
 
-		if(ctxbuf[j].type == __chip__)
+		if(ctxbuf[j].type == _chip_)
 		{
 			h = chip_read(ctxbuf[j].addr);
 			if(h == 0)continue;
 		}
-		else if(ctxbuf[j].type == __pin__)
+		else if(ctxbuf[j].type == _pin_)
 		{
 			h = pin_read(ctxbuf[j].addr);
 			if(h == 0)continue;
@@ -199,14 +144,14 @@ printf("[%d,%d)\n",cur,len);
 		while(1)
 		{
 			if(w == 0)break;
-			if(w->selftype == __chip__)
+			if(w->selftype == _chip_)
 			{
-				k = kirchhoff_add(__chip__, w->selfchip);
+				k = kirchhoff_add(_chip_, w->selfchip);
 				kirchhoff_wire(j, k, w->selffoot);
 			}
-			if(w->selftype == __pin__)
+			if(w->selftype == _pin_)
 			{
-				k = kirchhoff_add(__pin__, w->selfchip);
+				k = kirchhoff_add(_pin_, w->selfchip);
 				kirchhoff_wire(k, j, w->destfoot);
 			}
 			w = samepinprevchip(w);
@@ -216,14 +161,14 @@ printf("[%d,%d)\n",cur,len);
 		while(1)
 		{
 			if(w == 0)break;
-			if(w->desttype == __chip__)
+			if(w->desttype == _chip_)
 			{
-				k = kirchhoff_add(__chip__, w->destchip);
+				k = kirchhoff_add(_chip_, w->destchip);
 				kirchhoff_wire(j, k, w->destfoot);
 			}
-			if(w->desttype == __pin__)
+			if(w->desttype == _pin_)
 			{
-				k = kirchhoff_add(__pin__, w->destchip);
+				k = kirchhoff_add(_pin_, w->destchip);
 				kirchhoff_wire(k, j, w->selffoot);
 			}
 			w = samechipprevpin(w);
@@ -245,7 +190,7 @@ u64 kirchhoff_name(void* addr)
 	while(1)
 	{
 		if(w == 0)break;
-		if(w->desttype == __hash__)return w->destchip;
+		if(w->desttype == _hash_)return w->destchip;
 
 		w = samechipprevpin(w);
 	}
@@ -261,7 +206,7 @@ printf("\nname:\n");
 
 	for(j=0;j<ctxlen;j++)
 	{
-		if(ctxbuf[j].type == __chip__)
+		if(ctxbuf[j].type == _chip_)
 		{
 			chip = chip_read(ctxbuf[j].addr);
 			ctxbuf[j].name = kirchhoff_name(chip);
@@ -274,7 +219,7 @@ printf("\nname:\n");
 				&detail[j].type, detail[j].data
 			);
 		}
-		else if(ctxbuf[j].type == __pin__)
+		else if(ctxbuf[j].type == _pin_)
 		{
 			pin = pin_read(ctxbuf[j].addr);
 			ctxbuf[j].name = kirchhoff_name(pin);
@@ -337,7 +282,7 @@ void kirchhoff_info()
 
 	for(j=0;j<ctxlen;j++)
 	{
-		if(__pin__ == ctxbuf[j].type)
+		if(_pin_ == ctxbuf[j].type)
 		{
 			printf("%2d)%8.8s:	%d\n",
 				j, &ctxbuf[j].name,

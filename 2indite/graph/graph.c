@@ -2,12 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
-#define u8 unsigned char
-#define u16 unsigned short
-#define u32 unsigned int
-#define u64 unsigned long long
-#define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
-#define hex64(a,b,c,d,e,f,g,h) (hex32(a,b,c,d) | (((u64)hex32(e,f,g,h))<<32))
+#include "evil.h"
 #define _hash_ hex32('h','a','s','h')
 #define _file_ hex32('f','i','l','e')
 #define _func_ hex32('f','u','n','c')
@@ -44,47 +39,6 @@ void* relation_read(int);
 
 
 
-struct pointindex
-{
-	u64 self;
-	u64 ofst;
-
-	u64 irel;
-	u64 orel;
-};
-struct shapeindex
-{
-	u64 self;
-	u64 type;
-	u64 irel;
-	u64 orel;
-};
-struct hash
-{
-	u32 hash0;
-	u32 hash1;
-	u32 off;
-	u32 len;
-
-	u64 irel;
-	u64 orel;
-};
-struct wire
-{
-	u64 destchip;
-	u64 destfoot;
-	u32 desttype;		//eg: 'hash', 'dir', 'file', 'func'
-	u32 destflag;
-	u32 samepinprevchip;
-	u32 samepinnextchip;
-
-	u64 selfchip;
-	u64 selffoot;
-	u32 selftype;		//eg: 'dir', 'file', 'func', 'hash'
-	u32 selfflag;
-	u32 samechipprevpin;
-	u32 samechipnextpin;
-};
 struct context
 {
 	u64 type;
@@ -146,7 +100,7 @@ void graph_bfs(int cur, int len)
 {
 	int j,k;
 	struct hash* h;
-	struct wire* w;
+	struct relation* w;
 printf("[%d,%d)\n",cur,len);
 
 	for(j=cur;j<len;j++)

@@ -1,30 +1,20 @@
-#include<stdio.h>
-#include<stdlib.h>
-#include<string.h>
-#include<fcntl.h>
-#include<unistd.h>
-#include<sys/stat.h>
-#include<sys/types.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include "evil.h"
+#define maxlen 0x100000
 #ifndef O_BINARY
         #define O_BINARY 0x0
 #endif
-#define u8 unsigned char
-#define u16 unsigned short
-#define u32 unsigned int
-#define u64 unsigned long long
 int decstr2data(void*, void*);
 
 
 
 
-struct shapeindex
-{
-	u64 self;
-	u64 type;
-	u64 irel;
-	u64 orel;
-};
-#define maxlen 0x100000
 static u8 shapeindexbuf[maxlen];
 static int shapeindexfd;
 static int shapeindexlen = 0x20;
@@ -85,7 +75,7 @@ void shapeindex_start(int flag)
 		//open
 		shapeindexfd = open(
 			name,
-			O_CREAT|O_RDWR|O_BINARY, 
+			O_CREAT|O_RDWR|O_BINARY,
 			S_IRWXU|S_IRWXG|S_IRWXO
 		);
 

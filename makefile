@@ -57,45 +57,40 @@ SRC = \
 3library/extra/2d.c \
 3library/extra/3d.c \
 3library/extra/force.c \
-3library/extra/inout.c
+3library/extra/inout.c \
+evil.c
 
 winglut:
-	gcc main.c -o a.exe \
-	$(SRC) \
+	gcc -o a.exe $(SRC) \
 	2indite/graph/opengl.c \
 	2indite/serve/iocp.c \
-	-lglew32 -lfreeglut -lglu32 -lopengl32 -lws2_32 -lpthread -lm
+	-I. -lglew32 -lfreeglut -lglu32 -lopengl32 -lws2_32 -lpthread -lm
 winapi:
-	gcc main.c -o a.exe \
-	$(SRC) \
+	gcc -o a.exe $(SRC) \
 	2indite/graph/winapi.c \
 	2indite/serve/iocp.c \
-	-lgdi32 -lws2_32 -lpthread -lm
+	-I. -lgdi32 -lws2_32 -lpthread -lm
 win:
-	gcc main.c -o a.exe \
-	$(SRC) \
+	gcc -o a.exe $(SRC) \
 	2indite/graph/cli.c \
 	2indite/serve/iocp.c \
-	-lgdi32 -lws2_32 -lpthread -lm
+	-I. -lgdi32 -lws2_32 -lpthread -lm
 
 linuxglut:
-	gcc main.c -o a.exe \
-	$(SRC) \
+	gcc -o a.exe $(SRC) \
 	2indite/graph/opengl.c \
 	2indite/serve/epoll.c \
-	-lglut -lGLEW -lGLU -lGL -lpthread -lm
+	-I. -lglut -lGLEW -lGLU -lGL -lpthread -lm
 linuxxlib:
-	gcc main.c -o a.exe \
-	$(SRC) \
+	gcc -o a.exe $(SRC) \
 	2indite/graph/xlib.c \
 	2indite/serve/epoll.c \
-	-lX11 -lpthread -lm
+	-I. -lX11 -lpthread -lm
 linux:
-	gcc main.c -o a.exe \
-	$(SRC) \
+	gcc -o a.exe $(SRC) \
 	2indite/graph/cli.c \
 	2indite/serve/epoll.c \
-	-lm
+	-I. -lm
 
 clean:
 	rm -f *.exe *.out
