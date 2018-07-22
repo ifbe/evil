@@ -12,10 +12,10 @@ void* pin_read(int);
 void* chip_read(int);
 //
 void* relation_read(u64);
-void* samepinprevchip(void*);
-void* samepinnextchip(void*);
-void* samechipprevpin(void*);
-void* samechipnextpin(void*);
+void* samedstprevsrc(void*);
+void* samedstnextsrc(void*);
+void* samesrcprevdst(void*);
+void* samesrcnextdst(void*);
 
 
 
@@ -140,7 +140,7 @@ printf("[%d,%d)\n",cur,len);
 		}
 		else continue;
 
-		w = relation_read(h->irel);
+		w = relation_read(h->irel0);
 		while(1)
 		{
 			if(w == 0)break;
@@ -154,10 +154,10 @@ printf("[%d,%d)\n",cur,len);
 				k = kirchhoff_add(_pin_, w->selfchip);
 				kirchhoff_wire(k, j, w->destfoot);
 			}
-			w = samepinprevchip(w);
+			w = samedstnextsrc(w);
 		}
 
-		w = relation_read(h->orel);
+		w = relation_read(h->orel0);
 		while(1)
 		{
 			if(w == 0)break;
@@ -171,7 +171,7 @@ printf("[%d,%d)\n",cur,len);
 				k = kirchhoff_add(_pin_, w->destchip);
 				kirchhoff_wire(k, j, w->selffoot);
 			}
-			w = samechipprevpin(w);
+			w = samesrcnextdst(w);
 		}
 	}
 }
@@ -186,13 +186,13 @@ u64 kirchhoff_name(void* addr)
 	if(addr == 0)return 0;
 
 	pin = addr;
-	w = relation_read(pin->orel);
+	w = relation_read(pin->orel0);
 	while(1)
 	{
 		if(w == 0)break;
 		if(w->desttype == _hash_)return w->destchip;
 
-		w = samechipprevpin(w);
+		w = samesrcnextdst(w);
 	}
 	return 0;
 }
@@ -371,7 +371,7 @@ void kirchhoff(int argc, char** argv)
 	h = strhash_read(temp);
 	if(h == 0)return;
 
-	w = relation_read(h->irel);
+	w = relation_read(h->irel0);
 	if(w == 0)return;
 
 	wlen = 0;

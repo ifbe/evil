@@ -18,82 +18,97 @@ typedef double f64;
 
 struct relation
 {
-        u64 destchip;
-        u64 destfoot;
-        u32 desttype;           //eg: 'hash', 'dir', 'file', 'func'
-        u32 destflag;           //eg: 'bad', 'ok'
-        u32 samepinprevchip;
-        u32 samepinnextchip;
+	u64 destchip;
+	u64 destfoot;
+	u32 desttype;	   //eg: 'hash', 'dir', 'file', 'func'
+	u32 destflag;	   //eg: 'bad', 'ok'
+	u32 samedstprevsrc;
+	u32 samedstnextsrc;
 
-        u64 selfchip;
-        u64 selffoot;
-        u32 selftype;           //eg: 'dir', 'file', 'func', 'hash'
-        u32 selfflag;           //eg: 'bad', 'ok'
-        u32 samechipprevpin;
-        u32 samechipnextpin;
+	u64 selfchip;
+	u64 selffoot;
+	u32 selftype;	   //eg: 'dir', 'file', 'func', 'hash'
+	u32 selfflag;	   //eg: 'bad', 'ok'
+	u32 samesrcprevdst;
+	u32 samesrcnextdst;
 };
 struct hash
 {
-        u32 hash0;
-        u32 hash1;
-        u32 off;
-        u32 len;
+	u32 hash0;
+	u32 hash1;
+	u32 off;
+	u32 len;
 
-        u64 irel;
-        u64 orel;
+	u32 irel0;
+	u32 ireln;
+	u32 orel0;
+	u32 oreln;
 };
 struct chipindex
 {
-        u32 self;
-        u32 what;
-        u32 type;
-        float data;
+	u32 self;
+	u32 what;
+	u32 type;
+	float data;
 
-        u64 irel;
-        u64 orel;
+	u32 irel0;
+	u32 ireln;
+	u32 orel0;
+	u32 oreln;
 };
 struct fileindex
 {
-        u32 self;
-        u32 what;
-        u32 off;
-        u32 len;
+	u32 self;
+	u32 what;
+	u32 off;
+	u32 len;
 
-        u64 irel;
-        u64 orel;
+	u32 irel0;
+	u32 ireln;
+	u32 orel0;
+	u32 oreln;
 };
 struct funcindex
 {
-        u32 self;
-        u32 what;
-        u32 off;
-        u32 len;
+	u32 self;
+	u32 what;
+	u32 off;
+	u32 len;
 
-        u64 irel;
-        u64 orel;
+	u32 irel0;
+	u32 ireln;
+	u32 orel0;
+	u32 oreln;
 };
 struct pinindex
 {
-        u32 self;
-        u32 what;
-        u32 off;
-        u32 len;
+	u32 self;
+	u32 what;
+	u32 off;
+	u32 len;
 
-        u64 irel;
-        u64 orel;
+	u32 irel0;
+	u32 ireln;
+	u32 orel0;
+	u32 oreln;
 };
 struct pointindex
 {
-        u64 self;
-        u64 pppp;
+	u64 self;
+	u64 pppp;
 
-        u64 irel;
-        u64 orel;
+	u32 irel0;
+	u32 ireln;
+	u32 orel0;
+	u32 oreln;
 };
 struct shapeindex
 {
-        u64 self;
-        u64 type;
-        u64 irel;
-        u64 orel;
+	u64 self;
+	u64 type;
+
+	u32 irel0;
+	u32 ireln;
+	u32 orel0;
+	u32 oreln;
 };

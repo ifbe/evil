@@ -130,7 +130,7 @@ void three_call(u8* buf, int len)
 		return;
 	}
 
-	temp = h->irel;
+	temp = h->irel0;
 	w = relation_read(temp);
 	if((temp == 0) | (w == 0))
 	{
@@ -156,7 +156,7 @@ void three_call(u8* buf, int len)
 			printf("%llx,%llx,%x\n", w->selfchip, w->selffoot, w->selftype);
 		}
 
-		temp = w->samepinnextchip;
+		temp = w->samedstnextsrc;
 		if(temp == 0)break;
 
 		w = relation_read(temp);

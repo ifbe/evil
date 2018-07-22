@@ -30,10 +30,10 @@ void* pointdata_read(int);
 void* funcindex_read(int);
 void* filemd5_read(int);
 //
-void* samepinprevchip(void*);
-void* samepinnextchip(void*);
-void* samechipprevpin(void*);
-void* samechipnextpin(void*);
+void* samedstprevsrc(void*);
+void* samedstnextsrc(void*);
+void* samesrcprevdst(void*);
+void* samesrcnextdst(void*);
 void* relation_read(int);
 
 
@@ -133,24 +133,24 @@ printf("%x:%llx,%llx\n",j,ctxbuf[j].type, ctxbuf[j].addr);
 		}
 		else continue;
 
-		w = relation_read(h->irel);
+		w = relation_read(h->irel0);
 		while(1)
 		{
 			if(w == 0)break;
 			k = graph_add(w->selftype, w->selfchip);
 			if(j != k)graph_pair(j,k);
 
-			w = samepinprevchip(w);
+			w = samedstnextsrc(w);
 		}
 
-		w = relation_read(h->orel);
+		w = relation_read(h->orel0);
 		while(1)
 		{
 			if(w == 0)break;
 			k = graph_add(w->desttype, w->destchip);
 			if(j != k)graph_pair(k, j);
 
-			w = samechipprevpin(w);
+			w = samesrcnextdst(w);
 		}
 	}
 

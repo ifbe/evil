@@ -14,10 +14,10 @@ void* filemd5_read(int);
 void* pointindex_read(int);
 void* shapeindex_read(int);
 //
-void* samepinprevchip(void*);
-void* samepinnextchip(void*);
-void* samechipprevpin(void*);
-void* samechipnextpin(void*);
+void* samedstprevsrc(void*);
+void* samedstnextsrc(void*);
+void* samesrcprevdst(void*);
+void* samesrcnextdst(void*);
 void* relation_read(int);
 //
 void readthemall(int);
@@ -44,7 +44,7 @@ void chipname(u64 addr)
 	chip = chip_read(addr);
 	if(chip == 0)goto error;
 
-	orel = relation_read(chip->orel);
+	orel = relation_read(chip->orel0);
 	if(orel == 0)goto error;
 
 	while(1)
@@ -56,7 +56,7 @@ void chipname(u64 addr)
 			break;
 		}
 
-		orel = samechipprevpin(orel);
+		orel = samesrcnextdst(orel);
 		if(orel == 0)break;
 	}
 normal:
@@ -72,7 +72,7 @@ void filename(u64 addr)
 	file = filemd5_read(addr);
 	if(file == 0)goto error;
 
-	orel = relation_read(file->orel);
+	orel = relation_read(file->orel0);
 	if(orel == 0)goto error;
 
 	while(1)
@@ -84,7 +84,7 @@ void filename(u64 addr)
 			break;
 		}
 
-		orel = samechipprevpin(orel);
+		orel = samesrcnextdst(orel);
 		if(orel == 0)break;
 	}
 normal:
@@ -100,7 +100,7 @@ void funcname(u64 addr)
 	func = funcindex_read(addr);
 	if(func == 0)goto error;
 
-	orel = relation_read(func->orel);
+	orel = relation_read(func->orel0);
 	if(orel == 0)goto error;
 
 	while(1)
@@ -112,7 +112,7 @@ void funcname(u64 addr)
 			break;
 		}
 
-		orel = samechipprevpin(orel);
+		orel = samesrcnextdst(orel);
 		if(orel == 0)break;
 	}
 normal:
@@ -128,7 +128,7 @@ void funcpath(u64 addr)
 	func = funcindex_read(addr);
 	if(func == 0)goto error;
 
-	orel = relation_read(func->orel);
+	orel = relation_read(func->orel0);
 	if(orel == 0)goto error;
 
 	while(1)
@@ -139,7 +139,7 @@ void funcpath(u64 addr)
 			sb += snprintf(sb, sl, ":%lld", orel->destfoot);
 		}
 
-		orel = samechipprevpin(orel);
+		orel = samesrcnextdst(orel);
 		if(orel == 0)break;
 	}
 normal:
@@ -168,7 +168,7 @@ void searchpin(int offset)
 	sb += snprintf(sb, sl, "pin@%08x	@%llx\n", offset, (u64)pin);
 
 pinirel:
-	irel = relation_read(pin->irel);
+	irel = relation_read(pin->irel0);
 	if(irel == 0)goto pinorel;
 
 	//input
@@ -201,12 +201,12 @@ pinirel:
 			);
 		}
 
-		irel = samepinprevchip(irel);
+		irel = samedstnextsrc(irel);
 		if(irel == 0)break;
 	}
 
 pinorel:
-	orel = relation_read(pin->orel);
+	orel = relation_read(pin->orel0);
 	if(orel == 0)return;
 
 	//output(many)
@@ -237,7 +237,7 @@ pinorel:
 			);
 		}
 
-		orel = samechipprevpin(orel);
+		orel = samesrcnextdst(orel);
 		if(orel == 0)break;
 	}
 }
@@ -266,7 +266,7 @@ void searchchip(int offset)
 	);
 
 chipirel:
-	irel = relation_read(chip->irel);
+	irel = relation_read(chip->irel0);
 	if(irel == 0)goto chiporel;
 
 	while(irel != 0)
@@ -289,12 +289,12 @@ chipirel:
 			);
 		}
 
-		irel = samepinprevchip(irel);
+		irel = samedstnextsrc(irel);
 		if(irel == 0)break;
 	}
 
 chiporel:
-	orel = relation_read(chip->orel);
+	orel = relation_read(chip->orel0);
 	if(orel == 0)return;
 
 	while(orel != 0)
@@ -324,7 +324,7 @@ chiporel:
 			);
 		}
 
-		orel = samechipprevpin(orel);
+		orel = samesrcnextdst(orel);
 		if(orel == 0)break;
 	}
 }
@@ -355,7 +355,7 @@ void searchshape(int offset)
 	);
 
 shapeirel:
-	irel = relation_read(shape->irel);
+	irel = relation_read(shape->irel0);
 	if(irel == 0)goto shapeorel;
 
 	while(irel != 0)
@@ -395,12 +395,12 @@ shapeirel:
 			);
 		}
 
-		irel = samepinprevchip(irel);
+		irel = samedstnextsrc(irel);
 		if(irel == 0)break;
 	}
 
 shapeorel:
-	orel = relation_read(shape->orel);
+	orel = relation_read(shape->orel0);
 	if(orel == 0)return;
 
 	while(orel != 0)
@@ -431,7 +431,7 @@ shapeorel:
 			);
 		}
 
-		orel = samechipprevpin(orel);
+		orel = samesrcnextdst(orel);
 		if(orel == 0)break;
 	}
 }
@@ -460,7 +460,7 @@ void searchfile(int offset)
 	);
 
 fileirel:
-	irel = relation_read(file->irel);
+	irel = relation_read(file->irel0);
 	if(irel == 0)goto fileorel;
 
 	while(irel != 0)
@@ -496,12 +496,12 @@ fileirel:
 			);
 		}
 
-		irel = samepinprevchip(irel);
+		irel = samedstnextsrc(irel);
 		if(irel == 0)break;
 	}
 
 fileorel:
-	orel = relation_read(file->orel);
+	orel = relation_read(file->orel0);
 	if(orel == 0)return;
 
 	//output(many)
@@ -524,7 +524,7 @@ fileorel:
 			);
 		}
 
-		orel = samechipprevpin(orel);
+		orel = samesrcnextdst(orel);
 		if(orel == 0)break;
 	}
 }
@@ -553,7 +553,7 @@ void searchfunc(int offset)
 	);
 
 funcirel:
-	irel = relation_read(f->irel);
+	irel = relation_read(f->irel0);
 	if(irel == 0)goto funcorel;
 
 	while(irel != 0)
@@ -579,12 +579,12 @@ funcirel:
 			sb += snprintf(sb, sl, "\n");
 		}
 
-		irel = samepinprevchip(irel);
+		irel = samedstnextsrc(irel);
 		if(irel == 0)break;
 	}
 
 funcorel:
-	orel = relation_read(f->orel);
+	orel = relation_read(f->orel0);
 	if(orel == 0)return;
 
 	while(orel != 0)
@@ -617,7 +617,7 @@ funcorel:
 			);
 		}
 
-		orel = samechipprevpin(orel);
+		orel = samesrcnextdst(orel);
 		if(orel == 0)break;
 	}
 }
@@ -647,7 +647,7 @@ void searchhash(char* buf, int len)
 	);
 
 hashirel:
-	irel = relation_read(h->irel);
+	irel = relation_read(h->irel0);
 	if(irel == 0)goto hashorel;
 
 	while(irel != 0)
@@ -692,12 +692,12 @@ hashirel:
 			);
 		}
 
-		irel = samepinprevchip(irel);
+		irel = samedstnextsrc(irel);
 		if(irel == 0)break;
 	}
 
 hashorel:
-	orel = relation_read(h->orel);
+	orel = relation_read(h->orel0);
 	if(orel == 0)goto theend;
 
 	while(orel != 0)
@@ -746,7 +746,7 @@ hashorel:
 			);
 		}
 
-		orel = samechipprevpin(orel);
+		orel = samesrcnextdst(orel);
 		if(orel == 0)break;
 	}
 

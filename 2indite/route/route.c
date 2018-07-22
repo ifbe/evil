@@ -19,10 +19,10 @@ void* funcindex_read(int);
 void* shapeindex_read(int);
 void* pointindex_read(int);
 //
-void* samepinprevchip(void*);
-void* samepinnextchip(void*);
-void* samechipprevpin(void*);
-void* samechipnextpin(void*);
+void* samedstprevsrc(void*);
+void* samedstnextsrc(void*);
+void* samesrcprevdst(void*);
+void* samesrcnextdst(void*);
 void* relation_read(int);
 //dfs
 struct stack
@@ -70,7 +70,7 @@ first:
 			);
 			return;
 		}
-		irel = samepinprevchip(irel);
+		irel = samedstnextsrc(irel);
 	}
 
 second:
@@ -85,7 +85,7 @@ second:
 			);
 			return;
 		}
-		orel = samechipprevpin(orel);
+		orel = samesrcnextdst(orel);
 	}
 
 third:
@@ -99,8 +99,8 @@ void route_dfs(u64 t1, struct hash* h1, u64 t2, struct hash* h2)
 	st[0].type = _hash_;
 	st[0].data = t1;
 	st[0].addr = h1;
-	st[0].irel = relation_read(h1->irel);
-	st[0].orel = relation_read(h2->orel);
+	st[0].irel = relation_read(h1->irel0);
+	st[0].orel = relation_read(h2->orel0);
 	rsp = 0;
 #define maxdepth 8
 	//doit
@@ -110,7 +110,7 @@ void route_dfs(u64 t1, struct hash* h1, u64 t2, struct hash* h2)
 		{
 			type = (st[rsp].irel)->selftype;
 			data = (st[rsp].irel)->selfchip;
-			st[rsp].irel = samepinprevchip(st[rsp].irel);
+			st[rsp].irel = samedstnextsrc(st[rsp].irel);
 printf("%d.i) %llx,%llx\n",rsp,type,data);
 
 			if((_hash_ == type)&&(t2 == data))break;
@@ -132,8 +132,8 @@ printf("%d.i) %llx,%llx\n",rsp,type,data);
 			st[rsp].type = type;
 			st[rsp].data = data;
 			st[rsp].addr = h1;
-			st[rsp].irel = relation_read(h1->irel);
-			st[rsp].orel = relation_read(h1->orel);
+			st[rsp].irel = relation_read(h1->irel0);
+			st[rsp].orel = relation_read(h1->orel0);
 			continue;
 		}
 
@@ -141,7 +141,7 @@ printf("%d.i) %llx,%llx\n",rsp,type,data);
 		{
 			type = (st[rsp].orel)->desttype;
 			data = (st[rsp].orel)->destchip;
-			st[rsp].orel = samechipprevpin(st[rsp].orel);
+			st[rsp].orel = samesrcnextdst(st[rsp].orel);
 printf("%d.o) %llx,%llx\n",rsp,type,data);
 
 			if((_hash_ == type)&&(t2 == data))break;
@@ -163,8 +163,8 @@ printf("%d.o) %llx,%llx\n",rsp,type,data);
 			st[rsp].type = type;
 			st[rsp].data = data;
 			st[rsp].addr = h1;
-			st[rsp].irel = relation_read(h1->irel);
-			st[rsp].orel = relation_read(h1->orel);
+			st[rsp].irel = relation_read(h1->irel0);
+			st[rsp].orel = relation_read(h1->orel0);
 			continue;
 		}
 
@@ -246,24 +246,24 @@ printf("%x:%llx,%llx\n",j,q[j].type, q[j].addr);
 		}
 		else continue;
 
-		w = relation_read(h->irel);
+		w = relation_read(h->irel0);
 		while(1)
 		{
 			if(w == 0)break;
 			k = route_add(q, j, w->selftype, w->selfchip);
 			//if(j != k)graph_pair(j,k);
 
-			w = samepinprevchip(w);
+			w = samedstnextsrc(w);
 		}
 
-		w = relation_read(h->orel);
+		w = relation_read(h->orel0);
 		while(1)
 		{
 			if(w == 0)break;
 			k = route_add(q, j, w->desttype, w->destchip);
 			//if(j != k)graph_pair(k, j);
 
-			w = samechipprevpin(w);
+			w = samesrcnextdst(w);
 		}
 	}
 }
