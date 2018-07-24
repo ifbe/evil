@@ -9,7 +9,6 @@
 #ifndef O_BINARY
         #define O_BINARY 0x0
 #endif
-void relation_write(void* uchip, u64 ufoot, u64 utype, void* bchip, u64 bfoot, u64 btype);
 int strhash_export(void*, void*);
 void* strhash_write(void*, int);
 void* strhash_read(u64);
@@ -45,10 +44,7 @@ void think_one(u8* buf, int len)
 	}
 
 	//hash <- hash
-	relation_write(
-		baseobj, 0, hex32('h','a','s','h'),
-		thisobj, 0, hex32('h','a','s','h')
-	);
+	relationcreate(baseobj, 0, _hash_, thisobj, 0, _hash_);
 }
 void think_line(u8* buf, int len)
 {

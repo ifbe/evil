@@ -14,14 +14,6 @@ void* filemd5_read(int);
 void* pointindex_read(int);
 void* shapeindex_read(int);
 //
-void* samedstprevsrc(void*);
-void* samedstnextsrc(void*);
-void* samesrcprevdst(void*);
-void* samesrcnextdst(void*);
-void* relation_read(int);
-//
-void readthemall(int);
-void writethemall(int);
 int input(void*, int);
 int output(void*, int);
 int fixarg(void*, void*);
@@ -44,12 +36,12 @@ void chipname(u64 addr)
 	chip = chip_read(addr);
 	if(chip == 0)goto error;
 
-	orel = relation_read(chip->orel0);
+	orel = relationread(chip->orel0);
 	if(orel == 0)goto error;
 
 	while(1)
 	{
-		if(orel->desttype == hex32('h','a','s','h'))
+		if(_hash_ == orel->desttype)
 		{
 			//strhash_print(orel->destchip);
 			sb += strhash_export(orel->destchip, sb, 99);
@@ -72,12 +64,12 @@ void filename(u64 addr)
 	file = filemd5_read(addr);
 	if(file == 0)goto error;
 
-	orel = relation_read(file->orel0);
+	orel = relationread(file->orel0);
 	if(orel == 0)goto error;
 
 	while(1)
 	{
-		if(orel->desttype == hex32('h','a','s','h'))
+		if(_hash_ == orel->desttype)
 		{
 			//strhash_print(orel->destchip);
 			sb += strhash_export(orel->destchip, sb, 99);
@@ -100,12 +92,12 @@ void funcname(u64 addr)
 	func = funcindex_read(addr);
 	if(func == 0)goto error;
 
-	orel = relation_read(func->orel0);
+	orel = relationread(func->orel0);
 	if(orel == 0)goto error;
 
 	while(1)
 	{
-		if(orel->desttype == hex32('h','a','s','h'))
+		if(_hash_ == orel->desttype)
 		{
 			//strhash_print(orel->destchip);
 			sb += strhash_export(orel->destchip, sb, 99);
@@ -128,12 +120,12 @@ void funcpath(u64 addr)
 	func = funcindex_read(addr);
 	if(func == 0)goto error;
 
-	orel = relation_read(func->orel0);
+	orel = relationread(func->orel0);
 	if(orel == 0)goto error;
 
 	while(1)
 	{
-		if(orel->desttype == hex32('f','i','l','e'))
+		if(_file_ == orel->desttype)
 		{
 			filename(orel->destchip);
 			sb += snprintf(sb, sl, ":%lld", orel->destfoot);
@@ -168,7 +160,7 @@ void searchpin(int offset)
 	sb += snprintf(sb, sl, "pin@%08x	@%llx\n", offset, (u64)pin);
 
 pinirel:
-	irel = relation_read(pin->irel0);
+	irel = relationread(pin->irel0);
 	if(irel == 0)goto pinorel;
 
 	//input
@@ -206,7 +198,7 @@ pinirel:
 	}
 
 pinorel:
-	orel = relation_read(pin->orel0);
+	orel = relationread(pin->orel0);
 	if(orel == 0)return;
 
 	//output(many)
@@ -266,7 +258,7 @@ void searchchip(int offset)
 	);
 
 chipirel:
-	irel = relation_read(chip->irel0);
+	irel = relationread(chip->irel0);
 	if(irel == 0)goto chiporel;
 
 	while(irel != 0)
@@ -294,7 +286,7 @@ chipirel:
 	}
 
 chiporel:
-	orel = relation_read(chip->orel0);
+	orel = relationread(chip->orel0);
 	if(orel == 0)return;
 
 	while(orel != 0)
@@ -355,7 +347,7 @@ void searchshape(int offset)
 	);
 
 shapeirel:
-	irel = relation_read(shape->irel0);
+	irel = relationread(shape->irel0);
 	if(irel == 0)goto shapeorel;
 
 	while(irel != 0)
@@ -400,7 +392,7 @@ shapeirel:
 	}
 
 shapeorel:
-	orel = relation_read(shape->orel0);
+	orel = relationread(shape->orel0);
 	if(orel == 0)return;
 
 	while(orel != 0)
@@ -460,7 +452,7 @@ void searchfile(int offset)
 	);
 
 fileirel:
-	irel = relation_read(file->irel0);
+	irel = relationread(file->irel0);
 	if(irel == 0)goto fileorel;
 
 	while(irel != 0)
@@ -501,7 +493,7 @@ fileirel:
 	}
 
 fileorel:
-	orel = relation_read(file->orel0);
+	orel = relationread(file->orel0);
 	if(orel == 0)return;
 
 	//output(many)
@@ -553,7 +545,7 @@ void searchfunc(int offset)
 	);
 
 funcirel:
-	irel = relation_read(f->irel0);
+	irel = relationread(f->irel0);
 	if(irel == 0)goto funcorel;
 
 	while(irel != 0)
@@ -584,7 +576,7 @@ funcirel:
 	}
 
 funcorel:
-	orel = relation_read(f->orel0);
+	orel = relationread(f->orel0);
 	if(orel == 0)return;
 
 	while(orel != 0)
@@ -647,7 +639,7 @@ void searchhash(char* buf, int len)
 	);
 
 hashirel:
-	irel = relation_read(h->irel0);
+	irel = relationread(h->irel0);
 	if(irel == 0)goto hashorel;
 
 	while(irel != 0)
@@ -697,7 +689,7 @@ hashirel:
 	}
 
 hashorel:
-	orel = relation_read(h->orel0);
+	orel = relationread(h->orel0);
 	if(orel == 0)goto theend;
 
 	while(orel != 0)

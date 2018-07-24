@@ -6,10 +6,6 @@ void* pin_write(void*, int);
 //
 void* strhash_write(void*, int);
 u64 strhash_generate(void*, int);
-//
-void relation_write(
-	void* uchip, u64 ufoot, u64 utype,
-	void* bchip, u64 bfoot, u64 btype);
 
 
 
@@ -48,10 +44,7 @@ void* cir_read_chip(u8* buf, int len)
 	//create
 	addr1 = strhash_write(buf, len);
 	addr2 = chip_write();
-	relation_write(
-		addr1, 0, hex32('h','a','s','h'),
-		addr2, 0, hex32('c','h','i','p')
-	);
+	relationcreate(addr1, 0, _hash_, addr2, 0, _chip_);
 
 	mt[tablen].name = name;
 	mt[tablen].body = addr2;
@@ -77,10 +70,7 @@ void cir_read_line(u8* buf, int len)
 			//printf("{%.*s}\n", j, buf);
 			addr = strhash_write(buf, j);
 			pinbody = pin_write(buf, len);
-			relation_write(
-				addr, 0, hex32('h','a','s','h'),
-				pinbody, 0, hex32('p','i','n',0)
-			);
+			relationcreate(addr, 0, _hash_, pinbody, 0, _pin_);
 			return;
 		}
 		if('(' == buf[j])
@@ -88,10 +78,7 @@ void cir_read_line(u8* buf, int len)
 			//printf("(%.*s, %.*s)\n", j, buf, len-j-2, buf+j+1);
 			chipbody = cir_read_chip(buf, j);
 			if(0 == chipbody->type)chipbody->type = buf[0];
-			relation_write(
-				chipbody, buf[j+1], hex32('c','h','i','p'),
-				pinbody, 0, hex32('p','i','n',0)
-			);
+			relationcreate(chipbody, buf[j+1], _chip_, pinbody, 0, _pin_);
 			return;
 		}
 		if('=' == buf[j])
@@ -179,7 +166,7 @@ void throwall(u8* buf, int len)
 			else if(buf[0] == 'R')type = hex64('c','h','i','p','R',0,0,0);
 			else if(buf[0] == 'V')type = hex64('c','h','i','p','V',0,0,0);
 			else type = hex32('c','h','i','p');
-			relation_write(
+			relationcreate(
 				hash, 0, hex32('h','a','s','h'),
 				chip, 0, type);
 		}
@@ -194,7 +181,7 @@ void throwall(u8* buf, int len)
 			{
 				//printf("pin:%.*s\n", len, buf);
 				pin = pin_write(buf, len);
-				relation_write(
+				relationcreate(
 					pin, 0, hex32('p','i','n',0),
 					chip, foot, type);
 			}

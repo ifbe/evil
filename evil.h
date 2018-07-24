@@ -112,3 +112,18 @@ struct shapeindex
 	u32 orel0;
 	u32 oreln;
 };
+
+
+
+
+//
+void readthemall(int);
+void writethemall();
+//
+void* relationread(u32);
+void* relationcreate(void* uc, u64 uf, u64 ut, void* bc, u64 bf, u64 bt);
+//
+void* samedstprevsrc(struct relation* rel);
+void* samedstnextsrc(struct relation* rel);
+void* samesrcprevdst(struct relation* rel);
+void* samesrcnextdst(struct relation* rel);

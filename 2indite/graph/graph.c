@@ -13,7 +13,6 @@
 #define _line_ hex32('l','i','n','e')
 #define _tri_ hex32('t','r','i',0)
 #define _rect_ hex32('r','e','c','t')
-void readthemall(int);
 void trianglenormal(void* n, void* a, void* b, void* c);
 //
 void graph_init(void*, int, void*, int);
@@ -29,12 +28,6 @@ void* pointindex_read(int);
 void* pointdata_read(int);
 void* funcindex_read(int);
 void* filemd5_read(int);
-//
-void* samedstprevsrc(void*);
-void* samedstnextsrc(void*);
-void* samesrcprevdst(void*);
-void* samesrcnextdst(void*);
-void* relation_read(int);
 
 
 
@@ -133,7 +126,7 @@ printf("%x:%llx,%llx\n",j,ctxbuf[j].type, ctxbuf[j].addr);
 		}
 		else continue;
 
-		w = relation_read(h->irel0);
+		w = relationread(h->irel0);
 		while(1)
 		{
 			if(w == 0)break;
@@ -143,7 +136,7 @@ printf("%x:%llx,%llx\n",j,ctxbuf[j].type, ctxbuf[j].addr);
 			w = samedstnextsrc(w);
 		}
 
-		w = relation_read(h->orel0);
+		w = relationread(h->orel0);
 		while(1)
 		{
 			if(w == 0)break;

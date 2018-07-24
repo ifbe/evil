@@ -22,51 +22,10 @@ static int wirelen;
 
 
 void* relation_generate(
-	struct hash* uchip, u64 ufoot, u64 utype,
-	struct hash* bchip, u64 bfoot, u64 btype)
+	struct hash* uc, u64 uf, u64 ut,
+	struct hash* bc, u64 bf, u64 bt)
 {
-	struct relation* w = (void*)wirebuf + wirecur;
-	wirecur += sizeof(struct relation);
-
-	//1.dest
-	w->desttype = utype&0xffffffff;
-	w->destflag = utype>>32;
-	w->samedstprevsrc = 0;
-	w->samedstnextsrc = 0;
-
-	if(w->desttype == hex32('h','a','s','h'))w->destchip = *(u64*)uchip;
-	else w->destchip = *(u32*)uchip;
-	w->destfoot = ufoot;
-
-	//2.self
-	w->selftype = btype&0xffffffff;
-	w->selfflag = btype>>32;
-	w->samesrcprevdst = 0;
-	w->samesrcnextdst = 0;
-
-	if(w->selftype == hex32('h','a','s','h'))w->selfchip = *(u64*)bchip;
-	else w->selfchip = *(u32*)bchip;
-	w->selffoot = bfoot;
-
-	return w;
-}
-
-
-
-
-//hashinfo, hashfoot, 'hash', fileinfo, 0, 'file'
-//fileinfo, fileline, 'file', funcinfo, 0, 'func'
-//funcinfo, funcofst, 'func', hashinfo, 0, 'hash'
-//wininfo,  position, 'win',  actor,    0, 'act'
-//actinfo,  which,    'act',  userinfo, what,     'user'
-int relation_write(
-	void* uchip, u64 ufoot, u64 utype,
-	void* bchip, u64 bfoot, u64 btype)
-{
-	struct hash* h1;
-	struct hash* h2;
-	struct relation* ww;
-	struct relation* wc;
+	struct relation* rel;
 	if(wirecur >= wirelen)
 	{
 		lseek(wirefd, 0, SEEK_SET);
@@ -77,64 +36,132 @@ int relation_write(
 		printf("wirebuf realloc: %x/%x\n", wirecur, wirelen);
 	}
 
-	//
-	ww = relation_generate(uchip, ufoot, utype, bchip, bfoot, btype);
+	rel = (void*)wirebuf + wirecur;
+	wirecur += sizeof(struct relation);
+
+	//1.dest
+	rel->desttype = ut&0xffffffff;
+	rel->destflag = ut>>32;
+	rel->samedstprevsrc = 0;
+	rel->samedstnextsrc = 0;
+
+	if(_hash_ == rel->desttype)rel->destchip = *(u64*)uc;
+	else rel->destchip = *(u32*)uc;
+	rel->destfoot = uf;
+
+	//2.self
+	rel->selftype = bt&0xffffffff;
+	rel->selfflag = bt>32;
+	rel->samesrcprevdst = 0;
+	rel->samesrcnextdst = 0;
+
+	if(_hash_ == rel->selftype)rel->selfchip = *(u64*)bc;
+	else rel->selfchip = *(u32*)bc;
+	rel->selffoot = bf;
+
+	return rel;
+}
+
+
+
+
+void* samedstprevsrc(struct relation* rel)
+{
+	u32 j;
+	if(0 == rel)return 0;
+
+	j = rel->samedstprevsrc;
+	if(0 == j)return 0;
+	return (void*)wirebuf + (j<<6);
+}
+void* samedstnextsrc(struct relation* rel)
+{
+	u32 j;
+	if(0 == rel)return 0;
+
+	j = rel->samedstnextsrc;
+	if(0 == j)return 0;
+	return (void*)wirebuf + (j<<6);
+}
+void* samesrcprevdst(struct relation* rel)
+{
+	u32 j;
+	if(0 == rel)return 0;
+
+	j = rel->samesrcprevdst;
+	if(0 == j)return 0;
+	return (void*)wirebuf + (j<<6);
+}
+void* samesrcnextdst(struct relation* rel)
+{
+	u32 j;
+	if(0 == rel)return 0;
+
+	j = rel->samesrcnextdst;
+	if(0 == j)return 0;
+	return (void*)wirebuf + (j<<6);
+}
+void* relationread(u32 j)
+{
+	if(0 == j)return 0;
+	return (void*)wirebuf + (j<<6);
+}
+u32 relationwrite(struct relation* rel)
+{
+	u32 j = (void*)rel - (void*)wirebuf;
+	return j>>6;
+}
+
+
+
+
+void* relationdelete(struct relation* rel)
+{
+}
+void* relationcreate(void* uc, u64 uf, u64 ut, void* bc, u64 bf, u64 bt)
+{
+//hashinfo, hashfoot, 'hash', fileinfo, 0, 'file'
+//fileinfo, fileline, 'file', funcinfo, 0, 'func'
+//funcinfo, funcofst, 'func', hashinfo, 0, 'hash'
+//wininfo,  position, 'win',  actor,    0, 'act'
+//actinfo,  which,    'act',  userinfo, what,     'user'
+	u32 offnew;
+	u32 offtmp;
+	struct hash* h1;
+	struct hash* h2;
+	struct relation* relnew;
+	struct relation* reltmp;
 
 	//
-	h1 = uchip;
+	relnew = relation_generate(uc, uf, ut, bc, bf, bt);
+	offnew = relationwrite(relnew);
+
+	//
+	h1 = uc;
 	if(0 != h1->ireln)
 	{
-		wc = (void*)wirebuf + (h1->ireln);
-		wc->samedstnextsrc = (void*)ww - (void*)wirebuf;
-		ww->samedstprevsrc = (void*)wc - (void*)wirebuf;
-	}
-	h1->ireln = (void*)ww - (void*)wirebuf;
-	if(0 == h1->irel0)h1->irel0 = h1->ireln;
+		reltmp = relationread(h1->ireln);
+		offtmp = relationwrite(reltmp);
 
-	h2 = bchip;
+		reltmp->samedstnextsrc = offnew;
+		relnew->samedstprevsrc = offtmp;
+	}
+	h1->ireln = offnew;
+	if(0 == h1->irel0)h1->irel0 = offnew;
+
+	h2 = bc;
 	if(0 != h2->oreln)
 	{
-		wc = (void*)wirebuf + (h2->oreln);
-		wc->samesrcnextdst = (void*)ww - (void*)wirebuf;
-		ww->samesrcprevdst = (void*)wc - (void*)wirebuf;
+		reltmp = relationread(h2->oreln);
+		offtmp = relationwrite(reltmp);
+
+		reltmp->samesrcnextdst = offnew;
+		relnew->samesrcprevdst = offtmp;
 	}
-	h2->oreln = (void*)ww - (void*)wirebuf;
-	if(0 == h2->orel0)h2->orel0 = h2->oreln;
+	h2->oreln = offnew;
+	if(0 == h2->orel0)h2->orel0 = offnew;
 
-	return 1;
-}
-
-
-
-
-void* samedstprevsrc(struct relation* w)
-{
-	if(w == 0)return 0;
-	if(w->samedstprevsrc == 0)return 0;
-	return (void*)wirebuf + (w->samedstprevsrc);
-}
-void* samedstnextsrc(struct relation* w)
-{
-	if(w == 0)return 0;
-	if(w->samedstnextsrc == 0)return 0;
-	return (void*)wirebuf + (w->samedstnextsrc);
-}
-void* samesrcprevdst(struct relation* w)
-{
-	if(w == 0)return 0;
-	if(w->samesrcprevdst == 0)return 0;
-	return (void*)wirebuf + (w->samesrcprevdst);
-}
-void* samesrcnextdst(struct relation* w)
-{
-	if(w == 0)return 0;
-	if(w->samesrcnextdst == 0)return 0;
-	return (void*)wirebuf + (w->samesrcnextdst);
-}
-void* relation_read(int offset)
-{
-	if(offset == 0)return 0;
-	return (void*)wirebuf + offset;
+	return relnew;
 }
 
 

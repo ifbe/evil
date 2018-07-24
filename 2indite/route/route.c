@@ -18,12 +18,6 @@ void* filemd5_read(int);
 void* funcindex_read(int);
 void* shapeindex_read(int);
 void* pointindex_read(int);
-//
-void* samedstprevsrc(void*);
-void* samedstnextsrc(void*);
-void* samesrcprevdst(void*);
-void* samesrcnextdst(void*);
-void* relation_read(int);
 //dfs
 struct stack
 {
@@ -99,8 +93,8 @@ void route_dfs(u64 t1, struct hash* h1, u64 t2, struct hash* h2)
 	st[0].type = _hash_;
 	st[0].data = t1;
 	st[0].addr = h1;
-	st[0].irel = relation_read(h1->irel0);
-	st[0].orel = relation_read(h2->orel0);
+	st[0].irel = relationread(h1->irel0);
+	st[0].orel = relationread(h2->orel0);
 	rsp = 0;
 #define maxdepth 8
 	//doit
@@ -132,8 +126,8 @@ printf("%d.i) %llx,%llx\n",rsp,type,data);
 			st[rsp].type = type;
 			st[rsp].data = data;
 			st[rsp].addr = h1;
-			st[rsp].irel = relation_read(h1->irel0);
-			st[rsp].orel = relation_read(h1->orel0);
+			st[rsp].irel = relationread(h1->irel0);
+			st[rsp].orel = relationread(h1->orel0);
 			continue;
 		}
 
@@ -163,8 +157,8 @@ printf("%d.o) %llx,%llx\n",rsp,type,data);
 			st[rsp].type = type;
 			st[rsp].data = data;
 			st[rsp].addr = h1;
-			st[rsp].irel = relation_read(h1->irel0);
-			st[rsp].orel = relation_read(h1->orel0);
+			st[rsp].irel = relationread(h1->irel0);
+			st[rsp].orel = relationread(h1->orel0);
 			continue;
 		}
 
@@ -246,7 +240,7 @@ printf("%x:%llx,%llx\n",j,q[j].type, q[j].addr);
 		}
 		else continue;
 
-		w = relation_read(h->irel0);
+		w = relationread(h->irel0);
 		while(1)
 		{
 			if(w == 0)break;
@@ -256,7 +250,7 @@ printf("%x:%llx,%llx\n",j,q[j].type, q[j].addr);
 			w = samedstnextsrc(w);
 		}
 
-		w = relation_read(h->orel0);
+		w = relationread(h->orel0);
 		while(1)
 		{
 			if(w == 0)break;

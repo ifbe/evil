@@ -10,12 +10,6 @@ void strhash_print(u64);
 void* strhash_read(u64);
 void* pin_read(int);
 void* chip_read(int);
-//
-void* relation_read(u64);
-void* samedstprevsrc(void*);
-void* samedstnextsrc(void*);
-void* samesrcprevdst(void*);
-void* samesrcnextdst(void*);
 
 
 
@@ -140,7 +134,7 @@ printf("[%d,%d)\n",cur,len);
 		}
 		else continue;
 
-		w = relation_read(h->irel0);
+		w = relationread(h->irel0);
 		while(1)
 		{
 			if(w == 0)break;
@@ -157,7 +151,7 @@ printf("[%d,%d)\n",cur,len);
 			w = samedstnextsrc(w);
 		}
 
-		w = relation_read(h->orel0);
+		w = relationread(h->orel0);
 		while(1)
 		{
 			if(w == 0)break;
@@ -186,7 +180,7 @@ u64 kirchhoff_name(void* addr)
 	if(addr == 0)return 0;
 
 	pin = addr;
-	w = relation_read(pin->orel0);
+	w = relationread(pin->orel0);
 	while(1)
 	{
 		if(w == 0)break;
@@ -371,7 +365,7 @@ void kirchhoff(int argc, char** argv)
 	h = strhash_read(temp);
 	if(h == 0)return;
 
-	w = relation_read(h->irel0);
+	w = relationread(h->irel0);
 	if(w == 0)return;
 
 	wlen = 0;
