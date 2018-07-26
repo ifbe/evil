@@ -10,48 +10,43 @@ function highlight()
 	hljs.initHighlighting.called = false;
 	hljs.initHighlighting();
 }
-function display()
-{
-	var haha = document.getElementById("display").value;
-	//window.location.href = "/"+haha;
-
-	var ajax = new XMLHttpRequest();
-	ajax.open('get','/!'+haha);
-	ajax.send();
-	ajax.onreadystatechange = function () {
-	if (ajax.readyState==4 &&ajax.status==200) {
-		var txt = ajax.responseText;
-		txt = txt.replace(/</g,'&lt');
-		txt = txt.replace(/>/g,'&gt');
-		//console.log(ajax.responseText);
-		document.getElementById("precode1").innerHTML = txt;
-		highlight();
-	}
-	}
-}
 function search()
 {
 	var haha = document.getElementById("search").value;
 
-	var ajax = new XMLHttpRequest();
-	ajax.open('get','/?'+haha);
-	ajax.send();
-	ajax.onreadystatechange = function () {
-	if (ajax.readyState==4 &&ajax.status==200) {
-		var txt = ajax.responseText;
-		txt = txt.replace(/</g,'&lt');
-		txt = txt.replace(/>/g,'&gt');
-		//console.log(ajax.responseText);
-		document.getElementById("precode2").innerHTML = txt;
-		highlight();
+	//left half
+	var ajaxl = new XMLHttpRequest();
+	ajaxl.open('get','/!'+haha);
+	ajaxl.send();
+	ajaxl.onreadystatechange = function () {
+		if (ajaxl.readyState==4 &&ajaxl.status==200) {
+			var txt = ajaxl.responseText;
+			txt = txt.replace(/</g,'&lt');
+			txt = txt.replace(/>/g,'&gt');
+			//console.log(ajaxl.responseText);
+			document.getElementById("precode1").innerHTML = txt;
+		}
+		else document.getElementById("precode1").innerHTML = "";
 	}
+
+	//right half
+	var ajaxr = new XMLHttpRequest();
+	ajaxr.open('get','/?'+haha);
+	ajaxr.send();
+	ajaxr.onreadystatechange = function () {
+		if (ajaxr.readyState==4 &&ajaxr.status==200) {
+			var txt = ajaxr.responseText;
+			txt = txt.replace(/</g,'&lt');
+			txt = txt.replace(/>/g,'&gt');
+			//console.log(ajaxr.responseText);
+			document.getElementById("precode2").innerHTML = txt;
+		}
+		else document.getElementById("precode2").innerHTML = "";
 	}
+
+	highlight();
 }
-function enter1()
-{
-	if(event.keyCode == 13)display();
-}
-function enter2()
+function enter()
 {
 	if(event.keyCode == 13)search();
 }
@@ -73,12 +68,13 @@ window.onload=function() {
 </style>
 <body style="width:100%;height:100%;background-color:#cccccc">
 
-<div class="outbox">
 <div>
-	<input id="display" type="search" value="main.c" onkeydown="enter1()" style="margin-left:25%;width:40%;"></input>
-	<input type="button" value="display" onclick="display()" style="width:10%;"></input>
+	<input id="search" type="search" value="main.c" onkeydown="enter()" style="margin-left:25%;width:40%;"></input>
+	<input type="button" value="display" onclick="search()" style="width:10%;"></input>
 	<div style="clear:both"></div>
 </div>
+
+<div class="outbox">
 <pre class="inbox"><code id="precode1">#include&ltstdio.h&gt
 void main()
 {
@@ -87,11 +83,6 @@ void main()
 </div>
 
 <div class="outbox">
-<div>
-	<input id="search" type="search" value="start_kernel" onkeydown="enter2()" style="margin-left:25%;width:40%;"></input>
-	<input type="button" value="search" onclick="search()" style="width:10%;"></input>
-	<div style="clear:both"></div>
-</div>
 <pre class="inbox"><code id="precode2">#include&ltstdio.h&gt
 void main()
 {
