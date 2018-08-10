@@ -52,4 +52,5 @@ int conv(int argc, char** argv)
 	{
 		ac2intel(argc-1, argv+1);
 	}
+	return 0;
 }

@@ -212,7 +212,7 @@ void three_read(u8* buf, int len)
 
 		else if(ch == '(')
 		{
-			sscanf(buf+inname, "%d", &num);
+			sscanf((void*)buf+inname, "%d", &num);
 			//printf("%d:	", num);
 
 			inpoint = j+1;
@@ -220,19 +220,19 @@ void three_read(u8* buf, int len)
 		}
 		else if(ch == ')')
 		{
-			three_point(buf+inpoint, j-inpoint, num);
+			three_point((void*)buf+inpoint, j-inpoint, num);
 			inpoint = 0;
 			inname = 0;
 		}
 		else if(ch == '{')
 		{
-			three_shape(buf+inname, j-inname);
+			three_shape((void*)buf+inname, j-inname);
 			inshape = 2;
 			inname = 0;
 		}
 		else if(ch == '}')
 		{
-			if(inname != 0)three_foot(buf+inname, j-inname);
+			if(inname != 0)three_foot((void*)buf+inname, j-inname);
 			rsp--;
 
 			inshape = 0;

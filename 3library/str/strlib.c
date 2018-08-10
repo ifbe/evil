@@ -161,5 +161,5 @@ int hexstr2data(u8* src,u64* data)
 }
 int fpstr2data(u8* src, double* data)
 {
-	
+	return 0;
 }

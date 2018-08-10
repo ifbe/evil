@@ -279,7 +279,7 @@ void disasm_one(u8* buf, int len)
 			{
 				if(0x24 == p[4])
 				{
-					printf("%s = [r%,1]\n", reg32[p[3]>>3], 8+(p[3]&0x7));
+					printf("%s = [r%d,1]\n", reg32[p[3]>>3], 8+(p[3]&0x7));
 				}
 				else
 				{
@@ -400,7 +400,7 @@ void disasm_one(u8* buf, int len)
 		}
 		else if((0x41 == p[0])&&(0x89 == p[1])&&(0x0 == (p[2]&0xc0)))
 		{
-			printf("[%s] = %s\n", 8+(p[2]&0x7), reg32[(p[2]&0x3f)>>3]);
+			printf("[%d] = %s\n", 8+(p[2]&0x7), reg32[(p[2]&0x3f)>>3]);
 			j += 2;
 		}
 		else if((0x41 == p[0])&&(0x89 == p[1])&&(0x50 == p[2]))
@@ -1020,7 +1020,7 @@ void disasm_one(u8* buf, int len)
 		}
 		else if((0x66 == p[0])&&(0x41 == p[1])&&(0x89 == p[2])&&(0x0 == (p[3]&0xc0)))
 		{
-			printf("[%s] = %s\n", 8+(p[3]&0x7), reg16[(p[3]&0x3f)>>3]);
+			printf("[%d] = %s\n", 8+(p[3]&0x7), reg16[(p[3]&0x3f)>>3]);
 			j += 3;
 		}
 		else if((0x66 == p[0])&&(0x41 == p[1])&&(0x89 == p[2])&&(0x41 == p[3]))
@@ -1087,7 +1087,7 @@ void disasm_one(u8* buf, int len)
 		}
 		else if((0x80 == p[0])&&(0x4a == p[1]))
 		{
-			printf("[rdx + 0x%x, 1] |= 0x80\n", p[2], p[3]);
+			printf("[rdx + 0x%x, 1] |= 0x80\n", p[2]);
 			j += 3;
 		}
 		else if((0x80 == p[0])&&(0xc8 == (p[1]&0xf8)))

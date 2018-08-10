@@ -58,7 +58,7 @@ static int ininclude = 0;
 
 
 
-static void purec_str(char* buf, int len)
+static void purec_str(u8* buf, int len)
 {
 	int j;
 	int score = 0;
@@ -107,7 +107,7 @@ static void purec_include()
 
 
 
-static int c_read(char* buf, int len)
+static int c_read(u8* buf, int len)
 {
 	unsigned char ch=0;
 	countbyte = 0;
@@ -150,7 +150,7 @@ static int c_read(char* buf, int len)
 			countline++;
 			if((ch == 0xd) && (buf[countbyte+1] == 0xa))countbyte++;
 
-			if(prophet != 0)doubt = buf + countbyte;
+			if(prophet != 0)doubt = (void*)buf + countbyte;
 
 			instr = 0;
 			indefine = 0;
@@ -255,7 +255,7 @@ static int c_read(char* buf, int len)
 			}
 
 			//#if
-			if(strncmp(buf+countbyte+1, "if", 2) == 0)
+			if(strncmp((void*)buf+countbyte+1, "if", 2) == 0)
 			{
 				if(inmarco==0)
 				{
@@ -265,27 +265,27 @@ static int c_read(char* buf, int len)
 			}
 
 			//#else 暂时不管宏嵌套...
-			else if(strncmp(buf+countbyte+1, "else", 4) == 0)
+			else if(strncmp((void*)buf+countbyte+1, "else", 4) == 0)
 			{
 				inmarco = 3;
 				countbyte += 4;
 			}
 
 			//#endif
-			else if(strncmp(buf+countbyte+1, "endif", 5) == 0)
+			else if(strncmp((void*)buf+countbyte+1,"endif",5) == 0)
 			{
 				inmarco = 0;
 				countbyte += 5;
 			}
 			//#define
-			else if(strncmp(buf+countbyte+1, "define", 6) == 0)
+			else if(strncmp((void*)buf+countbyte+1,"define",6) == 0)
 			{
 				indefine = 1;
 				countbyte += 6;
 			}
 
 			//#include
-			if(strncmp(buf+countbyte+1, "include", 7) == 0)
+			if(strncmp((void*)buf+countbyte+1,"include",7) == 0)
 			{
 				ininclude = 1;
 				countbyte += 7;
@@ -405,7 +405,7 @@ static int c_read(char* buf, int len)
 		else if( (ch==' ')|(ch==0x9) )
 		{
 			if(inmarco>=4|innote>0|instr>0)continue;
-			if(prophet != 0)doubt = buf + countbyte;
+			if(prophet != 0)doubt = (void*)buf + countbyte;
 		}
 
 		//prophets' guess
@@ -419,13 +419,13 @@ static int c_read(char* buf, int len)
 			chance=0;
 
 			//
-			if(prophet == 0)prophet = buf + countbyte;
+			if(prophet == 0)prophet = (void*)buf + countbyte;
 			else
 			{
 				if(doubt!=0)
 				{
-					doubt=0;
-					prophet = buf + countbyte;
+					doubt = 0;
+					prophet = (void*)buf + countbyte;
 				}
 			}
 		}

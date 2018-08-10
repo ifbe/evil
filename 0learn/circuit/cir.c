@@ -87,7 +87,7 @@ void cir_read_line(u8* buf, int len)
 			{
 				if(buf[k] > 0x20)
 				{
-					sscanf(buf+k, "%f", &f);
+					sscanf((void*)buf+k, "%f", &f);
 					break;
 				}
 			}

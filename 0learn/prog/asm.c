@@ -80,6 +80,7 @@ int arm2ac(int argc, char** argv)
 			k=j+1;
 		}
 	}
+	return 0;
 }
 
 
@@ -220,6 +221,7 @@ int att2ac(int argc, char** argv)
 			k=j+1;
 		}
 	}
+	return 0;
 }
 int intel2ac(int argc, char** argv)
 {
@@ -236,6 +238,7 @@ int intel2ac(int argc, char** argv)
 	if(len <= 0)return -3;
 
 	close(fd);
+	return 0;
 }
 
 
@@ -270,6 +273,7 @@ int ac2arm(int argc, char** argv)
 			k=j+1;
 		}
 	}
+	return 0;
 }
 
 
@@ -454,6 +458,7 @@ int ac2att(int argc, char** argv)
 			k=j+1;
 		}
 	}
+	return 0;
 }
 
 
@@ -589,6 +594,7 @@ int ac2intel(int argc, char** argv)
 			k=j+1;
 		}
 	}
+	return 0;
 }
 
 

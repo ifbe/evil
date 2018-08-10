@@ -120,7 +120,8 @@ printf("[%d,%d)\n",cur,len);
 
 	for(j=cur;j<len;j++)
 	{
-		printf("%d:%.4s,%llx\n",j,&ctxbuf[j].type, ctxbuf[j].addr);
+		printf("%d:%.4s,%llx\n", j,
+			(void*)&ctxbuf[j].type, ctxbuf[j].addr);
 
 		if(ctxbuf[j].type == _chip_)
 		{
@@ -209,8 +210,8 @@ printf("\nname:\n");
 			detail[j].data = chip->data;
 
 			printf("%2d)%8.8s:	%.8s=%f\n",
-				j, &ctxbuf[j].name,
-				&detail[j].type, detail[j].data
+				j, (void*)&ctxbuf[j].name,
+				(void*)&detail[j].type, detail[j].data
 			);
 		}
 		else if(ctxbuf[j].type == _pin_)
@@ -222,8 +223,8 @@ printf("\nname:\n");
 			detail[j].V = 0.0;
 
 			printf("%2d)%8.8s:	%.8s\n",
-				j, &ctxbuf[j].name,
-				&detail[j].type
+				j, (void*)&ctxbuf[j].name,
+				(void*)&detail[j].type
 			);
 		}
 	}
@@ -263,9 +264,9 @@ printf("\nsort:\n");
 
 		printf("%2d)%8.8s,%.8s,%c\n",
 			j,
-			&ctxbuf[pin].name,
-			&ctxbuf[chip].name,
-			temp
+			(void*)&ctxbuf[pin].name,
+			(void*)&ctxbuf[chip].name,
+			(u32)temp
 		);
 	}
 }
@@ -279,16 +280,16 @@ void kirchhoff_info()
 		if(_pin_ == ctxbuf[j].type)
 		{
 			printf("%2d)%8.8s:	%d\n",
-				j, &ctxbuf[j].name,
+				j, (void*)&ctxbuf[j].name,
 				detail[j].P
 			);
 		}
 		else
 		{
 			printf("%2d)%8.8s:	P@%d,N@%d	%.8s=%f\n",
-				j, &ctxbuf[j].name,
+				j, (void*)&ctxbuf[j].name,
 				detail[j].P, detail[j].N,
-				&detail[j].type, detail[j].data
+				(void*)&detail[j].type, detail[j].data
 			);
 		}
 	}
@@ -329,7 +330,8 @@ void kirchhoff_iter()
 			{
 				printf(
 					"%.8s:	C=%f,I=%f,V=%f\n",
-					&ctxbuf[pin].name, sc, di, di/sc
+					(void*)&ctxbuf[pin].name,
+					sc, di, di/sc
 				);
 			}
 			pin = wbuf[j].pin;

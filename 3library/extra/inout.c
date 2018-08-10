@@ -221,7 +221,7 @@ void output(char* buf, int len)
 int input(u8* buf, int len)
 {
 	int j;
-	fgets(buf, 0x1000, stdin);
+	fgets((void*)buf, 0x1000, stdin);
 	for(j=0;j<0x1000;j++)
 	{
 		if(buf[j] <= 0xa)
@@ -230,7 +230,7 @@ int input(u8* buf, int len)
 			break;
 		}
 	}
-	return strlen(buf);
+	return strlen((void*)buf);
 }
 
 

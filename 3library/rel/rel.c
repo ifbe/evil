@@ -117,6 +117,7 @@ u32 relationwrite(struct relation* rel)
 
 void* relationdelete(struct relation* rel)
 {
+	return 0;
 }
 void* relationcreate(void* uc, u64 uf, u64 ut, void* bc, u64 bf, u64 bt)
 {

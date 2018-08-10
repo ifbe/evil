@@ -59,7 +59,7 @@ first:
 		if((type == irel->selftype)&&(addr == irel->selfchip))
 		{
 			printf("%.4s.%llx.i\n",
-				irel->desttype,
+				(void*)&irel->desttype,
 				irel->destchip
 			);
 			return;
@@ -74,7 +74,7 @@ second:
 		if((type == orel->desttype)&&(addr == orel->destchip))
 		{
 			printf("%.4s.%llx.i\n",
-				orel->selftype,
+				(void*)&orel->selftype,
 				orel->selfchip
 			);
 			return;
@@ -174,7 +174,7 @@ printf("%d.o) %llx,%llx\n",rsp,type,data);
 		}
 		else
 		{
-			printf("%.4s@%llx -> ", &st[j].type, st[j].data);
+			printf("%.4s@%llx -> ", (void*)&st[j].type, st[j].data);
 		}
 	}
 }
@@ -305,36 +305,42 @@ void route_bibfs(u64 t0, u64 t1)
 	{
 		if(_hash_ == q0[ret0].type)
 		{
-			output(outbuf, strhash_export(q0[ret0].addr, outbuf, 99));
+			output(outbuf,
+			strhash_export(
+			q0[ret0].addr, (void*)outbuf, 99));
 		}
 		else
 		{
-			printf("%.4s@%llx", &q0[ret0].type, q0[ret0].addr);
+			printf("%.4s@%llx",
+				(void*)&q0[ret0].type, q0[ret0].addr);
 		}
 		printf(" <- ");
 
 		ret0 = q0[ret0].parent;
 		if(0 == ret0)break;
 	}
-	output(outbuf, strhash_export(q0[0].addr, outbuf, 99));
+	output(outbuf, strhash_export(q0[0].addr, (void*)outbuf, 99));
 	printf("\n");
 
 	for(j=0;j<16;j++)
 	{
 		if(_hash_ == q1[ret1].type)
 		{
-			output(outbuf, strhash_export(q1[ret1].addr, outbuf, 99));
+			output(outbuf,
+			strhash_export(
+			q1[ret1].addr, (void*)outbuf, 99));
 		}
 		else
 		{
-			printf("%.4s@%llx", &q1[ret1].type, q1[ret1].addr);
+			printf("%.4s@%llx",
+				(void*)&q1[ret1].type, q1[ret1].addr);
 		}
 		printf(" -> ");
 
 		ret1 = q1[ret1].parent;
 		if(0 == ret1)break;
 	}
-	output(outbuf, strhash_export(q1[0].addr, outbuf, 99));
+	output(outbuf, strhash_export(q1[0].addr, (void*)outbuf, 99));
 	printf("\n");
 }
 
@@ -360,29 +366,29 @@ void route(int argc, char** argv)
 	fixarg(arg1, argv[1]);
 	fixarg(arg2, argv[2]);
 #else
-	u8* arg1 = argv[1];
-	u8* arg2 = argv[2];
+	u8* arg1 = (void*)argv[1];
+	u8* arg2 = (void*)argv[2];
 #endif
 
 	//str1
-	t1 = strhash_generate(arg1, strlen(arg1));
+	t1 = strhash_generate(arg1, strlen((void*)arg1));
 	h1 = strhash_read(t1);
 	if(0 == h1)
 	{
 		printf("(%016llx)%s: notfound\n", t1, arg1);
 		return;
 	}
-	printf("(%016llx)%s: %llx\n", t1, arg1, h1);
+	printf("(%016llx)%s: %llx\n", t1, arg1, (u64)h1);
 
 	//str2
-	t2 = strhash_generate(arg2, strlen(arg2));
+	t2 = strhash_generate(arg2, strlen((void*)arg2));
 	h2 = strhash_read(t2);
 	if(0 == h2)
 	{
 		printf("(%016llx)%s: notfound\n", t2, arg2);
 		return;
 	}
-	printf("(%016llx)%s: %llx\n", t2, arg2, h2);
+	printf("(%016llx)%s: %llx\n", t2, arg2, (u64)h2);
 
 	//route_dfs(t1, h1, t2, h2);
 	route_bibfs(t1, t2);

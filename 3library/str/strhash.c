@@ -109,6 +109,7 @@ void* bplus_grow(struct bplushead* head)
 void* bplus_recycle(struct bplushead* head, struct bplusleaf* this)
 {
 	if(head == 0)return 0;
+	return 0;
 }
 
 
@@ -190,8 +191,8 @@ void bplus_debug_leftright(struct bplushead* head, u64 addr)
 	index = bplus_logic2memory(head, addr);
 	while(1)
 	{
-		printf("%08x->%08x<-%08x:\n",
-			index->head.left, addr, index->head.right);
+		printf("%08llx->%08llx<-%08llx:\n",
+			index->head.left, (u64)addr, index->head.right);
 
 		if(index->head.type == '?')
 		{
@@ -227,7 +228,7 @@ void bplus_debug_traverse(struct bplushead* head, u64 addr)
 	if(index->head.type == '!')
 	{
 		leaf = (void*)index;
-		printf("!%04x: ", addr);
+		printf("!%04llx: ", (u64)addr);
 		for(j=0;j<leaf->head.len;j++)
 		{
 			printf(" %016llx", leaf->node[j].hash);
@@ -236,7 +237,7 @@ void bplus_debug_traverse(struct bplushead* head, u64 addr)
 		return;
 	}
 
-	printf("?%08x: ", addr);
+	printf("?%08llx: ", (u64)addr);
 	for(j=0;j<index->head.len;j++)
 	{
 		printf(" %016llx", index->node[j].hash);
@@ -505,6 +506,7 @@ void* bplus_indexsplit(struct bplushead* head,
 			//bplus_debug(head);
 		}
 	}
+	return 0;
 }
 
 
@@ -776,6 +778,7 @@ void* bplus_insert(struct bplushead* head, struct leafdata* data)
 void* bplus_destory(struct bplushead* head, u64 hash)
 {
 	if(head == 0)return 0;
+	return 0;
 }
 
 
@@ -867,7 +870,7 @@ int strhash_export(u64 hash, u8* buf, int len)
 	if(h == 0)return 0;
 
 	k = h->len;
-	if(k <= 8)p = (char*)h;
+	if(k <= 8)p = (void*)h;
 	else p = strdata_read(h->off);
 
 	if(k >= len)
