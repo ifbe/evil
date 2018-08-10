@@ -30,7 +30,6 @@ SRC = \
 2indite/graph/graph.c \
 2indite/kirchhoff/kirchhoff.c \
 2indite/route/route.c \
-2indite/serve/serve.c \
 3library/load.c \
 3library/rel/rel.c \
 3library/chip/chipdata.c \
@@ -64,33 +63,41 @@ winglut:
 	gcc -o a.exe $(SRC) \
 	2indite/graph/opengl.c \
 	2indite/serve/iocp.c \
+	2indite/serve/serve.c \
 	-I. -lglew32 -lfreeglut -lglu32 -lopengl32 -lws2_32 -lpthread -lm
 winapi:
 	gcc -o a.exe $(SRC) \
 	2indite/graph/winapi.c \
 	2indite/serve/iocp.c \
+	2indite/serve/serve.c \
 	-I. -lgdi32 -lws2_32 -lpthread -lm
 win:
 	gcc -o a.exe $(SRC) \
 	2indite/graph/cli.c \
 	2indite/serve/iocp.c \
+	2indite/serve/serve.c \
 	-I. -lgdi32 -lws2_32 -lpthread -lm
 
 linuxglut:
 	gcc -o a.exe $(SRC) \
 	2indite/graph/opengl.c \
 	2indite/serve/epoll.c \
+	2indite/serve/serve.c \
 	-I. -lglut -lGLEW -lGLU -lGL -lpthread -lm
 linuxxlib:
 	gcc -o a.exe $(SRC) \
 	2indite/graph/xlib.c \
 	2indite/serve/epoll.c \
+	2indite/serve/serve.c \
 	-I. -lX11 -lpthread -lm
 linux:
 	gcc -o a.exe $(SRC) \
 	2indite/graph/cli.c \
 	2indite/serve/epoll.c \
+	2indite/serve/serve.c \
 	-I. -lm
 
+mac:
+	gcc -o a.exe $(SRC) 2indite/graph/cli.c -I. -lm
 clean:
 	rm -f *.exe *.out

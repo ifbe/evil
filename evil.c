@@ -39,7 +39,6 @@ int delete(int argc,char** argv);
 int graph(int argc,char** argv);
 int kirchhoff(int argc,char** argv);
 int route(int argc,char** argv);
-int serve(int argc,char** argv);
 
 
 
@@ -60,7 +59,6 @@ void help(char* buf)
 	printf("	a.exe graph\n");
 	printf("	a.exe kirchhoff\n");
 	printf("	a.exe route\n");
-	printf("	a.exe serve\n");
 }
 int main(int argc, char** argv)
 {
@@ -148,10 +146,6 @@ int main(int argc, char** argv)
 	else if(strcmp(argv[1], "route") == 0)
 	{
 		route(argc-1, argv+1);
-	}
-	else if(strcmp(argv[1], "serve") == 0)
-	{
-		serve(argc-1, argv+1);
 	}
 
 	//
