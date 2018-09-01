@@ -30,26 +30,26 @@ static int sl = 0;
 
 void chipname(u64 addr)
 {
-	struct relation* orel;
+	struct relation* irel;
 	struct chipindex* chip;
 
 	chip = chip_read(addr);
-	if(chip == 0)goto error;
+	if(0 == chip)goto error;
 
-	orel = relationread(chip->orel0);
-	if(orel == 0)goto error;
+	irel = relationread(chip->irel0);
+	if(0 == irel)goto error;
 
 	while(1)
 	{
-		if(_hash_ == orel->desttype)
+		if(_hash_ == irel->srctype)
 		{
-			//strhash_print(orel->destchip);
-			sb += strhash_export(orel->destchip, sb, 99);
+			//strhash_print(irel->srcchip);
+			sb += strhash_export(irel->srcchip, sb, 99);
 			break;
 		}
 
-		orel = samesrcnextdst(orel);
-		if(orel == 0)break;
+		irel = samedstnextsrc(irel);
+		if(0 == irel)break;
 	}
 normal:
 	return;
@@ -58,26 +58,26 @@ error:
 }
 void filename(u64 addr)
 {
-	struct relation* orel;
+	struct relation* irel;
 	struct fileindex* file;
 
 	file = filemd5_read(addr);
-	if(file == 0)goto error;
+	if(0 == file)goto error;
 
-	orel = relationread(file->orel0);
-	if(orel == 0)goto error;
+	irel = relationread(file->irel0);
+	if(0 == irel)goto error;
 
 	while(1)
 	{
-		if(_hash_ == orel->desttype)
+		if(_hash_ == irel->srctype)
 		{
-			//strhash_print(orel->destchip);
-			sb += strhash_export(orel->destchip, sb, 99);
+			//strhash_print(irel->srcchip);
+			sb += strhash_export(irel->srcchip, sb, 99);
 			break;
 		}
 
-		orel = samesrcnextdst(orel);
-		if(orel == 0)break;
+		irel = samesrcnextdst(irel);
+		if(0 == irel)break;
 	}
 normal:
 	return;
@@ -86,26 +86,26 @@ error:
 }
 void funcname(u64 addr)
 {
-	struct relation* orel;
+	struct relation* irel;
 	struct funcindex* func;
 
 	func = funcindex_read(addr);
 	if(func == 0)goto error;
 
-	orel = relationread(func->orel0);
-	if(orel == 0)goto error;
+	irel = relationread(func->irel0);
+	if(irel == 0)goto error;
 
 	while(1)
 	{
-		if(_hash_ == orel->desttype)
+		if(_hash_ == irel->srctype)
 		{
-			//strhash_print(orel->destchip);
-			sb += strhash_export(orel->destchip, sb, 99);
+			//strhash_print(irel->srcchip);
+			sb += strhash_export(irel->srcchip, sb, 99);
 			break;
 		}
 
-		orel = samesrcnextdst(orel);
-		if(orel == 0)break;
+		irel = samedstnextsrc(irel);
+		if(irel == 0)break;
 	}
 normal:
 	return;
@@ -114,25 +114,25 @@ error:
 }
 void funcpath(u64 addr)
 {
-	struct relation* orel;
+	struct relation* irel;
 	struct funcindex* func;
 
 	func = funcindex_read(addr);
 	if(func == 0)goto error;
 
-	orel = relationread(func->orel0);
-	if(orel == 0)goto error;
+	irel = relationread(func->irel0);
+	if(irel == 0)goto error;
 
 	while(1)
 	{
-		if(_file_ == orel->desttype)
+		if(_file_ == irel->srctype)
 		{
-			filename(orel->destchip);
-			sb += snprintf((void*)sb, sl, ":%lld", orel->destfoot);
+			filename(irel->srcchip);
+			sb += snprintf((void*)sb, sl, ":%lld", irel->srcfoot);
 		}
 
-		orel = samesrcnextdst(orel);
-		if(orel == 0)break;
+		irel = samedstnextsrc(irel);
+		if(irel == 0)break;
 	}
 normal:
 	return;
@@ -164,30 +164,30 @@ pinirel:
 	//input
 	while(irel != 0)
 	{
-		if(irel->selftype == hex32('h','a','s','h'))
+		if(_hash_ == irel->srctype)
 		{
 			sb += snprintf((void*)sb, sl, "i:	");
-			//strhash_print(irel->selfchip);
-			sb += strhash_export(irel->selfchip, sb, 99);
+			//strhash_print(irel->srcchip);
+			sb += strhash_export(irel->srcchip, sb, 99);
 			sb += snprintf((void*)sb, sl, "\n");
 		}
-		else if(irel->selftype == hex32('c','h','i','p'))
+		else if(_chip_ == irel->srctype)
 		{
 			sb += snprintf((void*)sb, sl, "i:	");
-			chipname(irel->selfchip);
+			chipname(irel->srcchip);
 			sb += snprintf((void*)sb, sl,
 				":%c\n",
-				(u32)(irel->selffoot)
+				(u32)(irel->srcfoot)
 			);
 		}
 		else
 		{
 			sb += snprintf((void*)sb, sl,
 				"i:	%-s@%08llx	%08llx	(@%lld)\n",
-				(char*)&(irel->selftype),
-				irel->selfchip,
-				irel->selffoot,
-				irel->destfoot
+				(char*)&(irel->srctype),
+				irel->srcchip,
+				irel->srcfoot,
+				irel->dstfoot
 			);
 		}
 
@@ -202,28 +202,28 @@ pinorel:
 	//output(many)
 	while(orel != 0)
 	{
-		if(orel->desttype == hex32('h','a','s','h'))
+		if(_hash_ == orel->dsttype)
 		{
 			sb += snprintf((void*)sb, sl, "o:	");
-			//strhash_print(orel->destchip);
-			sb += strhash_export(orel->destchip, sb, 99);
+			//strhash_print(orel->dstchip);
+			sb += strhash_export(orel->dstchip, sb, 99);
 			sb += snprintf((void*)sb, sl, "\n");
 		}
-		else if(orel->desttype == hex32('p','i','n',0))
+		else if(_pin_ == orel->dsttype)
 		{
 			sb += snprintf((void*)sb, sl,
 				"o:	%c@pin%llx\n",
-				(u32)(orel->selffoot),
-				(orel->destchip)/0x20
+				(u32)(orel->srcfoot),
+				(orel->dstchip)/0x20
 			);
 		}
 		else
 		{
 			sb += snprintf((void*)sb, sl,
 				"o:	%-s@%08llx	%08llx\n",
-				(char*)&(orel->desttype),
-				orel->destchip,
-				orel->destfoot
+				(char*)&(orel->dsttype),
+				orel->dstchip,
+				orel->dstfoot
 			);
 		}
 
@@ -259,21 +259,21 @@ chipirel:
 
 	while(irel != 0)
 	{
-		if(irel->selftype == hex32('h','a','s','h'))
+		if(_hash_ == irel->srctype)
 		{
 			sb += snprintf((void*)sb, sl, "i:	");
-			//strhash_print(irel->selfchip);
-			sb += strhash_export(irel->selfchip, sb, 99);
+			//strhash_print(irel->srcchip);
+			sb += strhash_export(irel->srcchip, sb, 99);
 			sb += snprintf((void*)sb, sl, "\n");
 		}
 		else
 		{
 			sb += snprintf((void*)sb, sl,
 				"i:	%-s@%08llx	%08llx	(@%lld)\n",
-				(char*)&(irel->selftype),
-				irel->selfchip,
-				irel->selffoot,
-				irel->destfoot
+				(char*)&(irel->srctype),
+				irel->srcchip,
+				irel->srcfoot,
+				irel->dstfoot
 			);
 		}
 
@@ -287,28 +287,28 @@ chiporel:
 
 	while(orel != 0)
 	{
-		if(orel->desttype == hex32('h','a','s','h'))
+		if(_hash_ == orel->dsttype)
 		{
 			sb += snprintf((void*)sb, sl, "o:	");
-			//strhash_print(orel->destchip);
-			sb += strhash_export(orel->destchip, sb, 99);
+			//strhash_print(orel->dstchip);
+			sb += strhash_export(orel->dstchip, sb, 99);
 			sb += snprintf((void*)sb, sl, "\n");
 		}
-		else if(orel->desttype == hex32('p','i','n',0))
+		else if(_pin_ == orel->dsttype)
 		{
 			sb += snprintf((void*)sb, sl,
 				"o:	%c@pin%llx\n",
-				(u32)(orel->selffoot),
-				(orel->destchip)/0x20
+				(u32)(orel->srcfoot),
+				(orel->dstchip)/0x20
 			);
 		}
 		else
 		{
 			sb += snprintf((void*)sb, sl,
 				"o:	%-s@%08llx	%08llx\n",
-				(char*)&(orel->desttype),
-				orel->destchip,
-				orel->destfoot
+				(char*)&(orel->dsttype),
+				orel->dstchip,
+				orel->dstfoot
 			);
 		}
 
@@ -346,28 +346,28 @@ shapeirel:
 
 	while(irel != 0)
 	{
-		if(irel->selftype == hex32('h','a','s','h'))
+		if(_hash_ == irel->srctype)
 		{
 			sb += snprintf((void*)sb, sl, "i:	");
-			//strhash_print(irel->selfchip);
-			sb += strhash_export(irel->selfchip, sb, 99);
+			//strhash_print(irel->srcchip);
+			sb += strhash_export(irel->srcchip, sb, 99);
 			sb += snprintf((void*)sb, sl, "\n");
 		}
-		else if(irel->selftype == hex32('s','h','a','p'))
+		else if(_shap_ == irel->srctype)
 		{
-			ss = shapeindex_read(irel->selfchip);
+			ss = shapeindex_read(irel->srcchip);
 			sb += snprintf((void*)sb, sl,
 				"i:	shap@%08llx	%.8s\n",
-				irel->selfchip,
+				irel->srcchip,
 				(char*)&(ss->type)
 			);
 		}
-		else if(irel->selftype == hex32('p','o','i','n'))
+		else if(_poin_ == irel->srctype)
 		{
-			pp = pointindex_read(irel->selfchip);
+			pp = pointindex_read(irel->srcchip);
 			sb += snprintf((void*)sb, sl,
 				"i:	poin@%08llx	%llx\n",
-				irel->selfchip,
+				irel->srcchip,
 				pp->pppp
 			);
 		}
@@ -375,9 +375,9 @@ shapeirel:
 		{
 			sb += snprintf((void*)sb, sl,
 				"i:	%-s@%08llx	%08llx\n",
-				(char*)&(irel->selftype),
-				irel->selfchip,
-				irel->selffoot
+				(char*)&(irel->srctype),
+				irel->srcchip,
+				irel->srcfoot
 			);
 		}
 
@@ -391,19 +391,19 @@ shapeorel:
 
 	while(orel != 0)
 	{
-		if(orel->desttype == hex32('h','a','s','h'))
+		if(_hash_ == orel->dsttype)
 		{
 			sb += snprintf((void*)sb, sl, "o:	");
-			//strhash_print(orel->destchip);
-			sb += strhash_export(orel->destchip, sb, 99);
+			//strhash_print(orel->dstchip);
+			sb += strhash_export(orel->dstchip, sb, 99);
 			sb += snprintf((void*)sb, sl, "\n");
 		}
-		else if(orel->desttype == hex32('s','h','a','p'))
+		else if(_shap_ == orel->dsttype)
 		{
-			ss = shapeindex_read(orel->destchip);
+			ss = shapeindex_read(orel->dstchip);
 			sb += snprintf((void*)sb, sl,
 				"o:	shap@%08llx	%.8s\n",
-				orel->destchip,
+				orel->dstchip,
 				(char*)&(ss->type)
 			);
 		}
@@ -411,9 +411,9 @@ shapeorel:
 		{
 			sb += snprintf((void*)sb, sl,
 				"o:	%-s@%08llx	%08llx\n",
-				(char*)&(orel->desttype),
-				orel->destchip,
-				orel->destfoot
+				(char*)&(orel->dsttype),
+				orel->dstchip,
+				orel->dstfoot
 			);
 		}
 
@@ -449,34 +449,34 @@ fileirel:
 
 	while(irel != 0)
 	{
-		if(irel->selftype == hex32('h','a','s','h'))
+		if(_hash_ == irel->srctype)
 		{
 			sb += snprintf((void*)sb, sl,
 				"i:	str	:%lld	",
-				irel->destfoot
+				irel->dstfoot
 			);
-			//strhash_print(irel->selfchip);
-			sb += strhash_export(irel->selfchip, sb, 99);
+			//strhash_print(irel->srcchip);
+			sb += strhash_export(irel->srcchip, sb, 99);
 			sb += snprintf((void*)sb, sl, "\n");
 		}
-		else if(irel->selftype == hex32('f','u','n','c'))
+		else if(_func_ == irel->srctype)
 		{
 			sb += snprintf((void*)sb, sl,
 				"i:	func@%08llx	:%lld	",
-				irel->selfchip,
-				irel->destfoot
+				irel->srcchip,
+				irel->dstfoot
 			);
-			funcname(irel->selfchip);
+			funcname(irel->srcchip);
 			sb += snprintf((void*)sb, sl, "\n");
 		}
 		else
 		{
 			sb += snprintf((void*)sb, sl,
 				"i:	%-s@%08llx	%08llx	(@%lld)\n",
-				(char*)&(irel->selftype),
-				irel->selfchip,
-				irel->selffoot,
-				irel->destfoot
+				(char*)&(irel->srctype),
+				irel->srcchip,
+				irel->srcfoot,
+				irel->dstfoot
 			);
 		}
 
@@ -491,20 +491,20 @@ fileorel:
 	//output(many)
 	while(orel != 0)
 	{
-		if(orel->desttype == hex32('h','a','s','h'))
+		if(_hash_ == orel->dsttype)
 		{
 			sb += snprintf((void*)sb, sl, "o:	");
-			//strhash_print(orel->destchip);
-			sb += strhash_export(orel->destchip, sb, 99);
+			//strhash_print(orel->dstchip);
+			sb += strhash_export(orel->dstchip, sb, 99);
 			sb += snprintf((void*)sb, sl, "\n");
 		}
 		else
 		{
 			sb += snprintf((void*)sb, sl,
 				"o:	%-s@%08llx	%08llx\n",
-				(char*)&(orel->desttype),
-				orel->destchip,
-				orel->destfoot
+				(char*)&(orel->dsttype),
+				orel->dstchip,
+				orel->dstfoot
 			);
 		}
 
@@ -540,25 +540,25 @@ funcirel:
 
 	while(irel != 0)
 	{
-		if(irel->selftype == hex32('h','a','s','h'))
+		if(_hash_ == irel->srctype)
 		{
-			if(irel->selfflag == hex32('s','t','r',0))
-			{
-				sb += snprintf((void*)sb, sl,
-					"i:	str	:%lld	",
-					irel->destfoot
-				);
-			}
-			else
-			{
-				sb += snprintf((void*)sb, sl,
-					"i:	func	:%lld	",
-					irel->destfoot
-				);
-			}
-			//strhash_print(irel->selfchip);
-			sb += strhash_export(irel->selfchip, sb, 99);
+			sb += snprintf((void*)sb, sl, "i:	name	");
+			//strhash_print(irel->srcchip);
+
+			sb += strhash_export(irel->srcchip, sb, 99);
 			sb += snprintf((void*)sb, sl, "\n");
+		}
+		else if(_file_ == irel->srctype)
+		{
+			sb += snprintf((void*)sb, sl,
+				"i:	file@%08llx	",
+				irel->srcchip
+			);
+			filename(irel->srcchip);
+			sb += snprintf((void*)sb, sl,
+				":%lld\n",
+				irel->srcfoot
+			);
 		}
 
 		irel = samedstnextsrc(irel);
@@ -571,31 +571,34 @@ funcorel:
 
 	while(orel != 0)
 	{
-		if(orel->desttype == hex32('h','a','s','h'))
+		if(_hash_ == orel->dsttype)
 		{
-			sb += snprintf((void*)sb, sl, "o:	");
-			//strhash_print(orel->destchip);
-			sb += strhash_export(orel->destchip, sb, 99);
+			if(hex32('s','t','r',0) == orel->dstflag)
+			{
+				sb += snprintf((void*)sb, sl, "o:	str	");
+			}
+			else
+			{
+				sb += snprintf((void*)sb, sl, "o:	func	");
+			}
+			//strhash_print(orel->dstchip);
+
+			sb += strhash_export(orel->dstchip, sb, 99);
 			sb += snprintf((void*)sb, sl, "\n");
 		}
-		else if(orel->desttype == hex32('f','i','l','e'))
+		else if(_file_ == orel->dsttype)
 		{
 			sb += snprintf((void*)sb, sl,
 				"o:	file@%08llx	",
-				orel->destchip
-			);
-			filename(orel->destchip);
-			sb += snprintf((void*)sb, sl,
-				":%lld\n",
-				orel->destfoot
+				orel->dstchip
 			);
 		}
 		else
 		{
 			sb += snprintf((void*)sb, sl,
 				"o:	func@%08llx	%08llx\n",
-				orel->destchip,
-				orel->destfoot
+				orel->dstchip,
+				orel->dstfoot
 			);
 		}
 
@@ -634,43 +637,48 @@ hashirel:
 
 	while(irel != 0)
 	{
-		if(irel->selftype == hex32('h','a','s','h'))
+		if(_hash_ == irel->srctype)
 		{
 			sb += snprintf((void*)sb, sl, "i:	");
-			//strhash_print(irel->selfchip);
-			sb += strhash_export(irel->selfchip, sb, 99);
+			//strhash_print(irel->srcchip);
+			sb += strhash_export(irel->srcchip, sb, 99);
 			sb += snprintf((void*)sb, sl, "\n");
 		}
-		else if(irel->selftype == hex32('f','u','n','c'))
+		else if(_func_ == irel->srctype)
 		{
 			sb += snprintf((void*)sb, sl,
 				"i:	func@%08llx	",
-				irel->selfchip
+				irel->srcchip
 			);
-			funcpath(irel->selfchip);
-			sb += snprintf((void*)sb, sl, "\n");
+			funcpath(irel->srcchip);
+			sb += snprintf((void*)sb, sl, "	");
+
+			funcname(irel->srcchip);
+			sb += snprintf((void*)sb, sl,
+				":%lld	\n",
+				irel->srcfoot
+			);
 		}
-		else if(irel->selftype == hex32('f','i','l','e'))
+		else if(_file_ == irel->srctype)
 		{
-			special = irel->selfchip;
 			sb += snprintf((void*)sb, sl,
 				"i:	file@%08llx\n",
-				irel->selfchip
+				irel->srcchip
 			);
 		}
-		else if(irel->selftype == hex32('c','h','i','p'))
+		else if(_chip_ == irel->srctype)
 		{
 			sb += snprintf((void*)sb, sl,
 				"i:	chip@%08llx\n",
-				irel->selfchip
+				irel->srcchip
 			);
 		}
 		else
 		{
 			sb += snprintf((void*)sb, sl,
 				"i:	%.8s@%llx\n",
-				(char*)&irel->selftype,
-				irel->selfchip
+				(char*)&irel->srctype,
+				irel->srcchip
 			);
 		}
 
@@ -684,47 +692,42 @@ hashorel:
 
 	while(orel != 0)
 	{
-		if(orel->desttype == hex32('h','a','s','h'))
+		if(_hash_ == orel->dsttype)
 		{
 			sb += snprintf((void*)sb, sl, "o:	");
-			//strhash_print(orel->destchip);
-			sb += strhash_export(orel->destchip, sb, 99);
+			//strhash_print(orel->dstchip);
+			sb += strhash_export(orel->dstchip, sb, 99);
 			sb += snprintf((void*)sb, sl, "\n");
 		}
-		else if(orel->desttype == hex32('f','u','n','c'))
+		else if(_func_ == orel->dsttype)
 		{
 			sb += snprintf((void*)sb, sl,
 				"o:	func@%08llx	",
-				orel->destchip
+				orel->dstchip
 			);
 
-			funcpath(orel->destchip);
-			sb += snprintf((void*)sb, sl, "	");
-
-			funcname(orel->destchip);
-			sb += snprintf((void*)sb, sl,
-				":%lld	\n",
-				orel->destfoot
-			);
+			funcpath(orel->dstchip);
+			sb += snprintf((void*)sb, sl, "\n");
 		}
-		else if(orel->desttype == hex32('f','i','l','e'))
+		else if(_file_ == orel->dsttype)
 		{
+			special = orel->dstchip;
 			sb += snprintf((void*)sb, sl,
 				"o:	file@%08llx	",
-				orel->destchip
+				orel->dstchip
 			);
-			filename(orel->destchip);
+			filename(orel->dstchip);
 			sb += snprintf((void*)sb, sl,
 				":%lld\n",
-				orel->destfoot
+				orel->dstfoot
 			);
 		}
 		else
 		{
 			sb += snprintf((void*)sb, sl,
 				"o:	%.8s@%llx\n",
-				(char*)&orel->desttype,
-				orel->destchip
+				(char*)&orel->dsttype,
+				orel->dstchip
 			);
 		}
 

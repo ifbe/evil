@@ -130,7 +130,7 @@ printf("%x:%llx,%llx\n",j,ctxbuf[j].type, ctxbuf[j].addr);
 		while(1)
 		{
 			if(w == 0)break;
-			k = graph_add(w->selftype, w->selfchip);
+			k = graph_add(w->srctype, w->srcchip);
 			if(j != k)graph_pair(j,k);
 
 			w = samedstnextsrc(w);
@@ -140,7 +140,7 @@ printf("%x:%llx,%llx\n",j,ctxbuf[j].type, ctxbuf[j].addr);
 		while(1)
 		{
 			if(w == 0)break;
-			k = graph_add(w->desttype, w->destchip);
+			k = graph_add(w->dsttype, w->dstchip);
 			if(j != k)graph_pair(k, j);
 
 			w = samesrcnextdst(w);

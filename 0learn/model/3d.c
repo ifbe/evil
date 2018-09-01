@@ -62,17 +62,11 @@ void three_shape(char* buf, int len)
 	if(rsp <= 0)
 	{
 		hash = strhash_write(buf, j);
-		relationcreate(
-			hash, 0, hex32('h','a','s','h'),
-			shap, 0, hex32('s','h','a','p')
-		);
+		relationcreate(hash, 0, _hash_, shap, 0, _shap_);
 	}
 	else
 	{
-		relationcreate(
-			stack[rsp-1], 0, hex32('s','h','a','p'),
-			shap,         0, hex32('s','h','a','p')
-		);
+		relationcreate(stack[rsp-1], 0, _shap_, shap, 0, _shap_);
 	}
 
 	//
@@ -95,8 +89,8 @@ void three_foot(char* buf ,int len)
 
 		point = pointindex_read(num*0x20);
 		relationcreate(
-			stack[rsp-1], 0, hex32('s', 'h', 'a', 'p'),
-			point, 0, hex32('p','o','i','n')
+			stack[rsp-1], 0, _shap_,
+			point, 0, _poin_
 		);
 
 		while(1)
@@ -137,19 +131,19 @@ void three_call(u8* buf, int len)
 	haha = 0;
 	while(1)
 	{
-		if(w->selftype == hex32('s','h','a','p'))
+		if(_shap_ == w->srctype)
 		{
 			if(haha != 0)
 			{
 				printf("more than one shap\n");
 				return;
 			}
-			else haha = w->selfchip;
-			//printf("shap@%llx\n", w->selfchip);
+			else haha = w->srcchip;
+			//printf("shap@%llx\n", w->srcchip);
 		}
 		else
 		{
-			printf("%llx,%llx,%x\n", w->selfchip, w->selffoot, w->selftype);
+			printf("%llx,%llx,%x\n", w->srcchip, w->srcfoot, w->srctype);
 		}
 
 		temp = w->samedstnextsrc;
@@ -165,10 +159,7 @@ void three_call(u8* buf, int len)
 	}
 
 	shap = shapeindex_read(haha);
-	relationcreate(
-		stack[rsp-1], 0, hex32('s','h','a','p'),
-		shap, 0, hex32('s','h','a','p')
-	);
+	relationcreate(stack[rsp-1], 0, _shap_, shap, 0, _shap_);
 }
 
 

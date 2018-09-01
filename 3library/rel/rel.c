@@ -22,8 +22,8 @@ static int wirelen;
 
 
 void* relation_generate(
-	struct hash* uc, u64 uf, u64 ut,
-	struct hash* bc, u64 bf, u64 bt)
+	struct hash* sc, u64 sf, u64 st,
+	struct hash* dc, u64 df, u64 dt)
 {
 	struct relation* rel;
 	if(wirecur >= wirelen)
@@ -39,25 +39,25 @@ void* relation_generate(
 	rel = (void*)wirebuf + wirecur;
 	wirecur += sizeof(struct relation);
 
-	//1.dest
-	rel->desttype = ut&0xffffffff;
-	rel->destflag = ut>>32;
-	rel->samedstprevsrc = 0;
-	rel->samedstnextsrc = 0;
-
-	if(_hash_ == rel->desttype)rel->destchip = *(u64*)uc;
-	else rel->destchip = *(u32*)uc;
-	rel->destfoot = uf;
-
-	//2.self
-	rel->selftype = bt&0xffffffff;
-	rel->selfflag = bt>32;
+	//1.src
+	rel->srctype = st&0xffffffff;
+	rel->srcflag = st>32;
 	rel->samesrcprevdst = 0;
 	rel->samesrcnextdst = 0;
 
-	if(_hash_ == rel->selftype)rel->selfchip = *(u64*)bc;
-	else rel->selfchip = *(u32*)bc;
-	rel->selffoot = bf;
+	if(_hash_ == rel->srctype)rel->srcchip = *(u64*)sc;
+	else rel->srcchip = *(u32*)sc;
+	rel->srcfoot = sf;
+
+	//2.dst
+	rel->dsttype = dt&0xffffffff;
+	rel->dstflag = dt>>32;
+	rel->samedstprevsrc = 0;
+	rel->samedstnextsrc = 0;
+
+	if(_hash_ == rel->dsttype)rel->dstchip = *(u64*)dc;
+	else rel->dstchip = *(u32*)dc;
+	rel->dstfoot = df;
 
 	return rel;
 }
@@ -119,7 +119,7 @@ void* relationdelete(struct relation* rel)
 {
 	return 0;
 }
-void* relationcreate(void* uc, u64 uf, u64 ut, void* bc, u64 bf, u64 bt)
+void* relationcreate(void* sc, u64 sf, u64 st, void* dc, u64 df, u64 dt)
 {
 //hashinfo, hashfoot, 'hash', fileinfo, 0, 'file'
 //fileinfo, fileline, 'file', funcinfo, 0, 'func'
@@ -128,39 +128,40 @@ void* relationcreate(void* uc, u64 uf, u64 ut, void* bc, u64 bf, u64 bt)
 //actinfo,  which,    'act',  userinfo, what,     'user'
 	u32 offnew;
 	u32 offtmp;
-	struct hash* h1;
-	struct hash* h2;
+	struct hash* src;
+	struct hash* dst;
 	struct relation* relnew;
 	struct relation* reltmp;
 
-	//
-	relnew = relation_generate(uc, uf, ut, bc, bf, bt);
+	//new
+	relnew = relation_generate(sc, sf, st, dc, df, dt);
 	offnew = relationwrite(relnew);
 
-	//
-	h1 = uc;
-	if(0 != h1->ireln)
+	//src
+	src = sc;
+	if(0 != src->oreln)
 	{
-		reltmp = relationread(h1->ireln);
-		offtmp = relationwrite(reltmp);
-
-		reltmp->samedstnextsrc = offnew;
-		relnew->samedstprevsrc = offtmp;
-	}
-	h1->ireln = offnew;
-	if(0 == h1->irel0)h1->irel0 = offnew;
-
-	h2 = bc;
-	if(0 != h2->oreln)
-	{
-		reltmp = relationread(h2->oreln);
+		reltmp = relationread(src->oreln);
 		offtmp = relationwrite(reltmp);
 
 		reltmp->samesrcnextdst = offnew;
 		relnew->samesrcprevdst = offtmp;
 	}
-	h2->oreln = offnew;
-	if(0 == h2->orel0)h2->orel0 = offnew;
+	src->oreln = offnew;
+	if(0 == src->orel0)src->orel0 = offnew;
+
+	//dst
+	dst = dc;
+	if(0 != dst->ireln)
+	{
+		reltmp = relationread(dst->ireln);
+		offtmp = relationwrite(reltmp);
+
+		reltmp->samedstnextsrc = offnew;
+		relnew->samedstprevsrc = offtmp;
+	}
+	dst->ireln = offnew;
+	if(0 == dst->irel0)dst->irel0 = offnew;
 
 	return relnew;
 }

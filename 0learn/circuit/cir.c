@@ -70,7 +70,7 @@ void cir_read_line(u8* buf, int len)
 			//printf("{%.*s}\n", j, buf);
 			addr = strhash_write(buf, j);
 			pinbody = pin_write(buf, len);
-			relationcreate(addr, 0, _hash_, pinbody, 0, _pin_);
+			relationcreate(pinbody, 0, _pin_, addr, 0, _hash_);
 			return;
 		}
 		if('(' == buf[j])
@@ -78,7 +78,7 @@ void cir_read_line(u8* buf, int len)
 			//printf("(%.*s, %.*s)\n", j, buf, len-j-2, buf+j+1);
 			chipbody = cir_read_chip(buf, j);
 			if(0 == chipbody->type)chipbody->type = buf[0];
-			relationcreate(chipbody, buf[j+1], _chip_, pinbody, 0, _pin_);
+			relationcreate(pinbody, 0, _pin_, chipbody, buf[j+1], _chip_);
 			return;
 		}
 		if('=' == buf[j])

@@ -139,15 +139,15 @@ printf("[%d,%d)\n",cur,len);
 		while(1)
 		{
 			if(w == 0)break;
-			if(w->selftype == _chip_)
+			if(w->srctype == _chip_)
 			{
-				k = kirchhoff_add(_chip_, w->selfchip);
-				kirchhoff_wire(j, k, w->selffoot);
+				k = kirchhoff_add(_chip_, w->srcchip);
+				kirchhoff_wire(j, k, w->srcfoot);
 			}
-			if(w->selftype == _pin_)
+			if(w->srctype == _pin_)
 			{
-				k = kirchhoff_add(_pin_, w->selfchip);
-				kirchhoff_wire(k, j, w->destfoot);
+				k = kirchhoff_add(_pin_, w->srcchip);
+				kirchhoff_wire(k, j, w->dstfoot);
 			}
 			w = samedstnextsrc(w);
 		}
@@ -156,15 +156,15 @@ printf("[%d,%d)\n",cur,len);
 		while(1)
 		{
 			if(w == 0)break;
-			if(w->desttype == _chip_)
+			if(w->dsttype == _chip_)
 			{
-				k = kirchhoff_add(_chip_, w->destchip);
-				kirchhoff_wire(j, k, w->destfoot);
+				k = kirchhoff_add(_chip_, w->dstchip);
+				kirchhoff_wire(j, k, w->dstfoot);
 			}
-			if(w->desttype == _pin_)
+			if(w->dsttype == _pin_)
 			{
-				k = kirchhoff_add(_pin_, w->destchip);
-				kirchhoff_wire(k, j, w->selffoot);
+				k = kirchhoff_add(_pin_, w->dstchip);
+				kirchhoff_wire(k, j, w->srcfoot);
 			}
 			w = samesrcnextdst(w);
 		}
@@ -185,7 +185,7 @@ u64 kirchhoff_name(void* addr)
 	while(1)
 	{
 		if(w == 0)break;
-		if(w->desttype == _hash_)return w->destchip;
+		if(w->dsttype == _hash_)return w->dstchip;
 
 		w = samesrcnextdst(w);
 	}
@@ -372,7 +372,7 @@ void kirchhoff(int argc, char** argv)
 
 	wlen = 0;
 	ctxlen = 0;
-	kirchhoff_add(w->selftype, w->selfchip);
+	kirchhoff_add(w->srctype, w->srcchip);
 
 	j = 0;
 	for(i=0;i<20;i++)

@@ -12,25 +12,27 @@ typedef double f64;
 #define _func_ hex32('f','u','n','c')
 #define _chip_ hex32('c','h','i','p')
 #define _pin_  hex32('p','i','n',0)
+#define _shap_ hex32('s','h','a','p')
+#define _poin_ hex32('p','o','i','n')
 
 
 
 
 struct relation
 {
-	u64 destchip;
-	u64 destfoot;
-	u32 desttype;	   //eg: 'hash', 'dir', 'file', 'func'
-	u32 destflag;	   //eg: 'bad', 'ok'
-	u32 samedstprevsrc;
-	u32 samedstnextsrc;
-
-	u64 selfchip;
-	u64 selffoot;
-	u32 selftype;	   //eg: 'dir', 'file', 'func', 'hash'
-	u32 selfflag;	   //eg: 'bad', 'ok'
+	u64 srcchip;
+	u64 srcfoot;
+	u32 srctype;	   //eg: 'dir', 'file', 'func', 'hash'
+	u32 srcflag;	   //eg: 'bad', 'ok'
 	u32 samesrcprevdst;
 	u32 samesrcnextdst;
+
+	u64 dstchip;
+	u64 dstfoot;
+	u32 dsttype;	   //eg: 'hash', 'dir', 'file', 'func'
+	u32 dstflag;	   //eg: 'bad', 'ok'
+	u32 samedstprevsrc;
+	u32 samedstnextsrc;
 };
 struct hash
 {
@@ -121,7 +123,7 @@ void readthemall(int);
 void writethemall();
 //
 void* relationread(u32);
-void* relationcreate(void* uc, u64 uf, u64 ut, void* bc, u64 bf, u64 bt);
+void* relationcreate(void* sc, u64 sf, u64 st, void* dc, u64 df, u64 dt);
 //
 void* samedstprevsrc(struct relation* rel);
 void* samedstnextsrc(struct relation* rel);
