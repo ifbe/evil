@@ -80,5 +80,19 @@ linux:
 	2indite/serve/serve.c \
 	-I. -lm
 
+graph:
+	gcc -o a.exe $(SRC) \
+	2indite/graph/graph.c \
+	2indite/serve/serve.c \
+	2indite/serve/iocp.c \
+	-I. -lgdi32 -lws2_32 -lpthread -lm
+
+wingl:
+	gcc -o a.exe $(SRC) \
+	2indite/graph/glut.c \
+	2indite/serve/serve.c \
+	2indite/serve/iocp.c \
+	-I. -lgdi32 -lws2_32 -lpthread -lfreeglut -lglu32 -lglew32 -lopengl32 -lm
+
 clean:
 	rm -f *.exe *.out
