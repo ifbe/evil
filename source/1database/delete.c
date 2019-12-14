@@ -1,4 +1,8 @@
 #include<stdio.h>
+
+
+
+
 void delete(int argc, char** argv)
 {
 	int j;

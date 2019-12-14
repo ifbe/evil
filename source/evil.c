@@ -30,12 +30,14 @@ void worker_delete();
 //
 int conv(int argc,char** argv);
 int disasm(int argc,char** argv);
-int learn(int argc,char** argv);
 //
-int think(int argc,char** argv);
-int search(int argc,char** argv);
+int create(int argc,char** argv);
 int delete(int argc,char** argv);
+int search(int argc,char** argv);
+int modify(int argc,char** argv);
 //
+int learn(int argc,char** argv);
+int think(int argc,char** argv);
 int graph(int argc,char** argv);
 int kirchhoff(int argc,char** argv);
 int route(int argc,char** argv);
@@ -108,49 +110,45 @@ int main(int argc, char** argv)
 
 
 
-	//learn
-	if(strcmp(argv[1], "conv") == 0)
-	{
+	//prepare
+	if(strcmp(argv[1], "conv") == 0){
 		conv(argc-1, argv+1);
 	}
-	else if(strcmp(argv[1], "disasm") == 0)
-	{
+	else if(strcmp(argv[1], "disasm") == 0){
 		disasm(argc-1, argv+1);
 	}
-	else if(strcmp(argv[1], "learn") == 0)
-	{
-		learn(argc-1, argv+1);
-	}
 
-	//think
-	else if(strcmp(argv[1], "think") == 0)
-	{
-		think(argc-1, argv+1);
+	//database
+	else if(strcmp(argv[1], "create") == 0){
+		create(argc-1, argv+1);
 	}
-	else if(strcmp(argv[1], "search") == 0)
-	{
+	else if(strcmp(argv[1], "delete") == 0){
+		delete(argc-1, argv+1);
+	}
+	else if(strcmp(argv[1], "search") == 0){
 		search(argc-1, argv+1);
 	}
-	else if(strcmp(argv[1], "delete") == 0)
-	{
-		delete(argc-1, argv+1);
+	else if(strcmp(argv[1], "modify") == 0){
+		modify(argc-1, argv+1);
 	}
 
 	//indite
-	else if(strcmp(argv[1], "graph") == 0)
-	{
+	else if(strcmp(argv[1], "learn") == 0){
+		learn(argc-1, argv+1);
+	}
+	else if(strcmp(argv[1], "think") == 0){
+		think(argc-1, argv+1);
+	}
+	else if(strcmp(argv[1], "graph") == 0){
 		graph(argc-1, argv+1);
 	}
-	else if(strcmp(argv[1], "kirchhoff") == 0)
-	{
+	else if(strcmp(argv[1], "kirchhoff") == 0){
 		kirchhoff(argc-1, argv+1);
 	}
-	else if(strcmp(argv[1], "route") == 0)
-	{
+	else if(strcmp(argv[1], "route") == 0){
 		route(argc-1, argv+1);
 	}
-	else if(strcmp(argv[1], "serve") == 0)
-	{
+	else if(strcmp(argv[1], "serve") == 0){
 		serve(argc-1, argv+1);
 	}
 

@@ -15,12 +15,12 @@ int search_one(void*, int, void*, int);
 
 
 
-static u8 response[] =
+static char response[] =
 	"HTTP/1.1 200 OK\r\n"
 	"\r\n";
-static u8 htmlpath[0x200];
+static char htmlpath[0x200];
 static int htmlroot = 0;
-static u8 codepath[0x200];
+static char codepath[0x200];
 static int coderoot = 0;
 
 
@@ -74,7 +74,7 @@ int servesocket_search(char* wbuf, int wlen, char* buf, int len)
 {
 	return search_one(wbuf, wlen, buf, len);
 }
-int servesocket(u8* wbuf, int wlen, u8* buf, int len)
+int servesocket(char* wbuf, int wlen, char* buf, int len)
 {
 	int j,k,ret;
 	printf("%.*s", len, buf);
