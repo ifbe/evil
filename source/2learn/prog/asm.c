@@ -14,7 +14,8 @@
 #endif
 #define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
 #define hex64(a,b,c,d,e,f,g,h) (hex32(a,b,c,d) | (((u64)hex32(e,f,g,h))<<32))
-void worker_write(char*, int, int, int);
+void connect_func_to_file(char*, int, int, int);
+void funcname_called_by_func(char*, int, int, int);
 static int line = 0;
 
 
@@ -620,7 +621,8 @@ void asm_read_line(char* buf, int len)
 		}
 
 		//printf("%.*s\n", k-j-1, buf+j+1);
-		worker_write(buf+j+1, k-j-1, 1, line);
+		//worker_write(buf+j+1, k-j-1, 1, line);
+		connect_func_to_file(buf+j+1, k-j-1, 0, line);
 		return;
 	}
 	else if(strncmp(buf+j, "call", 4) == 0)
@@ -638,7 +640,8 @@ void asm_read_line(char* buf, int len)
 		if(buf[j] != '*')
 		{
 			//printf("call %.*s\n", len-j, buf+j);
-			worker_write(buf+j, len-j, 2, line);
+			//worker_write(buf+j, len-j, 2, line);
+			funcname_called_by_func(buf+j, len-j, 2, line);
 		}
 		return;
 	}
@@ -660,7 +663,8 @@ void asm_read_line(char* buf, int len)
 	}
 
 	//printf("::%.*s\n", k-j, buf);
-	worker_write(buf+j, k-j, 1, line);
+	//worker_write(buf+j, k-j, 1, line);
+	connect_func_to_file(buf+j, k-j, 0, line);
 }
 static void asm_read(char* buf, int len)
 {

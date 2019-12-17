@@ -14,7 +14,10 @@
 	//mingw64 compatiable
 	#define O_BINARY 0x0
 #endif
-void worker_write(void*, int, int, int);
+void funcname_called_by_func(void*, int, int, int);
+void connect_func_to_file(void*, int, int, int);
+void string_infile_global(void*, int, int, int);
+void string_infile_infunc(void*, int, int, int);
 
 
 
@@ -74,8 +77,10 @@ static void purec_str(u8* buf, int len)
 	}
 	if(score <= 0)return;
 
-	if(infunc == 0)worker_write(buf, len, 5, countline+1);
-	else worker_write(buf, len, 6, countline+1);
+	//if(infunc == 0)worker_write(buf, len, 5, countline+1);
+	//else worker_write(buf, len, 6, countline+1);
+	if(infunc == 0)string_infile_global(buf, len, 5, countline+1);
+	else string_infile_infunc(buf, len, 6, countline+1);
 }
 static void purec_func(char* buf)
 {
@@ -94,8 +99,10 @@ static void purec_func(char* buf)
 	if((len == 5)&&(strncmp(buf, "while", 5) == 0))return;
 	if((len == 6)&&(strncmp(buf, "switch", 6) == 0))return;
 
-	if(infunc == 0)worker_write(buf, len, 1, countline+1);
-	else worker_write(buf, len, 2, countline+1);
+	//if(infunc == 0)worker_write(buf, len, 1, countline+1);
+	//else worker_write(buf, len, 2, countline+1);
+	if(infunc == 0)connect_func_to_file(buf, len, 1, countline+1);
+	else funcname_called_by_func(buf, len, 2, countline+1);
 }
 static void purec_define()
 {

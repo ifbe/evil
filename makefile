@@ -97,3 +97,4 @@ linuxgl:
 
 clean:
 	rm -f *.exe *.out
+	rm -rf .42

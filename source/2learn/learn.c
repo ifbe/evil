@@ -129,123 +129,90 @@ static void* funcobj;
 
 
 
-int worker_write(char* buf, int len, int type, int haha)
+void string_infile_global(u8* buf, int len, u64 file, int line)
 {
-	void* thisobj;
-	void* thatobj;
-	if(type == 0)		//file
+	void* thishash = strhash_write(buf, len);
+	if(0 == thishash)
 	{
-		//(name, size, attr, ...)
-		fileobj = filemd5_write(buf, haha);
-		if(fileobj == 0)
-		{
-			printf("error@2222\n");
-			return 0;
-		}
-
-		//string hash
-		thisobj = strhash_read(strhash);
-		if(thisobj == 0)
-		{
-			printf("error@0000\n");
-			return 0;
-		}
-
-		//hash <- file (lchip, lfoot, ltype, rchip, rfoot, rtype)
-		relationcreate(thisobj, 0, _hash_, _file_, fileobj, 0, _file_, _hash_);
+		printf("error@9999\n");
+		return;
 	}
-	else if(type == 1)		//func
-	{
-		thisobj = strhash_write(buf, len);
-		if(thisobj == 0)
-		{
-			printf("error@3333\n");
-			return 0;
-		}
 
-		//func item
-		funcobj = funcindex_write(haha);
-		if(funcobj == 0)
-		{
-			printf("error@4444\n");
-			return 0;
-		}
-
-		//file <- func
-		relationcreate(fileobj, haha, _file_, _func_, funcobj, 0, _func_, _file_);
-
-		//hash <- func
-		relationcreate(thisobj, 0, _hash_, _func_, funcobj, 0, _func_, _hash_);
-	}
-	else if(type == 2)
-	{
-		thisobj = strhash_write(buf, len);
-		if(thisobj == 0)
-		{
-			printf("error@5555\n");
-			return 0;
-		}
-
-		//func <- hash
-		relationcreate(funcobj, haha, _func_, _hash_, thisobj, 0, _hash_, _func_);
-	}
-	else if(type == 3)
-	{
-		//printf("here:%s\n", buf);
-		thisobj = strhash_write(buf, len);
-		if(thisobj == 0)
-		{
-			printf("error@6666\n");
-			return 0;
-		}
-
-		thatobj = strhash_read(strhash);
-		if(thisobj == 0)
-		{
-			printf("error@7777\n");
-			return 0;
-		}
-
-		//hash <- hash
-		relationcreate(thatobj, 0, _hash_, 0, thisobj, 0, _hash_, 0);
-	}
-	else if(type == 4)
-	{
-		//string hash
-		thisobj = strhash_write(buf, len);
-		if(thisobj == 0)
-		{
-			printf("error@1111\n");
-			return 0;
-		}
-		strhash = *(u64*)thisobj;
-	}
-	else if(type == 5)
-	{
-		thisobj = strhash_write(buf, len);
-		if(thisobj == 0)
-		{
-			printf("error@9999\n");
-			return 0;
-		}
-
-		//file <- func
-		relationcreate(fileobj, haha, _file_, _str_, thisobj, 0, _hash_, _file_);
-	}
-	else if(type == 6)
-	{
-		thisobj = strhash_write(buf, len);
-		if(thisobj == 0)
-		{
-			printf("error@5555\n");
-			return 0;
-		}
-
-		//func <- hash
-		relationcreate(funcobj, haha, _func_, _str_, thisobj, 0, _hash_, _func_);
-	}
-	return 1;
+	//file <- func
+	relationcreate(fileobj, line, _file_, _globalstr_, thishash, 0, _hash_, _owner_);
 }
+void string_infile_infunc(u8* buf, int len, u64 file, int line)
+{
+	void* thishash = strhash_write(buf, len);
+	if(0 == thishash)
+	{
+		printf("error@5555\n");
+		return;
+	}
+
+	//func <- hash
+	relationcreate(funcobj, line, _func_, _localstr_, thishash, 0, _hash_, _owner_);
+}
+void funcname_called_by_func(u8* buf, int len, u64 file, int line)
+{
+	void* thishash = strhash_write(buf, len);
+	if(0 == thishash)
+	{
+		printf("error@5555\n");
+		return;
+	}
+
+	//func <- hash
+	relationcreate(funcobj, line, _func_, _subfunc_, thishash, 0, _hash_, _caller_);
+}
+void connect_func_to_file(u8* buf, int len, u64 file, int line)
+{
+	void* thishash = strhash_write(buf, len);
+	if(0 == thishash)
+	{
+		printf("error@3333\n");
+		return;
+	}
+
+	//func item
+	funcobj = funcindex_write(line);
+	if(0 == funcobj)
+	{
+		printf("error@4444\n");
+		return;
+	}
+
+	//file <- func
+	relationcreate(fileobj, line, _file_, _func_, funcobj, 0, _func_, _file_);
+
+	//hash <- func
+	relationcreate(thishash, 0, _hash_, _func_, funcobj, 0, _func_, _hash_);
+}
+void connect_file_to_hash(char* buf, int len)
+{
+	//(name, size, attr, ...)
+	fileobj = filemd5_write(buf, len);
+	if(0 == fileobj)
+	{
+		printf("error@2222\n");
+		return;
+	}
+
+	//string hash
+	void* thishash = strhash_read(strhash);
+	if(0 == thishash)
+	{
+		printf("error@0000\n");
+		return;
+	}
+
+	//hash <- file (lchip, lfoot, ltype, rchip, rfoot, rtype)
+	relationcreate(thishash, 0, _hash_, _file_, fileobj, 0, _file_, _hash_);
+}
+
+
+
+
 int worker_read()
 {
 	//read
@@ -259,7 +226,8 @@ int worker_read()
 	inbuf[ret] = 0;
 
 	//hash?
-	worker_write(inbuf, ret, 0, 0);
+	//worker_write(inbuf, ret, 0, 0);
+	connect_file_to_hash(inbuf, ret);
 
 	//start
 	w[chosen].start();
@@ -319,7 +287,15 @@ int worker_start(char* name)
 	{
 		if((name[1] != '/')&&(name[1] != '.'))return -1;
 	}
-	worker_write(name, strlen(name), 4, 0);
+
+	//worker_write(name, strlen(name), 4, 0);
+	void* thisobj = strhash_write(name, strlen(name));
+	if(0 == thisobj)
+	{
+		printf("error@1111\n");
+		return -1;
+	}
+	strhash = *(u64*)thisobj;
 
 	//get suffix
 	chosen = worker_choose(name);

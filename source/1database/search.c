@@ -743,7 +743,7 @@ theend:
 
 
 
-int search_one(u8* dbuf, int dlen, u8* sbuf, int slen)
+int search_one_origin(u8* dbuf, int dlen, u8* sbuf, int slen)
 {
 	u64 temp;
 	sb = dbuf;
@@ -784,6 +784,86 @@ int search_one(u8* dbuf, int dlen, u8* sbuf, int slen)
 	}
 	searchhash((void*)sbuf, slen);
 byebye:
+	return sb-dbuf;
+}
+
+
+
+
+int search_item(struct hash* item)
+{
+	struct relation* rel;
+
+	rel = relationread(item->irel0);
+	while(1){
+		if(0 == rel)break;
+
+		sb += snprintf((void*)sb, sl,
+			"%llx,%llx,%.4s,%.4s -> %llx,%llx,%.4s,%.4s\n",
+			rel->dstchip, rel->dstfoot, (void*)&rel->dstchiptype, (void*)&rel->dstfoottype,
+			rel->srcchip, rel->srcfoot, (void*)&rel->srcchiptype, (void*)&rel->srcfoottype
+		);
+
+		rel = samedstnextsrc(rel);
+	}
+
+	rel = relationread(item->orel0);
+	while(1){
+		if(0 == rel)break;
+
+		sb += snprintf((void*)sb, sl,
+			"%llx,%llx,%.4s,%.4s -> %llx,%llx,%.4s,%.4s\n",
+			rel->srcchip, rel->srcfoot, (void*)&rel->srcchiptype, (void*)&rel->srcfoottype,
+			rel->dstchip, rel->dstfoot, (void*)&rel->dstchiptype, (void*)&rel->dstfoottype
+		);
+
+		rel = samesrcnextdst(rel);
+	}
+	return 0;
+}
+int search_one(u8* dbuf, int dlen, u8* sbuf, int slen)
+{
+	u64 temp;
+	struct hash* item;
+
+	item = 0;
+	if(strncmp((void*)sbuf, "pin@", 4)==0)
+	{
+		hexstr2data(sbuf + 4, &temp);
+		item = pin_read(temp);
+		goto byebye;
+	}
+	else if(strncmp((void*)sbuf, "chip@", 5)==0)
+	{
+		hexstr2data(sbuf + 5, &temp);
+		item = chip_read(temp);
+		goto byebye;
+	}
+	else if(strncmp((void*)sbuf, "file@", 5)==0)
+	{
+		hexstr2data(sbuf + 5, &temp);
+		item = filemd5_read(temp);
+		goto byebye;
+	}
+	else if(strncmp((void*)sbuf, "func@", 5)==0)
+	{
+		hexstr2data(sbuf + 5, &temp);
+		item = funcindex_read(temp);
+		goto byebye;
+	}
+	else if(strncmp((void*)sbuf, "shap@", 5)==0)
+	{
+		hexstr2data(sbuf + 5, &temp);
+		item = shapeindex_read(temp);
+		goto byebye;
+	}
+	temp = strhash_generate(sbuf, slen);
+	item = strhash_read(temp);
+
+byebye:
+	sb = dbuf;
+	sl = dlen;
+	if(item)search_item(item);
 	return sb-dbuf;
 }
 void search(int argc, char** argv)

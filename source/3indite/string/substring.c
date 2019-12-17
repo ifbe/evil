@@ -53,7 +53,6 @@ void think_line(u8* buf, int len)
 	if(buf == 0)return;
 	if(len == 0)return;
 	//printf("%.*s\n", len, buf);
-	//worker_write(buf, len, 4, 0);
 
 	baseobj = strhash_write(buf, len);
 	if(baseobj == 0)
