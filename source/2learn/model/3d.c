@@ -62,11 +62,11 @@ void three_shape(char* buf, int len)
 	if(rsp <= 0)
 	{
 		hash = strhash_write(buf, j);
-		relationcreate(hash, 0, _hash_, shap, 0, _shap_);
+		relationcreate(hash, 0, _hash_, _shap_, shap, 0, _shap_, _hash_);
 	}
 	else
 	{
-		relationcreate(stack[rsp-1], 0, _shap_, shap, 0, _shap_);
+		relationcreate(stack[rsp-1], 0, _shap_, _child_, shap, 0, _shap_, _parent_);
 	}
 
 	//
@@ -89,8 +89,8 @@ void three_foot(char* buf ,int len)
 
 		point = pointindex_read(num*0x20);
 		relationcreate(
-			stack[rsp-1], 0, _shap_,
-			point, 0, _poin_
+			stack[rsp-1], 0, _shap_, _child_,
+			point, 0, _poin_, _parent_
 		);
 
 		while(1)
@@ -131,7 +131,7 @@ void three_call(u8* buf, int len)
 	haha = 0;
 	while(1)
 	{
-		if(_shap_ == w->srctype)
+		if(_shap_ == w->srcchiptype)
 		{
 			if(haha != 0)
 			{
@@ -143,7 +143,7 @@ void three_call(u8* buf, int len)
 		}
 		else
 		{
-			printf("%llx,%llx,%x\n", w->srcchip, w->srcfoot, w->srctype);
+			printf("%llx,%llx,%x\n", w->srcchip, w->srcfoot, w->srcchiptype);
 		}
 
 		temp = w->samedstnextsrc;
@@ -159,7 +159,7 @@ void three_call(u8* buf, int len)
 	}
 
 	shap = shapeindex_read(haha);
-	relationcreate(stack[rsp-1], 0, _shap_, shap, 0, _shap_);
+	relationcreate(stack[rsp-1], 0, _shap_, _child_, shap, 0, _shap_, _parent_);
 }
 
 

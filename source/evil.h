@@ -7,6 +7,7 @@ typedef double f64;
 #define hex16(a,b) (a | (b<<8))
 #define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
 #define hex64(a,b,c,d,e,f,g,h) (hex32(a,b,c,d) | (((u64)hex32(e,f,g,h))<<32))
+//chiptype
 #define _hash_ hex32('h','a','s','h')
 #define _file_ hex32('f','i','l','e')
 #define _func_ hex32('f','u','n','c')
@@ -14,6 +15,12 @@ typedef double f64;
 #define _pin_  hex32('p','i','n',0)
 #define _shap_ hex32('s','h','a','p')
 #define _poin_ hex32('p','o','i','n')
+//foottype
+#define     _str_ hex32('s','t','r',0)
+#define  _parent_ hex32('m','o','m',0)
+#define   _child_ hex32('s','o','n',0)
+#define   _metro_ hex32('m','a','p',0)
+#define _station_ hex32('s','t','a',0)
 
 
 
@@ -22,15 +29,15 @@ struct relation
 {
 	u64 srcchip;
 	u64 srcfoot;
-	u32 srctype;	   //eg: 'dir', 'file', 'func', 'hash'
-	u32 srcflag;	   //eg: 'bad', 'ok'
+	u32 srcchiptype;	//eg: 'dir', 'file', 'func', 'hash'
+	u32 srcfoottype;	//eg: 'todir', 'tofile'
 	u32 samesrcprevdst;
 	u32 samesrcnextdst;
 
 	u64 dstchip;
 	u64 dstfoot;
-	u32 dsttype;	   //eg: 'hash', 'dir', 'file', 'func'
-	u32 dstflag;	   //eg: 'bad', 'ok'
+	u32 dstchiptype;	//eg: 'hash', 'dir', 'file', 'func'
+	u32 dstfoottype;	//eg: 'todir', 'tofile'
 	u32 samedstprevsrc;
 	u32 samedstnextsrc;
 };
@@ -123,7 +130,7 @@ void readthemall(int);
 void writethemall();
 //
 void* relationread(u32);
-void* relationcreate(void* sc, u64 sf, u64 st, void* dc, u64 df, u64 dt);
+void* relationcreate(void* sc, u64 sf, u32 sct, u32 sft, void* dc, u64 df, u32 dct, u32 dft);
 //
 void* samedstprevsrc(struct relation* rel);
 void* samedstnextsrc(struct relation* rel);

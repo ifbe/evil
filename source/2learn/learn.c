@@ -152,7 +152,7 @@ int worker_write(char* buf, int len, int type, int haha)
 		}
 
 		//hash <- file (lchip, lfoot, ltype, rchip, rfoot, rtype)
-		relationcreate(thisobj, 0, _hash_, fileobj, 0, _file_);
+		relationcreate(thisobj, 0, _hash_, _file_, fileobj, 0, _file_, _hash_);
 	}
 	else if(type == 1)		//func
 	{
@@ -172,10 +172,10 @@ int worker_write(char* buf, int len, int type, int haha)
 		}
 
 		//file <- func
-		relationcreate(fileobj, haha, _file_, funcobj, 0, _func_);
+		relationcreate(fileobj, haha, _file_, _func_, funcobj, 0, _func_, _file_);
 
 		//hash <- func
-		relationcreate(thisobj, 0, _hash_, funcobj, 0, _func_);
+		relationcreate(thisobj, 0, _hash_, _func_, funcobj, 0, _func_, _hash_);
 	}
 	else if(type == 2)
 	{
@@ -187,7 +187,7 @@ int worker_write(char* buf, int len, int type, int haha)
 		}
 
 		//func <- hash
-		relationcreate(funcobj, haha, _func_, thisobj, 0, hex64('h','a','s','h','f','u','n','c'));
+		relationcreate(funcobj, haha, _func_, _hash_, thisobj, 0, _hash_, _func_);
 	}
 	else if(type == 3)
 	{
@@ -207,7 +207,7 @@ int worker_write(char* buf, int len, int type, int haha)
 		}
 
 		//hash <- hash
-		relationcreate(thatobj, 0, _hash_, thisobj, 0, _hash_);
+		relationcreate(thatobj, 0, _hash_, 0, thisobj, 0, _hash_, 0);
 	}
 	else if(type == 4)
 	{
@@ -230,7 +230,7 @@ int worker_write(char* buf, int len, int type, int haha)
 		}
 
 		//file <- func
-		relationcreate(fileobj, haha, _file_, thisobj, 0, hex64('h','a','s','h','s','t','r',0));
+		relationcreate(fileobj, haha, _file_, _str_, thisobj, 0, _hash_, _file_);
 	}
 	else if(type == 6)
 	{
@@ -242,7 +242,7 @@ int worker_write(char* buf, int len, int type, int haha)
 		}
 
 		//func <- hash
-		relationcreate(funcobj, haha, _func_, thisobj, 0, hex64('h','a','s','h','s','t','r',0));
+		relationcreate(funcobj, haha, _func_, _str_, thisobj, 0, _hash_, _func_);
 	}
 	return 1;
 }

@@ -56,10 +56,10 @@ first:
 	while(1)
 	{
 		if(0 == irel)goto second;
-		if((type == irel->srctype)&&(addr == irel->srcchip))
+		if((type == irel->srcchiptype)&&(addr == irel->srcchip))
 		{
 			printf("%.4s.%llx.i\n",
-				(void*)&irel->dsttype,
+				(void*)&irel->dstchiptype,
 				irel->dstchip
 			);
 			return;
@@ -71,10 +71,10 @@ second:
 	while(1)
 	{
 		if(0 == orel)goto third;
-		if((type == orel->dsttype)&&(addr == orel->dstchip))
+		if((type == orel->dstchiptype)&&(addr == orel->dstchip))
 		{
 			printf("%.4s.%llx.i\n",
-				(void*)&orel->srctype,
+				(void*)&orel->srcchiptype,
 				orel->srcchip
 			);
 			return;
@@ -102,7 +102,7 @@ void route_dfs(u64 t1, struct hash* h1, u64 t2, struct hash* h2)
 	{
 		if(0 != st[rsp].irel)
 		{
-			type = (st[rsp].irel)->srctype;
+			type = (st[rsp].irel)->srcchiptype;
 			data = (st[rsp].irel)->srcchip;
 			st[rsp].irel = samedstnextsrc(st[rsp].irel);
 printf("%d.i) %llx,%llx\n",rsp,type,data);
@@ -133,7 +133,7 @@ printf("%d.i) %llx,%llx\n",rsp,type,data);
 
 		if(0 != st[rsp].orel)
 		{
-			type = (st[rsp].orel)->dsttype;
+			type = (st[rsp].orel)->dstchiptype;
 			data = (st[rsp].orel)->dstchip;
 			st[rsp].orel = samesrcnextdst(st[rsp].orel);
 printf("%d.o) %llx,%llx\n",rsp,type,data);
@@ -244,7 +244,7 @@ printf("%x:%llx,%llx\n",j,q[j].type, q[j].addr);
 		while(1)
 		{
 			if(w == 0)break;
-			k = route_add(q, j, w->srctype, w->srcchip);
+			k = route_add(q, j, w->srcchiptype, w->srcchip);
 			//if(j != k)graph_pair(j,k);
 
 			w = samedstnextsrc(w);
@@ -254,7 +254,7 @@ printf("%x:%llx,%llx\n",j,q[j].type, q[j].addr);
 		while(1)
 		{
 			if(w == 0)break;
-			k = route_add(q, j, w->dsttype, w->dstchip);
+			k = route_add(q, j, w->dstchiptype, w->dstchip);
 			//if(j != k)graph_pair(k, j);
 
 			w = samesrcnextdst(w);

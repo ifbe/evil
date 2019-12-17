@@ -22,8 +22,8 @@ static int wirelen;
 
 
 void* relation_generate(
-	struct hash* sc, u64 sf, u64 st,
-	struct hash* dc, u64 df, u64 dt)
+	struct hash* sc, u64 sf, u32 sct, u32 sft,
+	struct hash* dc, u64 df, u32 dct, u32 dft)
 {
 	struct relation* rel;
 	if(wirecur >= wirelen)
@@ -40,22 +40,22 @@ void* relation_generate(
 	wirecur += sizeof(struct relation);
 
 	//1.src
-	rel->srctype = st&0xffffffff;
-	rel->srcflag = st>32;
+	rel->srcchiptype = sct;
+	rel->srcfoottype = sft;
 	rel->samesrcprevdst = 0;
 	rel->samesrcnextdst = 0;
 
-	if(_hash_ == rel->srctype)rel->srcchip = *(u64*)sc;
+	if(_hash_ == rel->srcchiptype)rel->srcchip = *(u64*)sc;
 	else rel->srcchip = *(u32*)sc;
 	rel->srcfoot = sf;
 
 	//2.dst
-	rel->dsttype = dt&0xffffffff;
-	rel->dstflag = dt>>32;
+	rel->dstchiptype = dct;
+	rel->dstfoottype = dft;
 	rel->samedstprevsrc = 0;
 	rel->samedstnextsrc = 0;
 
-	if(_hash_ == rel->dsttype)rel->dstchip = *(u64*)dc;
+	if(_hash_ == rel->dstchiptype)rel->dstchip = *(u64*)dc;
 	else rel->dstchip = *(u32*)dc;
 	rel->dstfoot = df;
 
@@ -119,7 +119,9 @@ void* relationdelete(struct relation* rel)
 {
 	return 0;
 }
-void* relationcreate(void* sc, u64 sf, u64 st, void* dc, u64 df, u64 dt)
+void* relationcreate(
+	void* sc, u64 sf, u32 sct, u32 sft,
+	void* dc, u64 df, u32 dct, u32 dft)
 {
 //hashinfo, hashfoot, 'hash', fileinfo, 0, 'file'
 //fileinfo, fileline, 'file', funcinfo, 0, 'func'
@@ -134,7 +136,7 @@ void* relationcreate(void* sc, u64 sf, u64 st, void* dc, u64 df, u64 dt)
 	struct relation* reltmp;
 
 	//new
-	relnew = relation_generate(sc, sf, st, dc, df, dt);
+	relnew = relation_generate(sc, sf, sct, sft, dc, df, dct, dft);
 	offnew = relationwrite(relnew);
 
 	//src

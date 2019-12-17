@@ -41,7 +41,7 @@ void chipname(u64 addr)
 
 	while(1)
 	{
-		if(_hash_ == irel->srctype)
+		if(_hash_ == irel->srcchiptype)
 		{
 			//strhash_print(irel->srcchip);
 			sb += strhash_export(irel->srcchip, sb, 99);
@@ -69,7 +69,7 @@ void filename(u64 addr)
 
 	while(1)
 	{
-		if(_hash_ == irel->srctype)
+		if(_hash_ == irel->srcchiptype)
 		{
 			//strhash_print(irel->srcchip);
 			sb += strhash_export(irel->srcchip, sb, 99);
@@ -97,7 +97,7 @@ void funcname(u64 addr)
 
 	while(1)
 	{
-		if(_hash_ == irel->srctype)
+		if(_hash_ == irel->srcchiptype)
 		{
 			//strhash_print(irel->srcchip);
 			sb += strhash_export(irel->srcchip, sb, 99);
@@ -125,7 +125,7 @@ void funcpath(u64 addr)
 
 	while(1)
 	{
-		if(_file_ == irel->srctype)
+		if(_file_ == irel->srcchiptype)
 		{
 			filename(irel->srcchip);
 			sb += snprintf((void*)sb, sl, ":%lld", irel->srcfoot);
@@ -164,14 +164,14 @@ pinirel:
 	//input
 	while(irel != 0)
 	{
-		if(_hash_ == irel->srctype)
+		if(_hash_ == irel->srcchiptype)
 		{
 			sb += snprintf((void*)sb, sl, "i:	");
 			//strhash_print(irel->srcchip);
 			sb += strhash_export(irel->srcchip, sb, 99);
 			sb += snprintf((void*)sb, sl, "\n");
 		}
-		else if(_chip_ == irel->srctype)
+		else if(_chip_ == irel->srcchiptype)
 		{
 			sb += snprintf((void*)sb, sl, "i:	");
 			chipname(irel->srcchip);
@@ -184,7 +184,7 @@ pinirel:
 		{
 			sb += snprintf((void*)sb, sl,
 				"i:	%-s@%08llx	%08llx	(@%lld)\n",
-				(char*)&(irel->srctype),
+				(char*)&(irel->srcchiptype),
 				irel->srcchip,
 				irel->srcfoot,
 				irel->dstfoot
@@ -202,14 +202,14 @@ pinorel:
 	//output(many)
 	while(orel != 0)
 	{
-		if(_hash_ == orel->dsttype)
+		if(_hash_ == orel->dstchiptype)
 		{
 			sb += snprintf((void*)sb, sl, "o:	");
 			//strhash_print(orel->dstchip);
 			sb += strhash_export(orel->dstchip, sb, 99);
 			sb += snprintf((void*)sb, sl, "\n");
 		}
-		else if(_pin_ == orel->dsttype)
+		else if(_pin_ == orel->dstchiptype)
 		{
 			sb += snprintf((void*)sb, sl,
 				"o:	%c@pin%llx\n",
@@ -221,7 +221,7 @@ pinorel:
 		{
 			sb += snprintf((void*)sb, sl,
 				"o:	%-s@%08llx	%08llx\n",
-				(char*)&(orel->dsttype),
+				(char*)&(orel->dstchiptype),
 				orel->dstchip,
 				orel->dstfoot
 			);
@@ -259,7 +259,7 @@ chipirel:
 
 	while(irel != 0)
 	{
-		if(_hash_ == irel->srctype)
+		if(_hash_ == irel->srcchiptype)
 		{
 			sb += snprintf((void*)sb, sl, "i:	");
 			//strhash_print(irel->srcchip);
@@ -270,7 +270,7 @@ chipirel:
 		{
 			sb += snprintf((void*)sb, sl,
 				"i:	%-s@%08llx	%08llx	(@%lld)\n",
-				(char*)&(irel->srctype),
+				(char*)&(irel->srcchiptype),
 				irel->srcchip,
 				irel->srcfoot,
 				irel->dstfoot
@@ -287,14 +287,14 @@ chiporel:
 
 	while(orel != 0)
 	{
-		if(_hash_ == orel->dsttype)
+		if(_hash_ == orel->dstchiptype)
 		{
 			sb += snprintf((void*)sb, sl, "o:	");
 			//strhash_print(orel->dstchip);
 			sb += strhash_export(orel->dstchip, sb, 99);
 			sb += snprintf((void*)sb, sl, "\n");
 		}
-		else if(_pin_ == orel->dsttype)
+		else if(_pin_ == orel->dstchiptype)
 		{
 			sb += snprintf((void*)sb, sl,
 				"o:	%c@pin%llx\n",
@@ -306,7 +306,7 @@ chiporel:
 		{
 			sb += snprintf((void*)sb, sl,
 				"o:	%-s@%08llx	%08llx\n",
-				(char*)&(orel->dsttype),
+				(char*)&(orel->dstchiptype),
 				orel->dstchip,
 				orel->dstfoot
 			);
@@ -346,14 +346,14 @@ shapeirel:
 
 	while(irel != 0)
 	{
-		if(_hash_ == irel->srctype)
+		if(_hash_ == irel->srcchiptype)
 		{
 			sb += snprintf((void*)sb, sl, "i:	");
 			//strhash_print(irel->srcchip);
 			sb += strhash_export(irel->srcchip, sb, 99);
 			sb += snprintf((void*)sb, sl, "\n");
 		}
-		else if(_shap_ == irel->srctype)
+		else if(_shap_ == irel->srcchiptype)
 		{
 			ss = shapeindex_read(irel->srcchip);
 			sb += snprintf((void*)sb, sl,
@@ -362,7 +362,7 @@ shapeirel:
 				(char*)&(ss->type)
 			);
 		}
-		else if(_poin_ == irel->srctype)
+		else if(_poin_ == irel->srcchiptype)
 		{
 			pp = pointindex_read(irel->srcchip);
 			sb += snprintf((void*)sb, sl,
@@ -375,7 +375,7 @@ shapeirel:
 		{
 			sb += snprintf((void*)sb, sl,
 				"i:	%-s@%08llx	%08llx\n",
-				(char*)&(irel->srctype),
+				(char*)&(irel->srcchiptype),
 				irel->srcchip,
 				irel->srcfoot
 			);
@@ -391,14 +391,14 @@ shapeorel:
 
 	while(orel != 0)
 	{
-		if(_hash_ == orel->dsttype)
+		if(_hash_ == orel->dstchiptype)
 		{
 			sb += snprintf((void*)sb, sl, "o:	");
 			//strhash_print(orel->dstchip);
 			sb += strhash_export(orel->dstchip, sb, 99);
 			sb += snprintf((void*)sb, sl, "\n");
 		}
-		else if(_shap_ == orel->dsttype)
+		else if(_shap_ == orel->dstchiptype)
 		{
 			ss = shapeindex_read(orel->dstchip);
 			sb += snprintf((void*)sb, sl,
@@ -411,7 +411,7 @@ shapeorel:
 		{
 			sb += snprintf((void*)sb, sl,
 				"o:	%-s@%08llx	%08llx\n",
-				(char*)&(orel->dsttype),
+				(char*)&(orel->dstchiptype),
 				orel->dstchip,
 				orel->dstfoot
 			);
@@ -449,7 +449,7 @@ fileirel:
 
 	while(irel != 0)
 	{
-		if(_hash_ == irel->srctype)
+		if(_hash_ == irel->srcchiptype)
 		{
 			sb += snprintf((void*)sb, sl,
 				"i:	str	:%lld	",
@@ -459,7 +459,7 @@ fileirel:
 			sb += strhash_export(irel->srcchip, sb, 99);
 			sb += snprintf((void*)sb, sl, "\n");
 		}
-		else if(_func_ == irel->srctype)
+		else if(_func_ == irel->srcchiptype)
 		{
 			sb += snprintf((void*)sb, sl,
 				"i:	func@%08llx	:%lld	",
@@ -473,7 +473,7 @@ fileirel:
 		{
 			sb += snprintf((void*)sb, sl,
 				"i:	%-s@%08llx	%08llx	(@%lld)\n",
-				(char*)&(irel->srctype),
+				(char*)&(irel->srcchiptype),
 				irel->srcchip,
 				irel->srcfoot,
 				irel->dstfoot
@@ -491,7 +491,7 @@ fileorel:
 	//output(many)
 	while(orel != 0)
 	{
-		if(_hash_ == orel->dsttype)
+		if(_hash_ == orel->dstchiptype)
 		{
 			sb += snprintf((void*)sb, sl, "o:	");
 			//strhash_print(orel->dstchip);
@@ -502,7 +502,7 @@ fileorel:
 		{
 			sb += snprintf((void*)sb, sl,
 				"o:	%-s@%08llx	%08llx\n",
-				(char*)&(orel->dsttype),
+				(char*)&(orel->dstchiptype),
 				orel->dstchip,
 				orel->dstfoot
 			);
@@ -540,7 +540,7 @@ funcirel:
 
 	while(irel != 0)
 	{
-		if(_hash_ == irel->srctype)
+		if(_hash_ == irel->srcchiptype)
 		{
 			sb += snprintf((void*)sb, sl, "i:	name	");
 			//strhash_print(irel->srcchip);
@@ -548,7 +548,7 @@ funcirel:
 			sb += strhash_export(irel->srcchip, sb, 99);
 			sb += snprintf((void*)sb, sl, "\n");
 		}
-		else if(_file_ == irel->srctype)
+		else if(_file_ == irel->srcchiptype)
 		{
 			sb += snprintf((void*)sb, sl,
 				"i:	file@%08llx	",
@@ -571,9 +571,9 @@ funcorel:
 
 	while(orel != 0)
 	{
-		if(_hash_ == orel->dsttype)
+		if(_hash_ == orel->dstchiptype)
 		{
-			if(hex32('s','t','r',0) == orel->dstflag)
+			if(hex32('s','t','r',0) == orel->dstfoottype)
 			{
 				sb += snprintf((void*)sb, sl, "o:	str	");
 			}
@@ -586,7 +586,7 @@ funcorel:
 			sb += strhash_export(orel->dstchip, sb, 99);
 			sb += snprintf((void*)sb, sl, "\n");
 		}
-		else if(_file_ == orel->dsttype)
+		else if(_file_ == orel->dstchiptype)
 		{
 			sb += snprintf((void*)sb, sl,
 				"o:	file@%08llx	",
@@ -637,14 +637,14 @@ hashirel:
 
 	while(irel != 0)
 	{
-		if(_hash_ == irel->srctype)
+		if(_hash_ == irel->srcchiptype)
 		{
 			sb += snprintf((void*)sb, sl, "i:	");
 			//strhash_print(irel->srcchip);
 			sb += strhash_export(irel->srcchip, sb, 99);
 			sb += snprintf((void*)sb, sl, "\n");
 		}
-		else if(_func_ == irel->srctype)
+		else if(_func_ == irel->srcchiptype)
 		{
 			sb += snprintf((void*)sb, sl,
 				"i:	func@%08llx	",
@@ -659,14 +659,14 @@ hashirel:
 				irel->srcfoot
 			);
 		}
-		else if(_file_ == irel->srctype)
+		else if(_file_ == irel->srcchiptype)
 		{
 			sb += snprintf((void*)sb, sl,
 				"i:	file@%08llx\n",
 				irel->srcchip
 			);
 		}
-		else if(_chip_ == irel->srctype)
+		else if(_chip_ == irel->srcchiptype)
 		{
 			sb += snprintf((void*)sb, sl,
 				"i:	chip@%08llx\n",
@@ -677,7 +677,7 @@ hashirel:
 		{
 			sb += snprintf((void*)sb, sl,
 				"i:	%.8s@%llx\n",
-				(char*)&irel->srctype,
+				(char*)&irel->srcchiptype,
 				irel->srcchip
 			);
 		}
@@ -692,14 +692,14 @@ hashorel:
 
 	while(orel != 0)
 	{
-		if(_hash_ == orel->dsttype)
+		if(_hash_ == orel->dstchiptype)
 		{
 			sb += snprintf((void*)sb, sl, "o:	");
 			//strhash_print(orel->dstchip);
 			sb += strhash_export(orel->dstchip, sb, 99);
 			sb += snprintf((void*)sb, sl, "\n");
 		}
-		else if(_func_ == orel->dsttype)
+		else if(_func_ == orel->dstchiptype)
 		{
 			sb += snprintf((void*)sb, sl,
 				"o:	func@%08llx	",
@@ -709,7 +709,7 @@ hashorel:
 			funcpath(orel->dstchip);
 			sb += snprintf((void*)sb, sl, "\n");
 		}
-		else if(_file_ == orel->dsttype)
+		else if(_file_ == orel->dstchiptype)
 		{
 			special = orel->dstchip;
 			sb += snprintf((void*)sb, sl,
@@ -726,7 +726,7 @@ hashorel:
 		{
 			sb += snprintf((void*)sb, sl,
 				"o:	%.8s@%llx\n",
-				(char*)&orel->dsttype,
+				(char*)&orel->dstchiptype,
 				orel->dstchip
 			);
 		}

@@ -44,7 +44,7 @@ void think_one(u8* buf, int len)
 	}
 
 	//hash <- hash
-	relationcreate(baseobj, 0, _hash_, thisobj, 0, _hash_);
+	relationcreate(baseobj, 0, _hash_, _child_, thisobj, 0, _hash_, _parent_);
 }
 void think_line(u8* buf, int len)
 {

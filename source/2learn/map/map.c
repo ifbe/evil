@@ -41,12 +41,13 @@ static void map_read_line(u8* buf, int len)
 	if(0 == j)
 	{
 		chip = chip_write();
-		relationcreate(addr, count, _hash_, chip, 0, _chip_);
+		relationcreate(addr, count, _hash_, _metro_, chip, 0, _chip_, _hash_);
 		count = 0;
 	}
 	else
 	{
-		relationcreate(chip, count, _chip_, addr, 0, _hash_);
+		//now, chip = 
+		relationcreate(chip, count, _chip_, _station_, addr, 0, _hash_, _metro_);
 		count++;
 	}
 }
