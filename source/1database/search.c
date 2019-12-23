@@ -790,6 +790,25 @@ byebye:
 
 
 
+void search_print(struct halfrel* self, struct halfrel* peer)
+{
+	if(_hash_ == peer->chiptype){
+		sb += snprintf((void*)sb, sl,
+			"%llx,%llx,%.4s,%.4s -> %llx,%llx,%.4s,%.4s(",
+			self->chip, self->foot, (void*)&self->chiptype, (void*)&self->foottype,
+			peer->chip, peer->foot, (void*)&peer->chiptype, (void*)&peer->foottype
+		);
+		sb += strhash_export(peer->chip, sb, 99);
+		sb += snprintf((void*)sb, sl, ")\n");
+	}
+	else{
+		sb += snprintf((void*)sb, sl,
+			"%llx,%llx,%.4s,%.4s -> %llx,%llx,%.4s,%.4s\n",
+			self->chip, self->foot, (void*)&self->chiptype, (void*)&self->foottype,
+			peer->chip, peer->foot, (void*)&peer->chiptype, (void*)&peer->foottype
+		);
+	}
+}
 int search_item(struct hash* item)
 {
 	struct relation* rel;
@@ -798,11 +817,7 @@ int search_item(struct hash* item)
 	while(1){
 		if(0 == rel)break;
 
-		sb += snprintf((void*)sb, sl,
-			"%llx,%llx,%.4s,%.4s -> %llx,%llx,%.4s,%.4s\n",
-			rel->dstchip, rel->dstfoot, (void*)&rel->dstchiptype, (void*)&rel->dstfoottype,
-			rel->srcchip, rel->srcfoot, (void*)&rel->srcchiptype, (void*)&rel->srcfoottype
-		);
+		search_print((void*)&rel->dstchip, (void*)&rel->srcchip);
 
 		rel = samedstnextsrc(rel);
 	}
@@ -811,11 +826,7 @@ int search_item(struct hash* item)
 	while(1){
 		if(0 == rel)break;
 
-		sb += snprintf((void*)sb, sl,
-			"%llx,%llx,%.4s,%.4s -> %llx,%llx,%.4s,%.4s\n",
-			rel->srcchip, rel->srcfoot, (void*)&rel->srcchiptype, (void*)&rel->srcfoottype,
-			rel->dstchip, rel->dstfoot, (void*)&rel->dstchiptype, (void*)&rel->dstfoottype
-		);
+		search_print((void*)&rel->srcchip, (void*)&rel->dstchip);
 
 		rel = samesrcnextdst(rel);
 	}

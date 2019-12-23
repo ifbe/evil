@@ -21,7 +21,7 @@ typedef double f64;
 #define     _str_ hex32('s','t','r',0)
 #define  _parent_ hex32('m','o','m',0)
 #define   _child_ hex32('s','o','n',0)
-#define   _metro_ hex32('m','a','p',0)
+#define   _metro_ hex32('m','e','t','r')
 #define _station_ hex32('s','t','a',0)
 #define _owner_ hex32('o','w','n','r')
 #define _localstr_ hex32('l','s','t','r')
@@ -30,6 +30,13 @@ typedef double f64;
 
 
 
+struct halfrel
+{
+	u64 chip;
+	u64 foot;
+	u32 chiptype;
+	u32 foottype;
+};
 struct relation
 {
 	u64 srcchip;
@@ -46,6 +53,10 @@ struct relation
 	u32 samedstprevsrc;
 	u32 samedstnextsrc;
 };
+
+
+
+
 struct hash
 {
 	u32 hash0;
