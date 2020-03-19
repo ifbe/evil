@@ -17,7 +17,7 @@ static char* reg08[8] = {"al","cl","dl","bl","ah","ch","dh","bh"};
 
 
 
-void disasm_one(u8* buf, int len)
+void disasm_x8664_one(u8* buf, int len)
 {
 	int j;
 	u8* p;
@@ -215,27 +215,27 @@ void disasm_one(u8* buf, int len)
 		}
 		else if((0x38 == p[0])&&(0xc0 == (p[1]&0xc0)))
 		{
-			printf("flag = %s - %s\n", reg08[p[1]&0x7], reg08[(p[1]&0x3f)>>3]);
+			printf("%s ? %s\n", reg08[p[1]&0x7], reg08[(p[1]&0x3f)>>3]);
 			j += 1;
 		}
 		else if((0x39 == p[0])&&(0xeb == p[1]))
 		{
-			printf("flag = ebx - ebp\n");
+			printf("ebx ? ebp\n");
 			j += 1;
 		}
 		else if((0x39 == p[0])&&(0xd0 == (p[1]&0xf8)))
 		{
-			printf("flag = %s - edx\n", reg32[p[1]&0x7]);
+			printf("%s ? edx\n", reg32[p[1]&0x7]);
 			j += 1;
 		}
 		else if(0x3c == p[0])
 		{
-			printf("flag = al - 0x%x\n", p[1]);
+			printf("al ? 0x%x\n", p[1]);
 			j += 1;
 		}
 		else if(0x3d == p[0])
 		{
-			printf("flag = eax - 0x%x\n", *(u32*)(p+1));
+			printf("eax ? 0x%x\n", *(u32*)(p+1));
 			j += 4;
 		}
 		else if((0x40 == p[0])&&(0x0f == p[1])&&(0x94 == p[2])&&(0xc6 == p[3]))
@@ -250,12 +250,12 @@ void disasm_one(u8* buf, int len)
 		}
 		else if((0x40 == p[0])&&(0x80 == p[1])&&(0xfe == p[2]))
 		{
-			printf("flag = sil - 0x%x\n", p[3]);
+			printf("sil ? 0x%x\n", p[3]);
 			j += 3;
 		}
 		else if((0x40 == p[0])&&(0x80 == p[1])&&(0xff == p[2]))
 		{
-			printf("flag = dil - 0x%x\n", p[3]);
+			printf("dil ? 0x%x\n", p[3]);
 			j += 3;
 		}
 		else if((0x40 == p[0])&&(0x84 == p[1])&&(0xce == p[2]))
@@ -265,7 +265,7 @@ void disasm_one(u8* buf, int len)
 		}
 		else if((0x40 == p[0])&&(0xf6 == p[1])&&(0xc6 == p[2]))
 		{
-			printf("flag = sil - 0x%x\n", p[3]);
+			printf("sil ? 0x%x\n", p[3]);
 			j += 3;
 		}
 		else if((0x41 == p[0])&&(0x0f == p[1])&&(0x4d == p[2])&&(0xc0 == (p[3]&0xc0)))
@@ -325,7 +325,7 @@ void disasm_one(u8* buf, int len)
 		}
 		else if((0x41 == p[0])&&(0x39 == p[1])&&(0xc0 == (p[2]&0xc0)))
 		{
-			printf("flag = r%dd - %s\n", 8+(p[2]&7), reg32[(p[2]&0x3f)>>3]);
+			printf("r%dd ? %s\n", 8+(p[2]&7), reg32[(p[2]&0x3f)>>3]);
 			j += 2;
 		}
 		else if((0x41 == p[0])&&(0x50 == (p[1]&0xf8)))
@@ -340,7 +340,7 @@ void disasm_one(u8* buf, int len)
 		}
 		else if((0x41 == p[0])&&(0x80 == p[1])&&(0x3c == p[2])&&(0x04 == p[3]))
 		{
-			printf("flag = [r12+rax,1] - 0x%x\n", p[4]);
+			printf("[r12+rax,1] ? 0x%x\n", p[4]);
 			j += 4;
 		}
 		else if((0x41 == p[0])&&(0x80 == p[1])&&(0x49 == p[2]))
@@ -365,12 +365,12 @@ void disasm_one(u8* buf, int len)
 		}
 		else if((0x41 == p[0])&&(0x83 == p[1])&&(0xf9 == p[2]))
 		{
-			printf("flag = r9d - 0x%x\n", p[3]);
+			printf("r9d ? 0x%x\n", p[3]);
 			j += 3;
 		}
 		else if((0x41 == p[0])&&(0x83 == p[1])&&(0xfd == p[2]))
 		{
-			printf("flag = r13d - 0x%x\n", p[3]);
+			printf("r13d ? 0x%x\n", p[3]);
 			j += 3;
 		}
 		else if((0x41 == p[0])&&(0x85 == p[1])&&(0xc0 == (p[2]&0xc0)))
@@ -470,7 +470,7 @@ void disasm_one(u8* buf, int len)
 		}
 		else if((0x41 == p[0])&&(0xf6 == p[1])&&(0xc4 == p[2]))
 		{
-			printf("flag = r12b - 0x%x\n", p[3]);
+			printf("r12b ? 0x%x\n", p[3]);
 			j += 3;
 		}
 		else if((0x43 == p[0])&&(0x8d == p[1])&&(0x74 == p[2])&&(0xad == p[3]))
@@ -490,7 +490,7 @@ void disasm_one(u8* buf, int len)
 		}
 		else if((0x44 == p[0])&&(0x39 == p[1])&&(0xc0 == (p[2]&0xc0)))
 		{
-			printf("flag = %s - r%dd\n", reg32[p[2]&0x7], 8+((p[2]&0x3f)>>3));
+			printf("%s ? r%dd\n", reg32[p[2]&0x7], 8+((p[2]&0x3f)>>3));
 			j += 2;
 		}
 		else if((0x44 == p[0])&&(0x85 == p[1])&&(0xc0 == (p[2]&0xc0)))
@@ -563,7 +563,7 @@ void disasm_one(u8* buf, int len)
 		}
 		else if((0x45 == p[0])&&(0x39 == p[1])&&(0xc0 == (p[2]&0xc0)))
 		{
-			printf("flag = r%dd - r%dd\n", 8+(p[2]&0x7), 8+((p[2]&0x3f)>>3));
+			printf("r%dd ? r%dd\n", 8+(p[2]&0x7), 8+((p[2]&0x3f)>>3));
 			j += 2;
 		}
 		else if((0x45 == p[0])&&(0x85 == p[1])&&(0xc0 == (p[2]&0xc0)))
@@ -638,12 +638,12 @@ void disasm_one(u8* buf, int len)
 		}
 		else if((0x48 == p[0])&&(0x39 == p[1])&&(0xc0 == (p[2]&0xc0)))
 		{
-			printf("flag = %s - %s\n", reg64[p[2]&0x7], reg64[(p[2]&0x3f)>>3]);
+			printf("%s ? %s\n", reg64[p[2]&0x7], reg64[(p[2]&0x3f)>>3]);
 			j += 2;
 		}
 		else if((0x48 == p[0])&&(0x3d == p[1]))
 		{
-			printf("flag = rax - 0x%x\n", *(u32*)(p+2));
+			printf("rax ? 0x%x\n", *(u32*)(p+2));
 			j += 5;
 		}
 		else if((0x48 == p[0])&&(0x63 == p[1])&&(0xc0 == (p[2]&0xc0)))
@@ -679,7 +679,7 @@ void disasm_one(u8* buf, int len)
 		}
 		else if((0x48 == p[0])&&(0x83 == p[1])&&(0xf8 == (p[2]&0xf8)))
 		{
-			printf("flag = %s - 0x%x\n", reg64[p[2]&0x7], p[3]);
+			printf("%s ? 0x%x\n", reg64[p[2]&0x7], p[3]);
 			j += 3;
 		}
 		else if((0x48 == p[0])&&(0x89 == p[1])&&(0x02 == p[2]))
@@ -837,7 +837,7 @@ void disasm_one(u8* buf, int len)
 		}
 		else if((0x49 == p[0])&&(0x39 == p[1])&&(0xc0 == (p[2]&0xf8)))
 		{
-			printf("flag = r%d - %s\n", 8+(p[2]&0x7), reg64[(p[2]&0x3f)>>3]);
+			printf("r%d ? %s\n", 8+(p[2]&0x7), reg64[(p[2]&0x3f)>>3]);
 			j += 2;
 		}
 		else if((0x49 == p[0])&&(0x63 == p[1])&&(0xc0 == (p[2]&0xc0)))
@@ -912,7 +912,7 @@ void disasm_one(u8* buf, int len)
 		}
 		else if((0x4c == p[0])&&(0x39 == p[1])&&(0xc0 == (p[2]&0xc0)))
 		{
-			printf("flag = %s - r%d\n", reg64[(p[2]&0x7)], 8+((p[2]&0x3f)>>3));
+			printf("%s ? r%d\n", reg64[(p[2]&0x7)], 8+((p[2]&0x3f)>>3));
 			j += 2;
 		}
 		else if((0x4c == p[0])&&(0x63 == p[1])&&(0xef == p[2]))
@@ -972,7 +972,7 @@ void disasm_one(u8* buf, int len)
 		}
 		else if((0x4d == p[0])&&(0x39 == p[1])&&(0xc0 == (p[2]&0xc0)))
 		{
-			printf("flag = r%d - r%d\n", 8+(p[2]&0x7), 8+((p[2]&0x3f)>>3));
+			printf("r%d ? r%d\n", 8+(p[2]&0x7), 8+((p[2]&0x3f)>>3));
 			j += 2;
 		}
 		else if((0x4d == p[0])&&(0x63 == p[1])&&(0xc0 == p[2]))
@@ -1015,7 +1015,7 @@ void disasm_one(u8* buf, int len)
 		}
 		else if((0x66 == p[0])&&(0x39 == p[1])&&(0xc0 == (p[2]&0xc0)))
 		{
-			printf("flag = %s - %s\n", reg16[p[2]&0x7], reg16[(p[2]&0x3f)>>3]);
+			printf("%s ? %s\n", reg16[p[2]&0x7], reg16[(p[2]&0x3f)>>3]);
 			j += 2;
 		}
 		else if((0x66 == p[0])&&(0x41 == p[1])&&(0x89 == p[2])&&(0x0 == (p[3]&0xc0)))
@@ -1041,7 +1041,7 @@ void disasm_one(u8* buf, int len)
 		}
 		else if((0x66 == p[0])&&(0x83 == p[1])&&(0xf8 == (p[2]&0xf8)))
 		{
-			printf("flag = %s - 0x%x\n", reg16[p[2]&0x7], p[3]);
+			printf("%s ? 0x%x\n", reg16[p[2]&0x7], p[3]);
 			j += 3;
 		}
 		else if((0x66 == p[0])&&(0x89 == p[1])&&(0x0 == (p[2]&0xc0)))
@@ -1082,7 +1082,7 @@ void disasm_one(u8* buf, int len)
 		}
 		else if((0x80 == p[0])&&(0x3d == p[1]))
 		{
-			printf("flag = [rip+0x%x,1] - 0x%x\n", *(u32*)(p+2), p[6]);
+			printf("[rip+0x%x,1] ? 0x%x\n", *(u32*)(p+2), p[6]);
 			j += 6;
 		}
 		else if((0x80 == p[0])&&(0x4a == p[1]))
@@ -1097,7 +1097,7 @@ void disasm_one(u8* buf, int len)
 		}
 		else if((0x80 == p[0])&&(0xf8 == (p[1]&0xf8)))
 		{
-			printf("flag = %s - 0x%x\n", reg08[p[1]&0x7], p[2]);
+			printf("%s ? 0x%x\n", reg08[p[1]&0x7], p[2]);
 			j += 2;
 		}
 		else if((0x81 == p[0])&&(0xc8 == (p[1]&0xf8)))
@@ -1112,7 +1112,7 @@ void disasm_one(u8* buf, int len)
 		}
 		else if((0x81 == p[0])&&(0xf8 == (p[1]&0xf8)))
 		{
-			printf("flag = %s - 0x%x\n", reg32[p[1]&0x7], *(u32*)(p+2));
+			printf("%s ? 0x%x\n", reg32[p[1]&0x7], *(u32*)(p+2));
 			j += 5;
 		}
 		else if((0x83 == p[0])&&(0xc0 == (p[1]&0xf8)))
@@ -1137,7 +1137,7 @@ void disasm_one(u8* buf, int len)
 		}
 		else if((0x83 == p[0])&&(0xf8 == (p[1]&0xf8)))
 		{
-			printf("flag = %s - 0x%x\n", reg32[p[1]&0x7], p[2]);
+			printf("%s ? 0x%x\n", reg32[p[1]&0x7], p[2]);
 			j += 2;
 		}
 		else if((0x84 == p[0])&&(0xc0 == p[1]))
@@ -1412,7 +1412,7 @@ void disasm_one(u8* buf, int len)
 		}
 	}
 }
-void disasm(int argc, char** argv)
+void disasm_x8664(int argc, char** argv)
 {
 	int fd,ret;
 	u8 buf[0x100000];
@@ -1431,7 +1431,7 @@ void disasm(int argc, char** argv)
 		goto theend;
 	}
 
-	disasm_one(buf+0x1000, 0x100);
+	disasm_x8664_one(buf, ret);
 
 theend:
 	close(fd);

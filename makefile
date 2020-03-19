@@ -27,7 +27,8 @@ library/extra/3d.c \
 library/extra/force.c \
 library/extra/inout.c \
 source/0prep/conv.c \
-source/0prep/disasm.c \
+source/0prep/arm64.c \
+source/0prep/x8664.c \
 source/1database/create.c \
 source/1database/delete.c \
 source/1database/search.c \
