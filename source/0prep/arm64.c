@@ -11,34 +11,109 @@
 #define u64 unsigned long long
 
 
+/*
+0 EQ equal (zero)
+1 NE nonequal (nonzero)
+2 CS=HS carry set
+3 CC=LO carry clear
+4 MI minus
+5 PL positive or zero
+6 VS overflow set
+7 VC overflow clear
+8 HI unsigned higher
+9 LS unsigned lower or same
+a GE signed greater or equal ?
+b LT signed less ?
+c GT signed greater than
+d LE signed less than or equal
+e AL always ?
+f NV never ?
+*/
+static char* cond = "eq\0ne\0hs\0lo\0mi\0pl\0vs\0vc\0hi\0ls\0ge\0lt\0gt\0le\0al\0nv\0";
+static int unknown[256];
 
 
-int disasm_3btoint(u8* buf)
+//v=0: return 0b0001
+//v=1: return 0b0011
+//v=2: retrun 0b0111
+//v=3: return 0b1111
+u32 table32(int v)
 {
-	u32 u;
-	u = *(u32*)buf;
-	u &= 0xffffff;
-	if(u&0x800000)return u-0x01000000;
-	return u;
+	int j;
+	u32 tmp = 0;
+	for(j=0;j<v+1;j++)tmp |= ((u32)1<<j);
+	return tmp;
 }
+u32 rotateleft32(u32 in, int c)
+{
+	u32 tmp = in>>(32-c);
+	return (in<<c) | tmp;
+}
+u64 table64(int v)
+{
+	int j;
+	u64 tmp = 0;
+	for(j=0;j<v+1;j++)tmp |= ((u64)1<<j);
+	return tmp;
+}
+u64 rotateleft64(u64 in, int c)
+{
+	u64 tmp = in>>(64-c);
+	return (in<<c) | tmp;
+}
+
+
+
+
 void disasm_arm64_one(u8* buf, int len)
 {
 int j,cnt=0;
 u32 code;
+for(j=0;j<255;j++)unknown[j] = 0;
+
 for(j=0;j<len;j+=4){
 	code = *(u32*)(buf+j);
 	if(0xd503201f == code){
 		printf("%x:	nop\n", j);
 	}
-	if(0xd65f03c0 == code){
+	else if(0xd65f03c0 == code){
 		printf("%x:	ret\n", j);
 	}
 //-----------------jmp---------------------
-	else if(0x17 == buf[j+3]){
-		printf("%x:	b %x\n", j, j+(disasm_3btoint(buf+j)*4));
+	else if(0x14000000 == (code&0xfc000000)){
+		u32 off = code&0x3ffffff;
+		if(off&0x2000000){
+			off = (0x4000000-off)<<2;
+			printf("%x:	b 0x%x (pc-=0x%x)\n", j, j-off, off);
+		}
+		else{
+			off = off<<2;
+			printf("%x:	b 0x%x (pc+=0x%x)\n", j, j+off, off);
+		}
 	}
-	else if(0x94 == buf[j+3]){
-		printf("%x:	bl %x\n", j, j+(disasm_3btoint(buf+j)*4));
+	else if(0x94000000 == (code&0xfc000000)){
+		u32 off = code&0x3ffffff;
+		if(off&0x2000000){
+			off = (0x4000000-off)<<2;
+			printf("%x:	bl 0x%x (lr=0x%x,pc-=0x%x)\n", j, j-off, j+4, off);
+		}
+		else{
+			off = off<<2;
+			printf("%x:	bl 0x%x (lr=0x%x,pc+=0x%x)\n", j, j+off, j+4, off);
+		}
+	}
+	else if(0x54 == buf[j+3]){
+		u8 c = code&0x1f;
+		u32 off = (code>>5)&0x7ffff;
+		printf("%x:	if(%s)b ", j, cond+c*3);
+		if(code&0x800000){
+			off = (0x80000-off)<<2;
+			printf("0x%x(pc-=0x%x)\n", j-off, off);
+		}
+		else{
+			off = off<<2;
+			printf("0x%x(pc+=0x%x)\n", j+off, off);
+		}
 	}
 //-----------------mov-------------------
 	else if(0xaa0003e0 == (code&0xffc003e0)){
@@ -52,6 +127,18 @@ for(j=0;j<len;j+=4){
 	}
 	else if(0x52800000 == (code&0xfff00000)){
 		printf("%x:	w%d = %d\n", j, (code&0x1f), (code>>5)&0x7fff);
+	}
+	else if(0xf2800000 == (code&0xff800000)){
+		u8 r0 = code&0x1f;
+		u8 sh = ((code>>21)&0x3)<<4;
+		u32 val = (code>>5)&0xffff;
+		printf("%x:	x%d.[%d,%d] = %d\n", j, r0, sh,sh+15, val);
+	}
+	else if(0x72800000 == (code&0xff800000)){
+		u8 r0 = code&0x1f;
+		u8 sh = ((code>>21)&0x3)<<4;
+		u32 val = (code>>5)&0xffff;
+		printf("%x:	w%d.[%d,%d] = %d\n", j, r0, sh,sh+15, val);
 	}
 //-----------------cmp------------------
 	else if(0xeb00001f == (code&0xffc0001f)){
@@ -124,18 +211,74 @@ for(j=0;j<len;j+=4){
 		u8 r2 = (code>>16)&0x1f;
 		printf("%x:	w%d = w%d & w%d\n", j, r0, r1, r2);
 	}
+	else if(0x92000000 == (code&0xff800000)){
+		u8 r0 = code&0x1f;
+		u8 r1 = (code>>5)&0x1f;
+		printf("%x:	x%d = x%d & ", j, r0, r1);
+
+		u8 bit10 = (code>>10)&0x3f;
+		u8 bit16 = (code>>16)&0x3f;
+		u64 mask = table64(bit10);
+		if(0x400000 != (code&0xff0000)){
+			mask = rotateleft64(mask, 0x80-bit16);
+		}
+		printf("%llx\n", mask);
+	}
+	else if(0x12000000 == (code&0xff000000)){
+		u8 r0 = code&0x1f;
+		u8 r1 = (code>>5)&0x1f;
+		printf("%x:	w%d = w%d & ", j, r0, r1);
+
+		u8 bit10 = (code>>10)&0x1f;
+		u8 bit16 = (code>>16)&0x1f;
+		u32 mask = table32(bit10);
+		//printf("(%x,%x,%x)",bit10,bit16,mask);
+		//if(0x000000 == (code&0xff0000)){
+			mask = rotateleft32(mask, 0x20-bit16);
+		//}
+		printf("0x%x\n", mask);
+	}
 //-----------------orr-------------------
 	else if(0xaa000000 == (code&0xff000000)){
 		u8 r0 = code&0x1f;
 		u8 r1 = (code>>5)&0x1f;
+		u8 sh = (code>>10)&0x3f;
 		u8 r2 = (code>>16)&0x1f;
-		printf("%x:	x%d = x%d | x%d\n", j, r0, r1, r2);
+		printf("%x:	x%d = x%d | x%d<<%d\n", j, r0, r1, r2, sh);
 	}
 	else if(0x2a000000 == (code&0xff000000)){
 		u8 r0 = code&0x1f;
 		u8 r1 = (code>>5)&0x1f;
+		u8 sh = (code>>10)&0x1f;
 		u8 r2 = (code>>16)&0x1f;
-		printf("%x:	w%d = w%d | w%d\n", j, r0, r1, r2);
+		printf("%x:	w%d = w%d | w%d<<%d\n", j, r0, r1, r2, sh);
+	}
+	else if(0xb2400000 == (code&0xff800000)){
+		u8 r0 = code&0x1f;
+		u8 r1 = (code>>5)&0x1f;
+		printf("%x:	x%d = x%d | ", j, r0, r1);
+
+		u8 bit10 = (code>>10)&0x3f;
+		u8 bit16 = (code>>16)&0x3f;
+		u64 mask = table64(bit10);
+		if(0x400000 != (code&0xff0000)){
+			mask = rotateleft64(mask, 0x80-bit16);
+		}
+		printf("%llx\n", mask);
+	}
+	else if(0x32000000 == (code&0xff000000)){
+		u8 r0 = code&0x1f;
+		u8 r1 = (code>>5)&0x1f;
+		printf("%x:	w%d = w%d | ", j, r0, r1);
+
+		u8 bit10 = (code>>10)&0x1f;
+		u8 bit16 = (code>>16)&0x1f;
+		u32 mask = table32(bit10);
+		//printf("(%x,%x,%x)",bit10,bit16,mask);
+		//if(0x000000 == (code&0xff0000)){
+			mask = rotateleft32(mask, 0x20-bit16);
+		//}
+		printf("0x%x\n", mask);
 	}
 //-----------------sh--------------------
 	else if(0x9ac02000 == (code&0xffc02000)){
@@ -160,6 +303,16 @@ for(j=0;j<len;j+=4){
 */
 	}
 //---------------mem-----------------
+	else if(0x58000000 == (code&0xff800000)){
+		u8 r0 = code&0x1f;
+		int off = ((code>>5)&0x3ffff)<<2;
+		printf("%x:	x%d = [0x%x]\n", j, r0, off);
+	}
+	else if(0x18000000 == (code&0xff800000)){
+		u8 r0 = code&0x1f;
+		int off = ((code>>5)&0x3ffff)<<2;
+		printf("%x:	w%d = [0x%x]\n", j, r0, off);
+	}
 	else if(0xb8000400 == (code&0xff400400)){
 		u8 r0 = code&0x1f;
 		u8 r1 = (code>>5)&0x1f;
@@ -238,9 +391,20 @@ for(j=0;j<len;j+=4){
 		printf("%x:	%02x %02x %02x %02x\n", j,
 		buf[j+0],buf[j+1],buf[j+2],buf[j+3]);
 		cnt++;
+
+		unknown[buf[j+3]] += 1;
 	}
 }//for
-	printf("fail / total = %d / %d = %d%%\n", cnt, len/4, (100*cnt)/(len/4));
+
+for(j=0;j<256;j+=16){
+	printf("%04x: %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d\n",j,
+	unknown[j+ 0],unknown[j+ 1],unknown[j+ 2],unknown[j+ 3],
+	unknown[j+ 4],unknown[j+ 5],unknown[j+ 6],unknown[j+ 7],
+	unknown[j+ 8],unknown[j+ 9],unknown[j+10],unknown[j+11],
+	unknown[j+12],unknown[j+13],unknown[j+14],unknown[j+15]
+	);
+};
+printf("fail / total = %d / %d = %d%%\n", cnt, len/4, (100*cnt)/(len/4));
 }
 void disasm_arm64(int argc, char** argv)
 {
