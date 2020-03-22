@@ -1,3 +1,4 @@
+//aarch64-elf-objdump -b binary -m aarch64 -D ~/kernel8.img
 #include<stdio.h>
 #include<stdlib.h>
 #include<string.h>
@@ -9,6 +10,10 @@
 #define u16 unsigned short
 #define u32 unsigned int
 #define u64 unsigned long long
+#define s8 signed char
+#define s16 signed short
+#define s32 signed int
+#define s64 signed long long
 
 
 /*
@@ -65,6 +70,685 @@ u64 rotateleft64(u64 in, int c)
 
 
 
+void* disasm_arm64_str(u32 code)
+{
+	switch(code&0xffdfffe0){
+	case 0xd5100040:return "osdtrrx_el1";
+	case 0xd5100080:return "dbgbvr0_el1";
+	case 0xd51000a0:return "dbgbcr0_el1";
+	case 0xd51000c0:return "dbgwvr0_el1";
+	case 0xd51000e0:return "dbgwcr0_el1";
+	case 0xd5100180:return "dbgbvr1_el1";
+	case 0xd51001a0:return "dbgbcr1_el1";
+	case 0xd51001c0:return "dbgwvr1_el1";
+	case 0xd51001e0:return "dbgwcr1_el1";
+	case 0xd5100200:return "mdccint_el1";
+	case 0xd5100240:return "mdscr_el1";
+	case 0xd5100280:return "dbgbvr2_el1";
+	case 0xd51002a0:return "dbgbcr2_el1";
+	case 0xd51002c0:return "dbgwvr2_el1";
+	case 0xd51002e0:return "dbgwcr2_el1";
+	case 0xd5100340:return "osdtrtx_el1";
+	case 0xd5100380:return "dbgbvr3_el1";
+	case 0xd51003a0:return "dbgbcr3_el1";
+	case 0xd51003c0:return "dbgwvr3_el1";
+	case 0xd51003e0:return "dbgwcr3_el1";
+	case 0xd5100480:return "dbgbvr4_el1";
+	case 0xd51004a0:return "dbgbcr4_el1";
+	case 0xd51004c0:return "dbgwvr4_el1";
+	case 0xd51004e0:return "dbgwcr4_el1";
+	case 0xd5100580:return "dbgbvr5_el1";
+	case 0xd51005a0:return "dbgbcr5_el1";
+	case 0xd51005c0:return "dbgwvr5_el1";
+	case 0xd51005e0:return "dbgwcr5_el1";
+	case 0xd5100640:return "oseccr_el1";
+	case 0xd5100680:return "dbgbvr6_el1";
+	case 0xd51006a0:return "dbgbcr6_el1";
+	case 0xd51006c0:return "dbgwvr6_el1";
+	case 0xd51006e0:return "dbgwcr6_el1";
+	case 0xd5100780:return "dbgbvr7_el1";
+	case 0xd51007a0:return "dbgbcr7_el1";
+	case 0xd51007c0:return "dbgwvr7_el1";
+	case 0xd51007e0:return "dbgwcr7_el1";
+	case 0xd5100880:return "dbgbvr8_el1";
+	case 0xd51008a0:return "dbgbcr8_el1";
+	case 0xd51008c0:return "dbgwvr8_el1";
+	case 0xd51008e0:return "dbgwcr8_el1";
+	case 0xd5100980:return "dbgbvr9_el1";
+	case 0xd51009a0:return "dbgbcr9_el1";
+	case 0xd51009c0:return "dbgwvr9_el1";
+	case 0xd51009e0:return "dbgwcr9_el1";
+	case 0xd5100a80:return "dbgbvr10_el1";
+	case 0xd5100aa0:return "dbgbcr10_el1";
+	case 0xd5100ac0:return "dbgwvr10_el1";
+	case 0xd5100ae0:return "dbgwcr10_el1";
+	case 0xd5100b80:return "dbgbvr11_el1";
+	case 0xd5100ba0:return "dbgbcr11_el1";
+	case 0xd5100bc0:return "dbgwvr11_el1";
+	case 0xd5100be0:return "dbgwcr11_el1";
+	case 0xd5100c80:return "dbgbvr12_el1";
+	case 0xd5100ca0:return "dbgbcr12_el1";
+	case 0xd5100cc0:return "dbgwvr12_el1";
+	case 0xd5100ce0:return "dbgwcr12_el1";
+	case 0xd5100d80:return "dbgbvr13_el1";
+	case 0xd5100da0:return "dbgbcr13_el1";
+	case 0xd5100dc0:return "dbgwvr13_el1";
+	case 0xd5100de0:return "dbgwcr13_el1";
+	case 0xd5100e80:return "dbgbvr14_el1";
+	case 0xd5100ea0:return "dbgbcr14_el1";
+	case 0xd5100ec0:return "dbgwvr14_el1";
+	case 0xd5100ee0:return "dbgwcr14_el1";
+	case 0xd5100f80:return "dbgbvr15_el1";
+	case 0xd5100fa0:return "dbgbcr15_el1";
+	case 0xd5100fc0:return "dbgwvr15_el1";
+	case 0xd5100fe0:return "dbgwcr15_el1";
+	case 0xd5101000:return "mdrar_el1";
+	case 0xd5101080:return "oslar_el1";
+	case 0xd5101180:return "oslsr_el1";
+	case 0xd5101380:return "osdlr_el1";
+	case 0xd5101480:return "dbgprcr_el1";
+	case 0xd51078c0:return "dbgclaimset_el1";
+	case 0xd51079c0:return "dbgclaimclr_el1";
+	case 0xd5107ec0:return "dbgauthstatus_el1";
+	case 0xd5120000:return "teecr32_el1";
+	case 0xd5121000:return "teehbr32_el1";
+	case 0xd5130100:return "mdccsr_el0";
+	case 0xd5130400:return "dbgdtr_el0";
+	case 0xd5130500:return "dbgdtrrx_el0";
+	case 0xd5140700:return "dbgvcr32_el2";
+	case 0xd5180000:return "midr_el1";
+	case 0xd51800a0:return "mpidr_el1";
+	case 0xd51800c0:return "revidr_el1";
+	case 0xd51800e0:return "zidr_el1";
+	case 0xd5180100:return "id_pfr0_el1";
+	case 0xd5180120:return "id_pfr1_el1";
+	case 0xd5180140:return "id_dfr0_el1";
+	case 0xd5180160:return "id_afr0_el1";
+	case 0xd5180180:return "id_mmfr0_el1";
+	case 0xd51801a0:return "id_mmfr1_el1";
+	case 0xd51801c0:return "id_mmfr2_el1";
+	case 0xd51801e0:return "id_mmfr3_el1";
+	case 0xd5180200:return "id_isar0_el1";
+	case 0xd5180220:return "id_isar1_el1";
+	case 0xd5180240:return "id_isar2_el1";
+	case 0xd5180260:return "id_isar3_el1";
+	case 0xd5180280:return "id_isar4_el1";
+	case 0xd51802a0:return "id_isar5_el1";
+	case 0xd51802c0:return "id_mmfr4_el1";
+	case 0xd5180300:return "mvfr0_el1";
+	case 0xd5180320:return "mvfr1_el1";
+	case 0xd5180340:return "mvfr2_el1";
+	case 0xd5180400:return "id_aa64pfr0_el1";
+	case 0xd5180420:return "id_aa64pfr1_el1";
+	case 0xd5180480:return "id_aa64zfr0_el1";
+	case 0xd5180500:return "id_aa64dfr0_el1";
+	case 0xd5180520:return "id_aa64dfr1_el1";
+	case 0xd5180580:return "id_aa64afr0_el1";
+	case 0xd51805a0:return "id_aa64afr1_el1";
+	case 0xd5180600:return "id_aa64isar0_el1";
+	case 0xd5180620:return "id_aa64isar1_el1";
+	case 0xd5180700:return "id_aa64mmfr0_el1";
+	case 0xd5180720:return "id_aa64mmfr1_el1";
+	case 0xd5180740:return "id_aa64mmfr2_el1";
+	case 0xd5181000:return "sctlr_el1";
+	case 0xd5181020:return "actlr_el1";
+	case 0xd5181040:return "cpacr_el1";
+	case 0xd5181200:return "zcr_el1";
+	case 0xd5182000:return "ttbr0_el1";
+	case 0xd5182020:return "ttbr1_el1";
+	case 0xd5182040:return "tcr_el1";
+	case 0xd5182100:return "apiakeylo_el1";
+	case 0xd5182120:return "apiakeyhi_el1";
+	case 0xd5182140:return "apibkeylo_el1";
+	case 0xd5182160:return "apibkeyhi_el1";
+	case 0xd5182200:return "apdakeylo_el1";
+	case 0xd5182220:return "apdakeyhi_el1";
+	case 0xd5182240:return "apdbkeylo_el1";
+	case 0xd5182260:return "apdbkeyhi_el1";
+	case 0xd5182300:return "apgakeylo_el1";
+	case 0xd5182320:return "apgakeyhi_el1";
+	case 0xd5184000:return "spsr_el1";
+	case 0xd5184020:return "elr_el1";
+	case 0xd5184100:return "sp_el0";
+	case 0xd5184200:return "spsel";
+	case 0xd5184240:return "currentel";
+	case 0xd5184260:return "pan";
+	case 0xd5184280:return "uao";
+	case 0xd5185100:return "afsr0_el1";
+	case 0xd5185120:return "afsr1_el1";
+	case 0xd5185200:return "esr_el1";
+	case 0xd5185300:return "erridr_el1";
+	case 0xd5185320:return "errselr_el1";
+	case 0xd5185400:return "erxfr_el1";
+	case 0xd5185420:return "erxctlr_el1";
+	case 0xd5185440:return "erxstatus_el1";
+	case 0xd5185460:return "erxaddr_el1";
+	case 0xd5185500:return "erxmisc0_el1";
+	case 0xd5185520:return "erxmisc1_el1";
+	case 0xd5186000:return "far_el1";
+	case 0xd5187400:return "par_el1";
+	case 0xd5189900:return "pmscr_el1";
+	case 0xd5189940:return "pmsicr_el1";
+	case 0xd5189960:return "pmsirr_el1";
+	case 0xd5189980:return "pmsfcr_el1";
+	case 0xd51899a0:return "pmsevfr_el1";
+	case 0xd51899c0:return "pmslatfr_el1";
+	case 0xd51899e0:return "pmsidr_el1";
+	case 0xd5189a00:return "pmblimitr_el1";
+	case 0xd5189a20:return "pmbptr_el1";
+	case 0xd5189a60:return "pmbsr_el1";
+	case 0xd5189ae0:return "pmbidr_el1";
+	case 0xd5189e20:return "pmintenset_el1";
+	case 0xd5189e40:return "pmintenclr_el1";
+	case 0xd518a200:return "mair_el1";
+	case 0xd518a300:return "amair_el1";
+	case 0xd518c000:return "vbar_el1";
+	case 0xd518c020:return "rvbar_el1";
+	case 0xd518c040:return "rmr_el1";
+	case 0xd518c100:return "isr_el1";
+	case 0xd518c120:return "disr_el1";
+	case 0xd518d020:return "contextidr_el1";
+	case 0xd518d080:return "tpidr_el1";
+	case 0xd518e100:return "cntkctl_el1";
+	case 0xd5190000:return "ccsidr_el1";
+	case 0xd5190020:return "clidr_el1";
+	case 0xd51900e0:return "aidr_el1";
+	case 0xd51a0000:return "csselr_el1";
+	case 0xd51b0020:return "ctr_el0";
+	case 0xd51b00e0:return "dczid_el0";
+	case 0xd51b4200:return "nzcv";
+	case 0xd51b4220:return "daif";
+	case 0xd51b42a0:return "dit";
+	case 0xd51b4400:return "fpcr";
+	case 0xd51b4420:return "fpsr";
+	case 0xd51b4500:return "dspsr_el0";
+	case 0xd51b4520:return "dlr_el0";
+	case 0xd51b9c00:return "pmcr_el0";
+	case 0xd51b9c20:return "pmcntenset_el0";
+	case 0xd51b9c40:return "pmcntenclr_el0";
+	case 0xd51b9c60:return "pmovsclr_el0";
+	case 0xd51b9c80:return "pmswinc_el0";
+	case 0xd51b9ca0:return "pmselr_el0";
+	case 0xd51b9cc0:return "pmceid0_el0";
+	case 0xd51b9ce0:return "pmceid1_el0";
+	case 0xd51b9d00:return "pmccntr_el0";
+	case 0xd51b9d20:return "pmxevtyper_el0";
+	case 0xd51b9d40:return "pmxevcntr_el0";
+	case 0xd51b9e00:return "pmuserenr_el0";
+	case 0xd51b9e60:return "pmovsset_el0";
+	case 0xd51bd040:return "tpidr_el0";
+	case 0xd51bd060:return "tpidrro_el0";
+	case 0xd51be000:return "cntfrq_el0";
+	case 0xd51be020:return "cntpct_el0";
+	case 0xd51be040:return "cntvct_el0";
+	case 0xd51be200:return "cntp_tval_el0";
+	case 0xd51be220:return "cntp_ctl_el0";
+	case 0xd51be240:return "cntp_cval_el0";
+	case 0xd51be300:return "cntv_tval_el0";
+	case 0xd51be320:return "cntv_ctl_el0";
+	case 0xd51be340:return "cntv_cval_el0";
+	case 0xd51be800:return "pmevcntr0_el0";
+	case 0xd51be820:return "pmevcntr1_el0";
+	case 0xd51be840:return "pmevcntr2_el0";
+	case 0xd51be860:return "pmevcntr3_el0";
+	case 0xd51be880:return "pmevcntr4_el0";
+	case 0xd51be8a0:return "pmevcntr5_el0";
+	case 0xd51be8c0:return "pmevcntr6_el0";
+	case 0xd51be8e0:return "pmevcntr7_el0";
+	case 0xd51be900:return "pmevcntr8_el0";
+	case 0xd51be920:return "pmevcntr9_el0";
+	case 0xd51be940:return "pmevcntr10_el0";
+	case 0xd51be960:return "pmevcntr11_el0";
+	case 0xd51be980:return "pmevcntr12_el0";
+	case 0xd51be9a0:return "pmevcntr13_el0";
+	case 0xd51be9c0:return "pmevcntr14_el0";
+	case 0xd51be9e0:return "pmevcntr15_el0";
+	case 0xd51bea00:return "pmevcntr16_el0";
+	case 0xd51bea20:return "pmevcntr17_el0";
+	case 0xd51bea40:return "pmevcntr18_el0";
+	case 0xd51bea60:return "pmevcntr19_el0";
+	case 0xd51bea80:return "pmevcntr20_el0";
+	case 0xd51beaa0:return "pmevcntr21_el0";
+	case 0xd51beac0:return "pmevcntr22_el0";
+	case 0xd51beae0:return "pmevcntr23_el0";
+	case 0xd51beb00:return "pmevcntr24_el0";
+	case 0xd51beb20:return "pmevcntr25_el0";
+	case 0xd51beb40:return "pmevcntr26_el0";
+	case 0xd51beb60:return "pmevcntr27_el0";
+	case 0xd51beb80:return "pmevcntr28_el0";
+	case 0xd51beba0:return "pmevcntr29_el0";
+	case 0xd51bebc0:return "pmevcntr30_el0";
+	case 0xd51bec00:return "pmevtyper0_el0";
+	case 0xd51bec20:return "pmevtyper1_el0";
+	case 0xd51bec40:return "pmevtyper2_el0";
+	case 0xd51bec60:return "pmevtyper3_el0";
+	case 0xd51bec80:return "pmevtyper4_el0";
+	case 0xd51beca0:return "pmevtyper5_el0";
+	case 0xd51becc0:return "pmevtyper6_el0";
+	case 0xd51bece0:return "pmevtyper7_el0";
+	case 0xd51bed00:return "pmevtyper8_el0";
+	case 0xd51bed20:return "pmevtyper9_el0";
+	case 0xd51bed40:return "pmevtyper10_el0";
+	case 0xd51bed60:return "pmevtyper11_el0";
+	case 0xd51bed80:return "pmevtyper12_el0";
+	case 0xd51beda0:return "pmevtyper13_el0";
+	case 0xd51bedc0:return "pmevtyper14_el0";
+	case 0xd51bede0:return "pmevtyper15_el0";
+	case 0xd51bee00:return "pmevtyper16_el0";
+	case 0xd51bee20:return "pmevtyper17_el0";
+	case 0xd51bee40:return "pmevtyper18_el0";
+	case 0xd51bee60:return "pmevtyper19_el0";
+	case 0xd51bee80:return "pmevtyper20_el0";
+	case 0xd51beea0:return "pmevtyper21_el0";
+	case 0xd51beec0:return "pmevtyper22_el0";
+	case 0xd51beee0:return "pmevtyper23_el0";
+	case 0xd51bef00:return "pmevtyper24_el0";
+	case 0xd51bef20:return "pmevtyper25_el0";
+	case 0xd51bef40:return "pmevtyper26_el0";
+	case 0xd51bef60:return "pmevtyper27_el0";
+	case 0xd51bef80:return "pmevtyper28_el0";
+	case 0xd51befa0:return "pmevtyper29_el0";
+	case 0xd51befc0:return "pmevtyper30_el0";
+	case 0xd51befe0:return "pmccfiltr_el0";
+	case 0xd51c0000:return "vpidr_el2";
+	case 0xd51c00a0:return "vmpidr_el2";
+	case 0xd51c1000:return "sctlr_el2";
+	case 0xd51c1020:return "actlr_el2";
+	case 0xd51c1100:return "hcr_el2";
+	case 0xd51c1120:return "mdcr_el2";
+	case 0xd51c1140:return "cptr_el2";
+	case 0xd51c1160:return "hstr_el2";
+	case 0xd51c11e0:return "hacr_el2";
+	case 0xd51c1200:return "zcr_el2";
+	case 0xd51c1320:return "sder32_el2";
+	case 0xd51c2000:return "ttbr0_el2";
+	case 0xd51c2020:return "ttbr1_el2";
+	case 0xd51c2040:return "tcr_el2";
+	case 0xd51c2100:return "vttbr_el2";
+	case 0xd51c2140:return "vtcr_el2";
+	case 0xd51c2200:return "vncr_el2";
+	case 0xd51c2600:return "vsttbr_el2";
+	case 0xd51c2640:return "vstcr_el2";
+	case 0xd51c3000:return "dacr32_el2";
+	case 0xd51c4000:return "spsr_el2";
+	case 0xd51c4020:return "elr_el2";
+	case 0xd51c4100:return "sp_el1";
+	case 0xd51c4300:return "spsr_irq";
+	case 0xd51c4320:return "spsr_abt";
+	case 0xd51c4340:return "spsr_und";
+	case 0xd51c4360:return "spsr_fiq";
+	case 0xd51c5020:return "ifsr32_el2";
+	case 0xd51c5100:return "afsr0_el2";
+	case 0xd51c5120:return "afsr1_el2";
+	case 0xd51c5200:return "esr_el2";
+	case 0xd51c5260:return "vsesr_el2";
+	case 0xd51c5300:return "fpexc32_el2";
+	case 0xd51c6000:return "far_el2";
+	case 0xd51c6080:return "hpfar_el2";
+	case 0xd51c9900:return "pmscr_el2";
+	case 0xd51ca200:return "mair_el2";
+	case 0xd51ca300:return "amair_el2";
+	case 0xd51cc000:return "vbar_el2";
+	case 0xd51cc020:return "rvbar_el2";
+	case 0xd51cc040:return "rmr_el2";
+	case 0xd51cc120:return "vdisr_el2";
+	case 0xd51cd020:return "contextidr_el2";
+	case 0xd51cd040:return "tpidr_el2";
+	case 0xd51ce060:return "cntvoff_el2";
+	case 0xd51ce100:return "cnthctl_el2";
+	case 0xd51ce200:return "cnthp_tval_el2";
+	case 0xd51ce220:return "cnthp_ctl_el2";
+	case 0xd51ce240:return "cnthp_cval_el2";
+	case 0xd51ce300:return "cnthv_tval_el2";
+	case 0xd51ce320:return "cnthv_ctl_el2";
+	case 0xd51ce340:return "cnthv_cval_el2";
+	case 0xd51ce400:return "cnthvs_tval_el2";
+	case 0xd51ce420:return "cnthvs_ctl_el2";
+	case 0xd51ce440:return "cnthvs_cval_el2";
+	case 0xd51ce500:return "cnthps_tval_el2";
+	case 0xd51ce520:return "cnthps_ctl_el2";
+	case 0xd51ce540:return "cnthps_cval_el2";
+	case 0xd51d1000:return "sctlr_el12";
+	case 0xd51d1040:return "cpacr_el12";
+	case 0xd51d1200:return "zcr_el12";
+	case 0xd51d2000:return "ttbr0_el12";
+	case 0xd51d2020:return "ttbr1_el12";
+	case 0xd51d2040:return "tcr_el12";
+	case 0xd51d4000:return "spsr_el12";
+	case 0xd51d4020:return "elr_el12";
+	case 0xd51d5100:return "afsr0_el12";
+	case 0xd51d5120:return "afsr1_el12";
+	case 0xd51d5200:return "esr_el12";
+	case 0xd51d6000:return "far_el12";
+	case 0xd51d9900:return "pmscr_el12";
+	case 0xd51da200:return "mair_el12";
+	case 0xd51da300:return "amair_el12";
+	case 0xd51dc000:return "vbar_el12";
+	case 0xd51dd020:return "contextidr_el12";
+	case 0xd51de100:return "cntkctl_el12";
+	case 0xd51de200:return "cntp_tval_el02";
+	case 0xd51de220:return "cntp_ctl_el02";
+	case 0xd51de240:return "cntp_cval_el02";
+	case 0xd51de300:return "cntv_tval_el02";
+	case 0xd51de320:return "cntv_ctl_el02";
+	case 0xd51de340:return "cntv_cval_el02";
+	case 0xd51e1000:return "sctlr_el3";
+	case 0xd51e1020:return "actlr_el3";
+	case 0xd51e1100:return "scr_el3";
+	case 0xd51e1120:return "sder32_el3";
+	case 0xd51e1140:return "cptr_el3";
+	case 0xd51e1200:return "zcr_el3";
+	case 0xd51e1320:return "mdcr_el3";
+	case 0xd51e2000:return "ttbr0_el3";
+	case 0xd51e2040:return "tcr_el3";
+	case 0xd51e4000:return "spsr_el3";
+	case 0xd51e4020:return "elr_el3";
+	case 0xd51e4100:return "sp_el2";
+	case 0xd51e5100:return "afsr0_el3";
+	case 0xd51e5120:return "afsr1_el3";
+	case 0xd51e5200:return "esr_el3";
+	case 0xd51e6000:return "far_el3";
+	case 0xd51ea200:return "mair_el3";
+	case 0xd51ea300:return "amair_el3";
+	case 0xd51ec000:return "vbar_el3";
+	case 0xd51ec020:return "rvbar_el3";
+	case 0xd51ec040:return "rmr_el3";
+	case 0xd51ed040:return "tpidr_el3";
+	case 0xd51fe200:return "cntps_tval_el1";
+	case 0xd51fe220:return "cntps_ctl_el1";
+	case 0xd51fe240:return "cntps_cval_el1";
+	}
+	return 0;
+}
+//[d5000000,d51f0000]
+void disasm_arm64_msr(u32 code)
+{
+	switch(code){
+	case 0xd500407f:{printf("uao 0\n");return;}
+	case 0xd500409f:{printf("pan 0\n");return;}
+	case 0xd50040bf:{printf("spsel 0\n");return;}
+
+	case 0xd500417f:{printf("uao 1\n");return;}
+	case 0xd500419f:{printf("pan 1\n");return;}
+	case 0xd50041bf:{printf("spsel 1\n");return;}
+
+	case 0xd503201f:{printf("nop\n");return;}
+	case 0xd503203f:{printf("yield\n");return;}
+	case 0xd503205f:{printf("wfe\n");return;}
+	case 0xd503207f:{printf("wfi\n");return;}
+	case 0xd503209f:{printf("sev\n");return;}
+	case 0xd50320bf:{printf("sevl\n");return;}
+	case 0xd50320ff:{printf("xpaclri\n");return;}
+	case 0xd503211f:{printf("pacia1716\n");return;}
+	case 0xd503215f:{printf("pacib1716\n");return;}
+	case 0xd503219f:{printf("autia1716\n");return;}
+	case 0xd50321df:{printf("autib1716\n");return;}
+	case 0xd503221f:{printf("esb\n");return;}
+	case 0xd503223f:{printf("psb csync\n");return;}
+	case 0xd503229f:{printf("csdb\n");return;}
+	case 0xd503231f:{printf("paciaz\n");return;}
+	case 0xd503233f:{printf("paciasp\n");return;}
+	case 0xd503235f:{printf("pacibz\n");return;}
+	case 0xd503237f:{printf("pacibsp\n");return;}
+	case 0xd503239f:{printf("autiaz\n");return;}
+	case 0xd50323bf:{printf("autiasp\n");return;}
+	case 0xd50323df:{printf("autibz\n");return;}
+	case 0xd50323ff:{printf("autibsp\n");return;}
+
+	case 0xd503305f:{printf("clrex 0\n");return;}
+	case 0xd503309f:{printf("dsb 0\n");return;}
+	case 0xd50330bf:{printf("dmb 0\n");return;}
+	case 0xd50330df:{printf("isb 0\n");return;}
+	case 0xd503315f:{printf("clrex 0x1\n");return;}
+	case 0xd503319f:{printf("dsb oshld\n");return;}
+	case 0xd50331bf:{printf("dmb oshld\n");return;}
+	case 0xd50331df:{printf("isb 0x1\n");return;}
+	case 0xd503325f:{printf("clrex 0x2\n");return;}
+	case 0xd503329f:{printf("dsb oshst\n");return;}
+	case 0xd50332bf:{printf("dmb oshst\n");return;}
+	case 0xd50332df:{printf("isb 0x2\n");return;}
+	case 0xd503335f:{printf("clrex 0x3\n");return;}
+	case 0xd503339f:{printf("dsb osh\n");return;}
+	case 0xd50333bf:{printf("dmb osh\n");return;}
+	case 0xd50333df:{printf("isb 0x3\n");return;}
+	case 0xd503345f:{printf("clrex 0x4\n");return;}
+	case 0xd503349f:{printf("dsb 0x4\n");return;}
+	case 0xd50334bf:{printf("dmb 0x4\n");return;}
+	case 0xd50334df:{printf("isb 0x4\n");return;}
+	case 0xd503355f:{printf("clrex 0x5\n");return;}
+	case 0xd503359f:{printf("dsb nshld\n");return;}
+	case 0xd50335bf:{printf("dmb nshld\n");return;}
+	case 0xd50335df:{printf("isb 0x5\n");return;}
+	case 0xd503365f:{printf("clrex 0x6\n");return;}
+	case 0xd503369f:{printf("dsb nshst\n");return;}
+	case 0xd50336bf:{printf("dmb nshst\n");return;}
+	case 0xd50336df:{printf("isb 0x6\n");return;}
+	case 0xd503375f:{printf("clrex 0x7\n");return;}
+	case 0xd503379f:{printf("dsb nsh\n");return;}
+	case 0xd50337bf:{printf("dmb nsh\n");return;}
+	case 0xd50337df:{printf("isb 0x7\n");return;}
+	case 0xd503385f:{printf("clrex 0x8\n");return;}
+	case 0xd503389f:{printf("dsb 0x8\n");return;}
+	case 0xd50338bf:{printf("dmb 0x8\n");return;}
+	case 0xd50338df:{printf("isb 0x8\n");return;}
+	case 0xd503395f:{printf("clrex 0x9\n");return;}
+	case 0xd503399f:{printf("dsb ishld\n");return;}
+	case 0xd50339bf:{printf("dmb ishld\n");return;}
+	case 0xd50339df:{printf("isb 0x9\n");return;}
+	case 0xd5033a5f:{printf("clrex 0xa\n");return;}
+	case 0xd5033a9f:{printf("dsb ishst\n");return;}
+	case 0xd5033abf:{printf("dmb ishst\n");return;}
+	case 0xd5033adf:{printf("isb 0xa\n");return;}
+	case 0xd5033b5f:{printf("clrex 0xb\n");return;}
+	case 0xd5033b9f:{printf("dsb ish\n");return;}
+	case 0xd5033bbf:{printf("dmb ish\n");return;}
+	case 0xd5033bdf:{printf("isb 0xb\n");return;}
+	case 0xd5033c5f:{printf("clrex 0xc\n");return;}
+	case 0xd5033c9f:{printf("dsb 0xc\n");return;}
+	case 0xd5033cbf:{printf("dmb 0xc\n");return;}
+	case 0xd5033cdf:{printf("isb 0xc\n");return;}
+	case 0xd5033d5f:{printf("clrex 0xd\n");return;}
+	case 0xd5033d9f:{printf("dsb ld\n");return;}
+	case 0xd5033dbf:{printf("dmb ld\n");return;}
+	case 0xd5033ddf:{printf("isb 0xd\n");return;}
+	case 0xd5033e5f:{printf("clrex 0xe\n");return;}
+	case 0xd5033e9f:{printf("dsb st\n");return;}
+	case 0xd5033ebf:{printf("dmb st\n");return;}
+	case 0xd5033edf:{printf("isb 0xe\n");return;}
+	case 0xd5033f5f:{printf("clrex\n");return;}
+	case 0xd5033f9f:{printf("dsb sy\n");return;}
+	case 0xd5033fbf:{printf("dmb sy\n");return;}
+	case 0xd5033fdf:{printf("isb\n");return;}
+
+	case 0xd503405f:{printf("dit = 0x0\n");return;}
+	case 0xd50340df:{printf("daifset = 0x0\n");return;}
+	case 0xd50340ff:{printf("daifclr = 0x0\n");return;}
+	case 0xd503415f:{printf("dit = 0x1\n");return;}
+	case 0xd50341df:{printf("daifset = 0x1\n");return;}
+	case 0xd50341ff:{printf("daifclr = 0x1\n");return;}
+	case 0xd50342df:{printf("daifset = 0x2\n");return;}
+	case 0xd50342ff:{printf("daifclr = 0x2\n");return;}
+	case 0xd50343df:{printf("daifset = 0x3\n");return;}
+	case 0xd50343ff:{printf("daifclr = 0x3\n");return;}
+	case 0xd50344df:{printf("daifset = 0x4\n");return;}
+	case 0xd50344ff:{printf("daifclr = 0x4\n");return;}
+	case 0xd50345df:{printf("daifset = 0x5\n");return;}
+	case 0xd50345ff:{printf("daifclr = 0x5\n");return;}
+	case 0xd50346df:{printf("daifset = 0x6\n");return;}
+	case 0xd50346ff:{printf("daifclr = 0x6\n");return;}
+	case 0xd50347df:{printf("daifset = 0x7\n");return;}
+	case 0xd50347ff:{printf("daifclr = 0x7\n");return;}
+	case 0xd50348df:{printf("daifset = 0x8\n");return;}
+	case 0xd50348ff:{printf("daifclr = 0x8\n");return;}
+	case 0xd50349df:{printf("daifset = 0x9\n");return;}
+	case 0xd50349ff:{printf("daifclr = 0x9\n");return;}
+	case 0xd5034adf:{printf("daifset = 0xa\n");return;}
+	case 0xd5034aff:{printf("daifclr = 0xa\n");return;}
+	case 0xd5034bdf:{printf("daifset = 0xb\n");return;}
+	case 0xd5034bff:{printf("daifclr = 0xb\n");return;}
+	case 0xd5034cdf:{printf("daifset = 0xc\n");return;}
+	case 0xd5034cff:{printf("daifclr = 0xc\n");return;}
+	case 0xd5034ddf:{printf("daifset = 0xd\n");return;}
+	case 0xd5034dff:{printf("daifclr = 0xd\n");return;}
+	case 0xd5034edf:{printf("daifset = 0xe\n");return;}
+	case 0xd5034eff:{printf("daifclr = 0xe\n");return;}
+	case 0xd5034fdf:{printf("daifset = 0xf\n");return;}
+	case 0xd5034fff:{printf("daifclr = 0xf\n");return;}
+	}//switch
+
+	switch(code&0xffffffe0){
+	case 0xd5087100:{printf("ic ialluis\n");return;}
+	case 0xd5087500:{printf("ic iallu\n");return;}
+	case 0xd5088100:{printf("vmalle1os\n");return;}
+	case 0xd5088300:{printf("vmalle1is\n");return;}
+	case 0xd5088700:{printf("vmalle1\n");return;}
+	case 0xd50c8100:{printf("alle2os\n");return;}
+	case 0xd50c8180:{printf("alle1os\n");return;}
+	case 0xd50c81c0:{printf("vmalls12e1os\n");return;}
+	case 0xd50c8300:{printf("alle2is\n");return;}
+	case 0xd50c8380:{printf("alle1is\n");return;}
+	case 0xd50c83c0:{printf("vmalls12e1is\n");return;}
+	case 0xd50c8700:{printf("alle2\n");return;}
+	case 0xd50c8780:{printf("alle1\n");return;}
+	case 0xd50c87c0:{printf("vmalls12e1\n");return;}
+	case 0xd50e8100:{printf("alle3os\n");return;}
+	case 0xd50e8300:{printf("alle3is\n");return;}
+	case 0xd50e8700:{printf("alle3\n");return;}
+	}
+
+	char* str = 0;
+	switch(code&0xffffffe0){
+	case 0xd5087620:str = "ivac";break;
+	case 0xd5087640:str = "isw";break;
+	case 0xd5087800:str = "s1e1r";break;
+	case 0xd5087820:str = "s1e1w";break;
+	case 0xd5087840:str = "s1e0r";break;
+	case 0xd5087860:str = "s1e0w";break;
+	case 0xd5087900:str = "s1e1rp";break;
+	case 0xd5087920:str = "s1e1wp";break;
+	case 0xd5087a40:str = "csw";break;
+	case 0xd5087e40:str = "cisw";break;
+	case 0xd5088120:str = "vae1os";break;
+	case 0xd5088140:str = "aside1os";break;
+	case 0xd5088160:str = "vaae1os";break;
+	case 0xd50881a0:str = "vale1os";break;
+	case 0xd50881e0:str = "vaale1os";break;
+	case 0xd5088220:str = "rvae1is";break;
+	case 0xd5088260:str = "rvaae1is";break;
+	case 0xd50882a0:str = "rvale1is";break;
+	case 0xd50882e0:str = "rvaale1is";break;
+	case 0xd5088320:str = "vae1is";break;
+	case 0xd5088340:str = "aside1is";break;
+	case 0xd5088360:str = "vaae1is";break;
+	case 0xd50883a0:str = "vale1is";break;
+	case 0xd50883e0:str = "vaale1is";break;
+	case 0xd5088520:str = "rvae1os";break;
+	case 0xd5088560:str = "rvaae1os";break;
+	case 0xd50885a0:str = "rvale1os";break;
+	case 0xd50885e0:str = "rvaale1os";break;
+	case 0xd5088620:str = "rvae1";break;
+	case 0xd5088660:str = "rvaae1";break;
+	case 0xd50886a0:str = "rvale1";break;
+	case 0xd50886e0:str = "rvaale1";break;
+	case 0xd5088720:str = "vae1";break;
+	case 0xd5088740:str = "aside1";break;
+	case 0xd5088760:str = "vaae1";break;
+	case 0xd50887a0:str = "vale1";break;
+	case 0xd50887e0:str = "vaale1";break;
+	case 0xd50b7420:str = "zva";break;
+	case 0xd50b7520:str = "ivau";break;
+	case 0xd50b7a20:str = "cvac";break;
+	case 0xd50b7b20:str = "cvau";break;
+	case 0xd50b7c20:str = "cvap";break;
+	case 0xd50b7e20:str = "civac";break;
+	case 0xd50c7800:str = "s1e2r";break;
+	case 0xd50c7820:str = "s1e2w";break;
+	case 0xd50c7880:str = "s12e1r";break;
+	case 0xd50c78a0:str = "s12e1w";break;
+	case 0xd50c78c0:str = "s12e0r";break;
+	case 0xd50c78e0:str = "s12e0w";break;
+	case 0xd50c8020:str = "ipas2e1is";break;
+	case 0xd50c8040:str = "ripas2e1is";break;
+	case 0xd50c80a0:str = "ipas2le1is";break;
+	case 0xd50c80c0:str = "ripas2le1is";break;
+	case 0xd50c8120:str = "vae2os";break;
+	case 0xd50c81a0:str = "vale2os";break;
+	case 0xd50c8220:str = "rvae2is";break;
+	case 0xd50c82a0:str = "rvale2is";break;
+	case 0xd50c8320:str = "vae2is";break;
+	case 0xd50c83a0:str = "vale2is";break;
+	case 0xd50c8400:str = "ipas2e1os";break;
+	case 0xd50c8420:str = "ipas2e1";break;
+	case 0xd50c8440:str = "ripas2e1";break;
+	case 0xd50c8460:str = "ripas2e1os";break;
+	case 0xd50c8480:str = "ipas2le1os";break;
+	case 0xd50c84a0:str = "ipas2le1";break;
+	case 0xd50c84c0:str = "ripas2le1";break;
+	case 0xd50c84e0:str = "ripas2le1os";break;
+	case 0xd50c8520:str = "rvae2os";break;
+	case 0xd50c85a0:str = "rvale2os";break;
+	case 0xd50c8620:str = "rvae2";break;
+	case 0xd50c86a0:str = "rvale2";break;
+	case 0xd50c8720:str = "vae2";break;
+	case 0xd50c87a0:str = "vale2";break;
+	case 0xd50e7800:str = "s1e3r";break;
+	case 0xd50e7820:str = "s1e3w";break;
+	case 0xd50e8120:str = "vae3os";break;
+	case 0xd50e81a0:str = "vale3os";break;
+	case 0xd50e8220:str = "rvae3is";break;
+	case 0xd50e82a0:str = "rvale3is";break;
+	case 0xd50e8320:str = "vae3is";break;
+	case 0xd50e83a0:str = "vale3is";break;
+	case 0xd50e8520:str = "rvae3os";break;
+	case 0xd50e85a0:str = "rvale3os";break;
+	case 0xd50e8620:str = "rvae3";break;
+	case 0xd50e86a0:str = "rvale3";break;
+	case 0xd50e8720:str = "vae3";break;
+	case 0xd50e87a0:str = "vale3";break;
+	}
+
+	u8 r0 = code&0x1f;
+	if(str){
+		printf("%s = x%d\n", str, r0);
+		return;
+	}
+
+	str = disasm_arm64_str(code);
+	if(str){
+		printf("%s = x%d\n", str, r0);
+		return;
+	}
+
+	u8 s0 = (code >> 5) & 0x7;
+	u8 s1 = (code >> 8) & 0xf;
+	u8 s2 = (code >>12) & 0xf;
+	u8 s3 = (code >>16) & 0x7;
+	u8 s4 = (code >>19) & 0x3;
+	printf("s%d_%d_c%d_c%d_%d = x%d\n", s4,s3,s2,s1,s0, r0);
+}
+//[d5200000,d53f0000]
+void disasm_arm64_mrs(u32 code)
+{
+	char* str = 0;
+	u8 r0 = code&0x1f;
+
+	str = disasm_arm64_str(code);
+	if(str){
+		printf("x%d = %s\n", r0, str);
+		return;
+	}
+
+	u8 s0 = (code >> 5) & 0x7;
+	u8 s1 = (code >> 8) & 0xf;
+	u8 s2 = (code >>12) & 0xf;
+	u8 s3 = (code >>16) & 0x7;
+	u8 s4 = (code >>19) & 0x3;
+	printf("x%d = s%d_%d_c%d_c%d_%d\n", r0, s4,s3,s2,s1,s0);
+}
+
+
+
+
 void disasm_arm64_one(u8* buf, int len)
 {
 int j,cnt=0;
@@ -73,39 +757,45 @@ for(j=0;j<255;j++)unknown[j] = 0;
 
 for(j=0;j<len;j+=4){
 	code = *(u32*)(buf+j);
-	if(0xd503201f == code){
-		printf("%x:	nop\n", j);
+	printf("%8x:	%08x	", j, code);
+
+	if(0xd65f03c0 == code){
+		printf("ret\n");
 	}
-	else if(0xd65f03c0 == code){
-		printf("%x:	ret\n", j);
+//---------------msr,mrs-------------
+	else if(0xd5000000 == (code&0xffd00000)){
+		disasm_arm64_msr(code);
+	}
+	else if(0xd5200000 == (code&0xffe00000)){
+		disasm_arm64_mrs(code);
 	}
 //-----------------jmp---------------------
 	else if(0x14000000 == (code&0xfc000000)){
 		u32 off = code&0x3ffffff;
 		if(off&0x2000000){
 			off = (0x4000000-off)<<2;
-			printf("%x:	b 0x%x (pc-=0x%x)\n", j, j-off, off);
+			printf("b 0x%x (pc-=0x%x)\n", j-off, off);
 		}
 		else{
 			off = off<<2;
-			printf("%x:	b 0x%x (pc+=0x%x)\n", j, j+off, off);
+			printf("b 0x%x (pc+=0x%x)\n", j+off, off);
 		}
 	}
 	else if(0x94000000 == (code&0xfc000000)){
 		u32 off = code&0x3ffffff;
 		if(off&0x2000000){
 			off = (0x4000000-off)<<2;
-			printf("%x:	bl 0x%x (lr=0x%x,pc-=0x%x)\n", j, j-off, j+4, off);
+			printf("bl 0x%x (lr=0x%x,pc-=0x%x)\n", j-off, j+4, off);
 		}
 		else{
 			off = off<<2;
-			printf("%x:	bl 0x%x (lr=0x%x,pc+=0x%x)\n", j, j+off, j+4, off);
+			printf("bl 0x%x (lr=0x%x,pc+=0x%x)\n", j+off, j+4, off);
 		}
 	}
 	else if(0x54 == buf[j+3]){
 		u8 c = code&0x1f;
 		u32 off = (code>>5)&0x7ffff;
-		printf("%x:	if(%s)b ", j, cond+c*3);
+		printf("if(%s)b ", cond+c*3);
 		if(code&0x800000){
 			off = (0x80000-off)<<2;
 			printf("0x%x(pc-=0x%x)\n", j-off, off);
@@ -117,42 +807,57 @@ for(j=0;j<len;j+=4){
 	}
 //-----------------mov-------------------
 	else if(0xaa0003e0 == (code&0xffc003e0)){
-		printf("%x:	x%d = x%d\n", j, code&0x1f, (code>>16)&0x1f);
+		printf("x%d = x%d\n", code&0x1f, (code>>16)&0x1f);
 	}
 	else if(0x2a0003e0 == (code&0xffc003e0)){
-		printf("%x:	w%d = w%d\n", j, code&0x1f, (code>>16)&0x1f);
+		printf("w%d = w%d\n", code&0x1f, (code>>16)&0x1f);
 	}
 	else if(0xd2800000 == (code&0xfff00000)){
-		printf("%x:	x%d = %d\n", j, (code&0x1f), (code>>5)&0x7fff);
+		printf("x%d = %d\n", (code&0x1f), (code>>5)&0x7fff);
 	}
 	else if(0x52800000 == (code&0xfff00000)){
-		printf("%x:	w%d = %d\n", j, (code&0x1f), (code>>5)&0x7fff);
+		printf("w%d = %d\n", (code&0x1f), (code>>5)&0x7fff);
 	}
 	else if(0xf2800000 == (code&0xff800000)){
 		u8 r0 = code&0x1f;
 		u8 sh = ((code>>21)&0x3)<<4;
 		u32 val = (code>>5)&0xffff;
-		printf("%x:	x%d.[%d,%d] = %d\n", j, r0, sh,sh+15, val);
+		printf("x%d.[%d,%d] = %d\n", r0, sh,sh+15, val);
 	}
 	else if(0x72800000 == (code&0xff800000)){
 		u8 r0 = code&0x1f;
 		u8 sh = ((code>>21)&0x3)<<4;
 		u32 val = (code>>5)&0xffff;
-		printf("%x:	w%d.[%d,%d] = %d\n", j, r0, sh,sh+15, val);
+		printf("w%d.[%d,%d] = %d\n", r0, sh,sh+15, val);
+	}
+//-----------------adrp-----------------
+	else if(0x10000000 == (code&0xff000000)){
+		u8 r0 = code&0x1f;
+		int val = (code>>5)&0x7ffff;
+		if(code&0x800000)val -= 0x80000;
+		val = val<<2;
+		printf("x%d = 0x%x (adr 0x%x)\n", r0, j+val, val);
+	}
+	else if(0x90000000 == (code&0x9f000000)){
+		u8 r0 = code&0x1f;
+		int val = (code>>5)&0x7ffff;
+		if(code&0x800000)val -= 0x80000;
+		val = (val<<2)+((code>>29)&3);
+		printf("x%d = 0x%x (adrp 0x%x)\n", r0, ((j>>12)+val)<<12, val<<12);
 	}
 //-----------------cmp------------------
 	else if(0xeb00001f == (code&0xffc0001f)){
-		if(code&0x200000)printf("%x:	x%d ? (u64)w%d\n", j, (code>>5)&0x1f, (code>>16)&0x1f);
-		else printf("%x:	x%d ? x%d\n", j, (code>>5)&0x1f, (code>>16)&0x1f);
+		if(code&0x200000)printf("x%d ? (u64)w%d\n", (code>>5)&0x1f, (code>>16)&0x1f);
+		else printf("x%d ? x%d\n", (code>>5)&0x1f, (code>>16)&0x1f);
 	}
 	else if(0x6b00001f == (code&0xffc0001f)){
-		printf("%x:	w%d ? w%d\n", j, (code>>5)&0x1f, (code>>16)&0x1f);
+		printf("w%d ? w%d\n", (code>>5)&0x1f, (code>>16)&0x1f);
 	}
 	else if(0xf100001f == (code&0xffc0001f)){
-		printf("%x:	x%d ? %d\n", j, (code>>5)&0x1f, (code>>10)&0xfff);
+		printf("x%d ? %d\n", (code>>5)&0x1f, (code>>10)&0xfff);
 	}
 	else if(0x7100001f == (code&0xffc0001f)){
-		printf("%x:	w%d ? %d\n", j, (code>>5)&0x1f, (code>>10)&0xfff);
+		printf("w%d ? %d\n", (code>>5)&0x1f, (code>>10)&0xfff);
 	}
 //-----------------add-----------------
 	else if(0x8b000000 == (code&0xff000000)){
@@ -160,61 +865,179 @@ for(j=0;j<len;j+=4){
 		u8 r1 = (code>>5)&0x1f;
 		u8 r2 = (code>>16)&0x1f;
 		u8 sh = (code>>10)&0x3f;
-		printf("%x:	x%d = x%d + ", j, r0, r1);
+		printf("x%d = x%d + ", r0, r1);
 
-		if(code&0x200000)printf("(u64)w%d\n", r2);
-		else if(code&0x400000)printf("x%d>>%d\n", r2, sh);
-		else if(sh)printf("x%d<<%d\n", r2, sh);
-		else printf("x%d\n", r2);
+		switch(code&0xe00000){
+		case 0x000000:printf("lsl(x%d,%d)\n", r2, sh);break;
+		case 0x200000:{
+			sh = (code>>10)&0x7;
+			switch(code&0xe000){
+			case 0x0000:printf("uxtb(w%d,%d)\n", r2, sh);break;
+			case 0x2000:printf("uxth(w%d,%d)\n", r2, sh);break;
+			case 0x4000:printf("uxtw(w%d,%d)\n", r2, sh);break;
+			case 0x6000:printf("lsl(x%d,%d)\n", r2, sh);break;
+			case 0x8000:printf("sxtb(w%d,%d)\n", r2, sh);break;
+			case 0xa000:printf("sxth(w%d,%d)\n", r2, sh);break;
+			case 0xc000:printf("sxtw(w%d,%d)\n", r2, sh);break;
+			case 0xe000:printf("sxtx(x%d,%d)\n", r2, sh);break;
+			default:printf("err\n");
+			}
+			break;
+		}
+		case 0x400000:printf("lsr(x%d,%d)\n", r2, sh);break;
+		case 0x800000:printf("asr(x%d,%d)\n", r2, sh);break;
+		default:printf("err\n");
+		}
 	}
-	else if(0x91000000 == (code&0xff400000)){
-		printf("%x:	x%d = x%d + %d\n", j, code&0x1f, (code>>5)&0x1f, (code>>10)&0xfff);
+	else if(0x0b000000 == (code&0xff000000)){
+		u8 r0 = code&0x1f;
+		u8 r1 = (code>>5)&0x1f;
+		u8 r2 = (code>>16)&0x1f;
+		u8 sh = (code>>10)&0x3f;
+		printf("w%d = w%d + ", r0, r1);
+
+		switch(code&0xe00000){
+		case 0x000000:printf("lsl(w%d,%d)\n", r2, sh);break;
+		case 0x200000:{
+			sh = (code>>10)&0x7;
+			switch(code&0xe000){
+			case 0x0000:printf("uxtb(w%d,%d)\n", r2, sh);break;
+			case 0x2000:printf("uxth(w%d,%d)\n", r2, sh);break;
+			case 0x4000:printf("uxtw(w%d,%d)\n", r2, sh);break;
+			case 0x6000:printf("uxtx(w%d,%d)\n", r2, sh);break;
+			case 0x8000:printf("sxtb(w%d,%d)\n", r2, sh);break;
+			case 0xa000:printf("sxth(w%d,%d)\n", r2, sh);break;
+			case 0xc000:printf("sxtw(w%d,%d)\n", r2, sh);break;
+			case 0xe000:printf("sxtx(w%d,%d)\n", r2, sh);break;
+			default:printf("err\n");
+			}
+			break;
+		}
+		case 0x400000:printf("lsr(w%d,%d)\n", r2, sh);break;
+		case 0x800000:printf("asr(w%d,%d)\n", r2, sh);break;
+		default:printf("err\n");
+		}
 	}
-	else if(0x91400000 == (code&0xff400000)){
-		printf("%x:	x%d = x%d + %d<<12\n", j, code&0x1f, (code>>5)&0x1f, (code>>10)&0xfff);
+	else if(0x91000000 == (code&0xff000000)){
+		u8 r0 = code&0x1f;
+		u8 r1 = (code>>5)&0x1f;
+		u32 val = (code>>10)&0xfff;
+		if(code & 0x400000){
+			printf("x%d = x%d + %d<<12\n", r0, r1, val);
+		}
+		else{
+			printf("x%d = x%d + %d\n", r0, r1, val);
+		}
 	}
 	else if(0x11000000 == (code&0xff000000)){
-		printf("%x:	w%d = w%d + %d\n", j, code&0x1f, (code>>5)&0x1f, (code>>10)&0xfff);
+		u8 r0 = code&0x1f;
+		u8 r1 = (code>>5)&0x1f;
+		u32 val = (code>>10)&0xfff;
+		if(code & 0x400000){
+			printf("w%d = w%d + %d<<12\n", r0, r1, val);
+		}
+		else{
+			printf("w%d = w%d + %d\n", r0, r1, val);
+		}
 	}
 //--------------------sub----------------------
 	else if(0xcb000000 == (code&0xff000000)){
 		u8 r0 = code&0x1f;
 		u8 r1 = (code>>5)&0x1f;
 		u8 r2 = (code>>16)&0x1f;
-		printf("%x:	x%d = x%d - x%d\n", j, r0, r1, r2);
+		u8 sh = (code>>10)&0x3f;
+		printf("x%d = x%d - ", r0, r1);
+
+		switch(code&0xe00000){
+		case 0x000000:printf("lsl(x%d,%d)\n", r2, sh);break;
+		case 0x200000:{
+			sh = (code>>10)&0x7;
+			switch(code&0xe000){
+			case 0x0000:printf("uxtb(w%d,%d)\n", r2, sh);break;
+			case 0x2000:printf("uxth(w%d,%d)\n", r2, sh);break;
+			case 0x4000:printf("uxtw(w%d,%d)\n", r2, sh);break;
+			case 0x6000:printf("lsl(x%d,%d)\n", r2, sh);break;
+			case 0x8000:printf("sxtb(w%d,%d)\n", r2, sh);break;
+			case 0xa000:printf("sxth(w%d,%d)\n", r2, sh);break;
+			case 0xc000:printf("sxtw(w%d,%d)\n", r2, sh);break;
+			case 0xe000:printf("sxtx(x%d,%d)\n", r2, sh);break;
+			default:printf("err\n");
+			}
+			break;
+		}
+		case 0x400000:printf("lsr(x%d,%d)\n", r2, sh);break;
+		case 0x800000:printf("asr(x%d,%d)\n", r2, sh);break;
+		default:printf("err\n");
+		}
 	}
 	else if(0x4b000000 == (code&0xff000000)){
 		u8 r0 = code&0x1f;
 		u8 r1 = (code>>5)&0x1f;
 		u8 r2 = (code>>16)&0x1f;
-		printf("%x:	w%d = w%d - w%d\n", j, r0, r1, r2);
+		u8 sh = (code>>10)&0x3f;
+		printf("w%d = w%d - ", r0, r1);
+
+		switch(code&0xe00000){
+		case 0x000000:printf("lsl(w%d,%d)\n", r2, sh);break;
+		case 0x200000:{
+			sh = (code>>10)&0x7;
+			switch(code&0xe000){
+			case 0x0000:printf("uxtb(w%d,%d)\n", r2, sh);break;
+			case 0x2000:printf("uxth(w%d,%d)\n", r2, sh);break;
+			case 0x4000:printf("uxtw(w%d,%d)\n", r2, sh);break;
+			case 0x6000:printf("uxtx(w%d,%d)\n", r2, sh);break;
+			case 0x8000:printf("sxtb(w%d,%d)\n", r2, sh);break;
+			case 0xa000:printf("sxth(w%d,%d)\n", r2, sh);break;
+			case 0xc000:printf("sxtw(w%d,%d)\n", r2, sh);break;
+			case 0xe000:printf("sxtx(w%d,%d)\n", r2, sh);break;
+			default:printf("err\n");
+			}
+			break;
+		}
+		case 0x400000:printf("lsr(w%d,%d)\n", r2, sh);break;
+		case 0x800000:printf("asr(w%d,%d)\n", r2, sh);break;
+		default:printf("err\n");
+		}
 	}
-	else if(0xd1000000 == (code&0xff400000)){
-		printf("%x:	x%d = x%d - %d\n", j, code&0x1f, (code>>5)&0x1f, (code>>10)&0xfff);
-	}
-	else if(0xd1400000 == (code&0xff400000)){
-		printf("%x:	x%d = x%d - %d<<12\n", j, code&0x1f, (code>>5)&0x1f, (code>>10)&0xfff);
+	else if(0xd1000000 == (code&0xff000000)){
+		u8 r0 = code&0x1f;
+		u8 r1 = (code>>5)&0x1f;
+		u32 val = (code>>10)&0xfff;
+		if(code & 0x400000){
+			printf("x%d = x%d - %d<<12\n", r0, r1, val);
+		}
+		else{
+			printf("x%d = x%d - %d\n", r0, r1, val);
+		}
 	}
 	else if(0x51000000 == (code&0xff000000)){
-		printf("%x:	w%d = w%d - %d\n", j, code&0x1f, (code>>5)&0x1f, (code>>10)&0xfff);
+		u8 r0 = code&0x1f;
+		u8 r1 = (code>>5)&0x1f;
+		u32 val = (code>>10)&0xfff;
+		if(code & 0x400000){
+			printf("w%d = w%d - %d<<12\n", r0, r1, val);
+		}
+		else{
+			printf("w%d = w%d - %d\n", r0, r1, val);
+		}
 	}
 //-----------------and-------------------
 	else if(0x8a000000 == (code&0xff000000)){
 		u8 r0 = code&0x1f;
 		u8 r1 = (code>>5)&0x1f;
 		u8 r2 = (code>>16)&0x1f;
-		printf("%x:	x%d = x%d & x%d\n", j, r0, r1, r2);
+		printf("x%d = x%d & x%d\n", r0, r1, r2);
 	}
 	else if(0x0a000000 == (code&0xff000000)){
 		u8 r0 = code&0x1f;
 		u8 r1 = (code>>5)&0x1f;
 		u8 r2 = (code>>16)&0x1f;
-		printf("%x:	w%d = w%d & w%d\n", j, r0, r1, r2);
+		printf("w%d = w%d & w%d\n", r0, r1, r2);
 	}
 	else if(0x92000000 == (code&0xff800000)){
 		u8 r0 = code&0x1f;
 		u8 r1 = (code>>5)&0x1f;
-		printf("%x:	x%d = x%d & ", j, r0, r1);
+		printf("x%d = x%d & ", r0, r1);
 
 		u8 bit10 = (code>>10)&0x3f;
 		u8 bit16 = (code>>16)&0x3f;
@@ -227,7 +1050,7 @@ for(j=0;j<len;j+=4){
 	else if(0x12000000 == (code&0xff000000)){
 		u8 r0 = code&0x1f;
 		u8 r1 = (code>>5)&0x1f;
-		printf("%x:	w%d = w%d & ", j, r0, r1);
+		printf("w%d = w%d & ", r0, r1);
 
 		u8 bit10 = (code>>10)&0x1f;
 		u8 bit16 = (code>>16)&0x1f;
@@ -244,19 +1067,19 @@ for(j=0;j<len;j+=4){
 		u8 r1 = (code>>5)&0x1f;
 		u8 sh = (code>>10)&0x3f;
 		u8 r2 = (code>>16)&0x1f;
-		printf("%x:	x%d = x%d | x%d<<%d\n", j, r0, r1, r2, sh);
+		printf("x%d = x%d | x%d<<%d\n", r0, r1, r2, sh);
 	}
 	else if(0x2a000000 == (code&0xff000000)){
 		u8 r0 = code&0x1f;
 		u8 r1 = (code>>5)&0x1f;
 		u8 sh = (code>>10)&0x1f;
 		u8 r2 = (code>>16)&0x1f;
-		printf("%x:	w%d = w%d | w%d<<%d\n", j, r0, r1, r2, sh);
+		printf("w%d = w%d | w%d<<%d\n", r0, r1, r2, sh);
 	}
 	else if(0xb2400000 == (code&0xff800000)){
 		u8 r0 = code&0x1f;
 		u8 r1 = (code>>5)&0x1f;
-		printf("%x:	x%d = x%d | ", j, r0, r1);
+		printf("x%d = x%d | ", r0, r1);
 
 		u8 bit10 = (code>>10)&0x3f;
 		u8 bit16 = (code>>16)&0x3f;
@@ -269,7 +1092,7 @@ for(j=0;j<len;j+=4){
 	else if(0x32000000 == (code&0xff000000)){
 		u8 r0 = code&0x1f;
 		u8 r1 = (code>>5)&0x1f;
-		printf("%x:	w%d = w%d | ", j, r0, r1);
+		printf("w%d = w%d | ", r0, r1);
 
 		u8 bit10 = (code>>10)&0x1f;
 		u8 bit16 = (code>>16)&0x1f;
@@ -283,22 +1106,22 @@ for(j=0;j<len;j+=4){
 //-----------------sh--------------------
 	else if(0x9ac02000 == (code&0xffc02000)){
 		if(code&0x400){
-			printf("%x:	x%d = x%d >> x%d\n", j, code&0x1f, (code>>5)&0x1f, (code>>16)&0x1f);
+			printf("x%d = x%d >> x%d\n", code&0x1f, (code>>5)&0x1f, (code>>16)&0x1f);
 		}
 		else{
-			printf("%x:	x%d = x%d << x%d\n", j, code&0x1f, (code>>5)&0x1f, (code>>16)&0x1f);
+			printf("x%d = x%d << x%d\n", code&0x1f, (code>>5)&0x1f, (code>>16)&0x1f);
 		}
 	}
 	else if(0xd3400000 == (code&0xffc00000)){
 		u8 lsb = (code>>16)&0x3f;
 		u8 msb = (code>>10)&0x3f;
-		printf("%x:	x%d = x%d.[%d,%d]\n", j, code&0x1f, (code>>5)&0x1f, lsb, msb);
+		printf("x%d = x%d.[%d,%d]\n", code&0x1f, (code>>5)&0x1f, lsb, msb);
 /*
 		if(0xfc <= ((code>>8)&0xff)){
-			printf("%x:	x%d = x%d >> %d\n", j, code&0x1f, (code>>5)&0x1f, sh-0x40);
+			printf("x%d = x%d >> %d\n", code&0x1f, (code>>5)&0x1f, sh-0x40);
 		}
 		else{
-			printf("%x:	x%d = x%d << %d\n", j, code&0x1f, (code>>5)&0x1f, 0x80-sh);
+			printf("x%d = x%d << %d\n", code&0x1f, (code>>5)&0x1f, 0x80-sh);
 		}
 */
 	}
@@ -306,102 +1129,120 @@ for(j=0;j<len;j+=4){
 	else if(0x58000000 == (code&0xff800000)){
 		u8 r0 = code&0x1f;
 		int off = ((code>>5)&0x3ffff)<<2;
-		printf("%x:	x%d = [0x%x]\n", j, r0, off);
+		printf("x%d = [0x%x]\n", r0, off);
 	}
 	else if(0x18000000 == (code&0xff800000)){
 		u8 r0 = code&0x1f;
 		int off = ((code>>5)&0x3ffff)<<2;
-		printf("%x:	w%d = [0x%x]\n", j, r0, off);
+		printf("w%d = [0x%x]\n", r0, off);
 	}
 	else if(0xb8000400 == (code&0xff400400)){
 		u8 r0 = code&0x1f;
 		u8 r1 = (code>>5)&0x1f;
 		int off = (code>>12)&0xff;
 		if(code&0x100000)off -= 256;
-		printf("%x:	[x%d] %+d = w%d\n", j, r1, off, r0);
+		printf("[x%d] %+d = w%d\n", r1, off, r0);
 	}
 	else if(0xb8400400 == (code&0xff400400)){
 		u8 r0 = code&0x1f;
 		u8 r1 = (code>>5)&0x1f;
 		int off = (code>>12)&0xff;
-		printf("%x:	w%d = [x%d] %+d\n", j, r0, r1, off);
+		printf("w%d = [x%d] %+d\n", r0, r1, off);
 	}
-	else if(0xb9000000 == (code&0xff400000)){
-		u8 r0 = code&0x1f;
-		u8 r1 = (code>>5)&0x1f;
-		int off = (code>>10)&0xfff;
-		printf("%x:	[x%d %+d] = w%d\n", j, r1, off<<2, r0);
-	}
-	else if(0xb9400000 == (code&0xff400000)){
-		u8 r0 = code&0x1f;
-		u8 r1 = (code>>5)&0x1f;
-		int off = (code>>10)&0xfff;
-		printf("%x:	w%d = [x%d %+d]\n", j, r0, r1, off<<2);
-	}
-	else if(0xf8000000 == (code&0xff400000)){
-		u8 r0 = code&0x1f;
-		u8 rr = (code>>5)&0x1f;
-		int off = (code>>15)&0x3f;
-		if(code&0x100000)off -= 0x40;
-
-		printf("%x:	[x%d %+d] = x%d\n", j, rr, off*8, r0);
-	}
-	else if(0xf8400000 == (code&0xff400000)){
-		u8 r0 = code&0x1f;
-		u8 rr = (code>>5)&0x1f;
-		int off = (code>>15)&0x3f;
-		if(code&0x100000)off -= 0x40;
-
-		printf("%x:	x%d = [x%d %+d]\n", j, r0, rr, off*8);
-	}
-	else if(0xf9000000 == (code&0xff400000)){
-		u8 r0 = code&0x1f;
-		u8 rr = (code>>5)&0x1f;
-		int off = (code>>10)&0x3f;
-		printf("%x:	[x%d %+d] = x%d\n", j, rr, off*8, r0);
-	}
-	else if(0xf9400000 == (code&0xff400000)){
-		u8 r0 = code&0x1f;
-		u8 rr = (code>>5)&0x1f;
-		int off = (code>>10)&0x3f;
-		printf("%x:	x%d = [x%d %+d]\n", j, r0, rr, off*8);
-	}
-	else if(0xa9000000 == (code&0xff400000)){
+	else if(0xa9000000 == (code&0xff000000)){
 		u8 r0 = code&0x1f;
 		u8 r1 = (code>>10)&0x1f;
 		u8 rr = (code>>5)&0x1f;
 		int off = (code>>15)&0x3f;
 		if(code&0x200000)off -= 0x40;
+		off *= 8;
 
-		if(code&0x800000)printf("%x:	[x%d %+d]! = x%d,x%d\n", j, rr, off*8, r0, r1);
-		else printf("%x:	[x%d %+d] = x%d,x%d\n", j, rr, off*8, r0, r1);
+		if(code&0x400000){
+			if(code&0x800000)printf("x%d,x%d = [x%d %+d]!\n", r0,r1, rr,off);
+			else printf("x%d,x%d = [x%d %+d]\n", r0,r1, rr,off);
+		}
+		else{
+			if(code&0x800000)printf("[x%d %+d]! = x%d,x%d\n", rr,off, r0,r1);
+			else printf("[x%d %+d] = x%d,x%d\n", rr,off, r0,r1);
+		}
 	}
-	else if(0xa9400000 == (code&0xff400000)){
+	else if(0xb9000000 == (code&0xff000000)){
 		u8 r0 = code&0x1f;
-		u8 r1 = (code>>10)&0x1f;
+		u8 r1 = (code>>5)&0x1f;
+		int off = (code>>10)&0xfff;
+		if(code&0x400000){
+			printf("w%d = [x%d %+d]\n", r0, r1, off<<2);
+		}
+		else{
+			printf("[x%d %+d] = w%d\n", r1, off<<2, r0);
+		}
+	}
+	else if(0xf8000000 == (code&0xff000000)){
+		u8 r0 = code&0x1f;
 		u8 rr = (code>>5)&0x1f;
-		int off = (code>>15)&0x3f;
-		if(code&0x200000)off -= 0x40;
 
-		if(code&0x800000)printf("%x:	x%d,x%d = [x%d %+d]!\n", j, r0, r1, rr, off*8);
-		else printf("%x:	x%d,x%d = [x%d %+d]\n", j, r0, r1, rr, off*8);
+		switch(code&0xe00000){
+		case 0x000000:{
+			int val = (code>>12)&0xff;
+			if(code&0x100000)val -= 256;
+
+			switch(code&0xc00){
+			case 0x000:printf("[x%d %+d] = x%d\n", rr, val, r0);break;
+			case 0x400:printf("[x%d]  %+d= x%d\n", rr, val, r0);break;
+			case 0x800:printf("[x%d %+d] = x%d\n", rr, val, r0);break;
+			case 0xc00:printf("[x%d %+d]! = x%d\n", rr, val, r0);break;
+			}
+			break;
+		}
+		case 0x400000:{
+			int val = (code>>12)&0xff;
+			if(code&0x100000)val -= 256;
+
+			switch(code&0xc00){
+			case 0x000:printf("x%d = [x%d %+d]\n", r0, rr, val);break;
+			case 0x400:printf("x%d = [x%d] %+d\n", r0, rr, val);break;
+			case 0x800:printf("x%d = [x%d %+d]\n", r0, rr, val);break;
+			case 0xc00:printf("x%d = [x%d %+d]!\n", r0, rr, val);break;
+			}
+			break;
+		}
+		default:printf("err\n");
+		}
+	}
+	else if(0xf9000000 == (code&0xff000000)){
+		u8 r0 = code&0x1f;
+		u8 rr = (code>>5)&0x1f;
+		int off = (code>>10)&0xfff;
+		if(code&0x400000){
+			printf("x%d = [x%d %+d]\n", r0, rr, off*8);
+		}
+		else{
+			printf("[x%d %+d] = x%d\n", rr, off*8, r0);
+		}
+	}
+	else if(0xfd000000 == (code&0xff000000)){
+		u8 r0 = code&0x1f;
+		u8 r1 = (code>>5)&0x1f;
+		int val = ((code>>10)&0xfff)<<3;
+		if(code & 0x400000){
+			printf("d%d = [x%d + %d]\n", r0, r1,val);
+		}
+		else{
+			printf("[x%d + %d] = d%d\n", r1,val, r0);
+		}
 	}
 //--------------???0000000000000000000
 	else{
-		printf("%x:	%02x %02x %02x %02x\n", j,
-		buf[j+0],buf[j+1],buf[j+2],buf[j+3]);
-		cnt++;
-
+		printf("unknown\n");
 		unknown[buf[j+3]] += 1;
+		cnt += 1;
 	}
 }//for
 
-for(j=0;j<256;j+=16){
-	printf("%04x: %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d\n",j,
+for(j=0;j<256;j+=8){
+	printf("%06x: %6d %6d %6d %6d %6d %6d %6d %6d\n",j,
 	unknown[j+ 0],unknown[j+ 1],unknown[j+ 2],unknown[j+ 3],
-	unknown[j+ 4],unknown[j+ 5],unknown[j+ 6],unknown[j+ 7],
-	unknown[j+ 8],unknown[j+ 9],unknown[j+10],unknown[j+11],
-	unknown[j+12],unknown[j+13],unknown[j+14],unknown[j+15]
+	unknown[j+ 4],unknown[j+ 5],unknown[j+ 6],unknown[j+ 7]
 	);
 };
 printf("fail / total = %d / %d = %d%%\n", cnt, len/4, (100*cnt)/(len/4));
@@ -409,7 +1250,7 @@ printf("fail / total = %d / %d = %d%%\n", cnt, len/4, (100*cnt)/(len/4));
 void disasm_arm64(int argc, char** argv)
 {
 	int fd,ret;
-	u8 buf[0x100000];
+	u8* buf;
 	if(argc < 2)return;
 
 	fd = open(argv[1] , O_RDONLY);
@@ -419,11 +1260,11 @@ void disasm_arm64(int argc, char** argv)
 		return;
 	}
 
-	ret = read(fd, buf, 0x100000);
-	if(ret <= 0)
-	{
-		goto theend;
-	}
+	buf = malloc(0x1000000);
+	if(0 == buf)goto theend;
+
+	ret = read(fd, buf, 0x1000000);
+	if(ret <= 0)goto theend;
 
 	disasm_arm64_one(buf, ret);
 
