@@ -709,13 +709,13 @@ void disasm_arm64_msr(u32 code)
 
 	u8 r0 = code&0x1f;
 	if(str){
-		printf("%s = x%d\n", str, r0);
+		printf("msr	%s = x%d\n", str, r0);
 		return;
 	}
 
 	str = disasm_arm64_str(code);
 	if(str){
-		printf("%s = x%d\n", str, r0);
+		printf("msr	%s = x%d\n", str, r0);
 		return;
 	}
 
@@ -724,7 +724,7 @@ void disasm_arm64_msr(u32 code)
 	u8 s2 = (code >>12) & 0xf;
 	u8 s3 = (code >>16) & 0x7;
 	u8 s4 = (code >>19) & 0x3;
-	printf("s%d_%d_c%d_c%d_%d = x%d\n", s4,s3,s2,s1,s0, r0);
+	printf("msr	s%d_%d_c%d_c%d_%d = x%d\n", s4,s3,s2,s1,s0, r0);
 }
 //[d5200000,d53f0000]
 void disasm_arm64_mrs(u32 code)
@@ -743,7 +743,7 @@ void disasm_arm64_mrs(u32 code)
 	u8 s2 = (code >>12) & 0xf;
 	u8 s3 = (code >>16) & 0x7;
 	u8 s4 = (code >>19) & 0x3;
-	printf("x%d = s%d_%d_c%d_c%d_%d\n", r0, s4,s3,s2,s1,s0);
+	printf("mrs	x%d = s%d_%d_c%d_c%d_%d\n", r0, s4,s3,s2,s1,s0);
 }
 
 
@@ -762,8 +762,11 @@ for(j=0;j<len;j+=4){
 	if(0xd65f03c0 == code){
 		printf("ret\n");
 	}
+	else if(0xd69f03e0 == code){
+		printf("eret\n");
+	}
 //---------------msr,mrs-------------
-	else if(0xd5000000 == (code&0xffd00000)){
+	else if(0xd5000000 == (code&0xffe00000)){
 		disasm_arm64_msr(code);
 	}
 	else if(0xd5200000 == (code&0xffe00000)){
@@ -774,90 +777,181 @@ for(j=0;j<len;j+=4){
 		u32 off = code&0x3ffffff;
 		if(off&0x2000000){
 			off = (0x4000000-off)<<2;
-			printf("b 0x%x (pc-=0x%x)\n", j-off, off);
+			printf("b	pc = 0x%x (pc-=0x%x)\n", j-off, off);
 		}
 		else{
 			off = off<<2;
-			printf("b 0x%x (pc+=0x%x)\n", j+off, off);
+			printf("b	pc = 0x%x (pc+=0x%x)\n", j+off, off);
 		}
 	}
 	else if(0x94000000 == (code&0xfc000000)){
 		u32 off = code&0x3ffffff;
 		if(off&0x2000000){
 			off = (0x4000000-off)<<2;
-			printf("bl 0x%x (lr=0x%x,pc-=0x%x)\n", j-off, j+4, off);
+			printf("bl	lr = 0x%x, pc = 0x%x (pc-=0x%x)\n", j+4, j-off, off);
 		}
 		else{
 			off = off<<2;
-			printf("bl 0x%x (lr=0x%x,pc+=0x%x)\n", j+off, j+4, off);
+			printf("bl	lr = 0x%x, pc = 0x%x (pc+=0x%x)\n", j+4, j+off, off);
 		}
 	}
 	else if(0x54 == buf[j+3]){
 		u8 c = code&0x1f;
 		u32 off = (code>>5)&0x7ffff;
-		printf("if(%s)b ", cond+c*3);
+		printf("b.%s	", cond+c*3);
 		if(code&0x800000){
 			off = (0x80000-off)<<2;
-			printf("0x%x(pc-=0x%x)\n", j-off, off);
+			printf("pc = 0x%x (pc-=0x%x)\n", j-off, off);
 		}
 		else{
 			off = off<<2;
-			printf("0x%x(pc+=0x%x)\n", j+off, off);
+			printf("pc = 0x%x (pc+=0x%x)\n", j+off, off);
 		}
+	}
+	else if(0xd6 == buf[j+3]){
+		u8 r0 = (code>>5)&0x1f;
+		u8 op = (code>>21)&3;
+		if(0 == op)printf("br	pc = x%d\n", r0);
+		if(1 == op)printf("blr	lr = 0x%x, pc = x%d\n", j+4, r0);
 	}
 //-----------------mov-------------------
 	else if(0xaa0003e0 == (code&0xffc003e0)){
-		printf("x%d = x%d\n", code&0x1f, (code>>16)&0x1f);
+		printf("mov	x%d = x%d\n", code&0x1f, (code>>16)&0x1f);
 	}
 	else if(0x2a0003e0 == (code&0xffc003e0)){
-		printf("w%d = w%d\n", code&0x1f, (code>>16)&0x1f);
+		printf("mov	w%d = w%d\n", code&0x1f, (code>>16)&0x1f);
 	}
 	else if(0xd2800000 == (code&0xfff00000)){
-		printf("x%d = %d\n", (code&0x1f), (code>>5)&0x7fff);
+		printf("mov	x%d = %d\n", (code&0x1f), (code>>5)&0x7fff);
 	}
 	else if(0x52800000 == (code&0xfff00000)){
-		printf("w%d = %d\n", (code&0x1f), (code>>5)&0x7fff);
+		printf("mov	w%d = %d\n", (code&0x1f), (code>>5)&0x7fff);
 	}
 	else if(0xf2800000 == (code&0xff800000)){
 		u8 r0 = code&0x1f;
 		u8 sh = ((code>>21)&0x3)<<4;
 		u32 val = (code>>5)&0xffff;
-		printf("x%d.[%d,%d] = %d\n", r0, sh,sh+15, val);
+		printf("movk	x%d.[%d,%d] = %d\n", r0, sh,sh+15, val);
 	}
 	else if(0x72800000 == (code&0xff800000)){
 		u8 r0 = code&0x1f;
 		u8 sh = ((code>>21)&0x3)<<4;
 		u32 val = (code>>5)&0xffff;
-		printf("w%d.[%d,%d] = %d\n", r0, sh,sh+15, val);
+		printf("movk	w%d.[%d,%d] = %d\n", r0, sh,sh+15, val);
 	}
 //-----------------adrp-----------------
-	else if(0x10000000 == (code&0xff000000)){
+	else if(0x10000000 == (code&0x9f000000)){
 		u8 r0 = code&0x1f;
 		int val = (code>>5)&0x7ffff;
 		if(code&0x800000)val -= 0x80000;
-		val = val<<2;
-		printf("x%d = 0x%x (adr 0x%x)\n", r0, j+val, val);
+		val = (val<<2)+((code>>29)&3);
+		printf("adr	x%d = 0x%x (+0x%x)\n", r0, j+val, val);
 	}
 	else if(0x90000000 == (code&0x9f000000)){
 		u8 r0 = code&0x1f;
 		int val = (code>>5)&0x7ffff;
 		if(code&0x800000)val -= 0x80000;
 		val = (val<<2)+((code>>29)&3);
-		printf("x%d = 0x%x (adrp 0x%x)\n", r0, ((j>>12)+val)<<12, val<<12);
+		printf("adrp	x%d = 0x%x (+0x%x)\n", r0, ((j>>12)+val)<<12, val<<12);
+	}
+//-----------------cbz,cbnz-----------------
+	else if(0x34000000 == (code&0xff000000)){
+		u8 r0 = code&0x1f;
+		int val = (code>>5)&0x7ffff;
+		if(code&0x800000)val -= 0x80000;
+		val = val<<2;
+		printf("cbz	if(0==w%d)b 0x%x (+0x%x)\n", r0, j+val, val);
+	}
+	else if(0x35000000 == (code&0xff000000)){
+		u8 r0 = code&0x1f;
+		int val = (code>>5)&0x7ffff;
+		if(code&0x800000)val -= 0x80000;
+		val = val<<2;
+		printf("cbnz	if(x%d)b 0x%x (+0x%x)\n", r0, j+val, val);
+	}
+	else if(0xb4000000 == (code&0xff000000)){
+		u8 r0 = code&0x1f;
+		int val = (code>>5)&0x7ffff;
+		if(code&0x800000)val -= 0x80000;
+		val = val<<2;
+		printf("cbz	if(0==x%d)b 0x%x (+0x%x)\n", r0, j+val, val);
+	}
+	else if(0xb5000000 == (code&0xff000000)){
+		u8 r0 = code&0x1f;
+		int val = (code>>5)&0x7ffff;
+		if(code&0x800000)val -= 0x80000;
+		val = val<<2;
+		printf("cbnz	if(x%d)b 0x%x (+0x%x)\n", r0, j+val, val);
 	}
 //-----------------cmp------------------
-	else if(0xeb00001f == (code&0xffc0001f)){
-		if(code&0x200000)printf("x%d ? (u64)w%d\n", (code>>5)&0x1f, (code>>16)&0x1f);
-		else printf("x%d ? x%d\n", (code>>5)&0x1f, (code>>16)&0x1f);
+	else if(0xea000000 == (code&0xff000000)){
+		u8 r0 = code&0x1f;
+		u8 r1 = (code>>5)&0x1f;
+		u8 sh = (code>>10)&0x3f;
+		u8 r2 = (code>>16)&0x1f;
+
+		if(code&0x200000){
+			printf("bics	x%d = x%d & ~", r0, r1);
+		}
+		else{
+			if(0x1f == r0)printf("tst	x%d & ", r1);
+			else printf("ands	x%d = x%d & ", r0, r1);
+		}
+
+		switch(code&0xc00000){
+		case 0x000000:printf("lsl(x%d,%d)\n", r2, sh);break;
+		case 0x400000:printf("lsr(x%d,%d)\n", r2, sh);break;
+		case 0x800000:printf("asr(x%d,%d)\n", r2, sh);break;
+		case 0xc00000:printf("ror(x%d,%d)\n", r2, sh);break;
+		}
+	}
+	else if(0xeb000000 == (code&0xff000000)){
+		u8 r0 = code&0x1f;
+		u8 ra = (code>>5)&0x1f;
+		u8 rb = (code>>16)&0x1f;
+		if(0x1f == r0)printf("cmp	x%d ? ", ra);
+		else printf("subs	x%d = x%d - ", r0, ra);
+
+		switch(code&0xe00000){
+		case 0x000000:{
+			u8 sh = (code>>10)&0x3f;
+			printf("lsl(x%d,%d)\n", rb, sh);
+			break;
+		}
+		case 0x200000:{
+			u8 val = (code>>10)&0x7;
+			switch(code&0xe000){
+			case 0x0000:printf("uxtb(w%d,%d)\n", rb, val);break;
+			case 0x2000:printf("uxth(w%d,%d)\n", rb, val);break;
+			case 0x4000:printf("uxtw(w%d,%d)\n", rb, val);break;
+			case 0x6000:printf("uxtx(x%d,%d)\n", rb, val);break;
+			case 0x8000:printf("sxtb(w%d,%d)\n", rb, val);break;
+			case 0xa000:printf("sxth(w%d,%d)\n", rb, val);break;
+			case 0xc000:printf("sxtw(w%d,%d)\n", rb, val);break;
+			case 0xe000:printf("sxtx(x%d,%d)\n", rb, val);break;
+			}
+		}
+		case 0x400000:{
+			u8 sh = (code>>10)&0x3f;
+			printf("lsr(x%d,%d)\n", rb, sh);
+			break;
+		}
+		case 0x800000:{
+			u8 sh = (code>>10)&0x3f;
+			printf("asr(x%d,%d)\n", rb, sh);
+			break;
+		}
+		default:printf("err\n");
+		}
 	}
 	else if(0x6b00001f == (code&0xffc0001f)){
-		printf("w%d ? w%d\n", (code>>5)&0x1f, (code>>16)&0x1f);
+		printf("cmp	w%d ? w%d\n", (code>>5)&0x1f, (code>>16)&0x1f);
 	}
 	else if(0xf100001f == (code&0xffc0001f)){
-		printf("x%d ? %d\n", (code>>5)&0x1f, (code>>10)&0xfff);
+		printf("cmp	x%d ? %d\n", (code>>5)&0x1f, (code>>10)&0xfff);
 	}
 	else if(0x7100001f == (code&0xffc0001f)){
-		printf("w%d ? %d\n", (code>>5)&0x1f, (code>>10)&0xfff);
+		printf("cmp	w%d ? %d\n", (code>>5)&0x1f, (code>>10)&0xfff);
 	}
 //-----------------add-----------------
 	else if(0x8b000000 == (code&0xff000000)){
@@ -865,7 +959,7 @@ for(j=0;j<len;j+=4){
 		u8 r1 = (code>>5)&0x1f;
 		u8 r2 = (code>>16)&0x1f;
 		u8 sh = (code>>10)&0x3f;
-		printf("x%d = x%d + ", r0, r1);
+		printf("add	x%d = x%d + ", r0, r1);
 
 		switch(code&0xe00000){
 		case 0x000000:printf("lsl(x%d,%d)\n", r2, sh);break;
@@ -894,7 +988,7 @@ for(j=0;j<len;j+=4){
 		u8 r1 = (code>>5)&0x1f;
 		u8 r2 = (code>>16)&0x1f;
 		u8 sh = (code>>10)&0x3f;
-		printf("w%d = w%d + ", r0, r1);
+		printf("add	w%d = w%d + ", r0, r1);
 
 		switch(code&0xe00000){
 		case 0x000000:printf("lsl(w%d,%d)\n", r2, sh);break;
@@ -923,10 +1017,10 @@ for(j=0;j<len;j+=4){
 		u8 r1 = (code>>5)&0x1f;
 		u32 val = (code>>10)&0xfff;
 		if(code & 0x400000){
-			printf("x%d = x%d + %d<<12\n", r0, r1, val);
+			printf("add	x%d = x%d + %d<<12\n", r0, r1, val);
 		}
 		else{
-			printf("x%d = x%d + %d\n", r0, r1, val);
+			printf("add	x%d = x%d + %d\n", r0, r1, val);
 		}
 	}
 	else if(0x11000000 == (code&0xff000000)){
@@ -934,10 +1028,10 @@ for(j=0;j<len;j+=4){
 		u8 r1 = (code>>5)&0x1f;
 		u32 val = (code>>10)&0xfff;
 		if(code & 0x400000){
-			printf("w%d = w%d + %d<<12\n", r0, r1, val);
+			printf("add	w%d = w%d + %d<<12\n", r0, r1, val);
 		}
 		else{
-			printf("w%d = w%d + %d\n", r0, r1, val);
+			printf("add	w%d = w%d + %d\n", r0, r1, val);
 		}
 	}
 //--------------------sub----------------------
@@ -946,7 +1040,7 @@ for(j=0;j<len;j+=4){
 		u8 r1 = (code>>5)&0x1f;
 		u8 r2 = (code>>16)&0x1f;
 		u8 sh = (code>>10)&0x3f;
-		printf("x%d = x%d - ", r0, r1);
+		printf("sub	x%d = x%d - ", r0, r1);
 
 		switch(code&0xe00000){
 		case 0x000000:printf("lsl(x%d,%d)\n", r2, sh);break;
@@ -975,7 +1069,7 @@ for(j=0;j<len;j+=4){
 		u8 r1 = (code>>5)&0x1f;
 		u8 r2 = (code>>16)&0x1f;
 		u8 sh = (code>>10)&0x3f;
-		printf("w%d = w%d - ", r0, r1);
+		printf("sub	w%d = w%d - ", r0, r1);
 
 		switch(code&0xe00000){
 		case 0x000000:printf("lsl(w%d,%d)\n", r2, sh);break;
@@ -1004,10 +1098,10 @@ for(j=0;j<len;j+=4){
 		u8 r1 = (code>>5)&0x1f;
 		u32 val = (code>>10)&0xfff;
 		if(code & 0x400000){
-			printf("x%d = x%d - %d<<12\n", r0, r1, val);
+			printf("sub	x%d = x%d - %d<<12\n", r0, r1, val);
 		}
 		else{
-			printf("x%d = x%d - %d\n", r0, r1, val);
+			printf("sub	x%d = x%d - %d\n", r0, r1, val);
 		}
 	}
 	else if(0x51000000 == (code&0xff000000)){
@@ -1015,10 +1109,10 @@ for(j=0;j<len;j+=4){
 		u8 r1 = (code>>5)&0x1f;
 		u32 val = (code>>10)&0xfff;
 		if(code & 0x400000){
-			printf("w%d = w%d - %d<<12\n", r0, r1, val);
+			printf("sub	w%d = w%d - %d<<12\n", r0, r1, val);
 		}
 		else{
-			printf("w%d = w%d - %d\n", r0, r1, val);
+			printf("sub	w%d = w%d - %d\n", r0, r1, val);
 		}
 	}
 //-----------------and-------------------
@@ -1026,18 +1120,18 @@ for(j=0;j<len;j+=4){
 		u8 r0 = code&0x1f;
 		u8 r1 = (code>>5)&0x1f;
 		u8 r2 = (code>>16)&0x1f;
-		printf("x%d = x%d & x%d\n", r0, r1, r2);
+		printf("and	x%d = x%d & x%d\n", r0, r1, r2);
 	}
 	else if(0x0a000000 == (code&0xff000000)){
 		u8 r0 = code&0x1f;
 		u8 r1 = (code>>5)&0x1f;
 		u8 r2 = (code>>16)&0x1f;
-		printf("w%d = w%d & w%d\n", r0, r1, r2);
+		printf("and	w%d = w%d & w%d\n", r0, r1, r2);
 	}
 	else if(0x92000000 == (code&0xff800000)){
 		u8 r0 = code&0x1f;
 		u8 r1 = (code>>5)&0x1f;
-		printf("x%d = x%d & ", r0, r1);
+		printf("and	x%d = x%d & ", r0, r1);
 
 		u8 bit10 = (code>>10)&0x3f;
 		u8 bit16 = (code>>16)&0x3f;
@@ -1050,7 +1144,7 @@ for(j=0;j<len;j+=4){
 	else if(0x12000000 == (code&0xff000000)){
 		u8 r0 = code&0x1f;
 		u8 r1 = (code>>5)&0x1f;
-		printf("w%d = w%d & ", r0, r1);
+		printf("and	w%d = w%d & ", r0, r1);
 
 		u8 bit10 = (code>>10)&0x1f;
 		u8 bit16 = (code>>16)&0x1f;
@@ -1067,19 +1161,19 @@ for(j=0;j<len;j+=4){
 		u8 r1 = (code>>5)&0x1f;
 		u8 sh = (code>>10)&0x3f;
 		u8 r2 = (code>>16)&0x1f;
-		printf("x%d = x%d | x%d<<%d\n", r0, r1, r2, sh);
+		printf("orr	x%d = x%d | x%d<<%d\n", r0, r1, r2, sh);
 	}
 	else if(0x2a000000 == (code&0xff000000)){
 		u8 r0 = code&0x1f;
 		u8 r1 = (code>>5)&0x1f;
 		u8 sh = (code>>10)&0x1f;
 		u8 r2 = (code>>16)&0x1f;
-		printf("w%d = w%d | w%d<<%d\n", r0, r1, r2, sh);
+		printf("orr	w%d = w%d | w%d<<%d\n", r0, r1, r2, sh);
 	}
 	else if(0xb2400000 == (code&0xff800000)){
 		u8 r0 = code&0x1f;
 		u8 r1 = (code>>5)&0x1f;
-		printf("x%d = x%d | ", r0, r1);
+		printf("orr	x%d = x%d | ", r0, r1);
 
 		u8 bit10 = (code>>10)&0x3f;
 		u8 bit16 = (code>>16)&0x3f;
@@ -1092,7 +1186,7 @@ for(j=0;j<len;j+=4){
 	else if(0x32000000 == (code&0xff000000)){
 		u8 r0 = code&0x1f;
 		u8 r1 = (code>>5)&0x1f;
-		printf("w%d = w%d | ", r0, r1);
+		printf("orr	w%d = w%d | ", r0, r1);
 
 		u8 bit10 = (code>>10)&0x1f;
 		u8 bit16 = (code>>16)&0x1f;
@@ -1103,51 +1197,109 @@ for(j=0;j<len;j+=4){
 		//}
 		printf("0x%x\n", mask);
 	}
-//-----------------sh--------------------
-	else if(0x9ac02000 == (code&0xffc02000)){
-		if(code&0x400){
-			printf("x%d = x%d >> x%d\n", code&0x1f, (code>>5)&0x1f, (code>>16)&0x1f);
+//---------------eor,eon-----------------
+	else if(0xca000000 == (code&0xff000000)){
+		u8 r0 = code&0x1f;
+		u8 r1 = (code>>5)&0x1f;
+		u8 sh = (code>>10)&0x3f;
+		u8 r2 = (code>>16)&0x1f;
+		if(code&0x200000)printf("eon	x%d = x%d !^ ", r0, r1);
+		else printf("eor	x%d = x%d ^^ ", r0, r1);
+
+		switch(code&0xc00000){
+		case 0x000000:printf("lsl(x%d,%d)\n",r2,sh);break;
+		case 0x400000:printf("lsr(x%d,%d)\n",r2,sh);break;
+		case 0x800000:printf("asr(x%d,%d)\n",r2,sh);break;
+		case 0xc00000:printf("ror(x%d,%d)\n",r2,sh);break;
 		}
-		else{
-			printf("x%d = x%d << x%d\n", code&0x1f, (code>>5)&0x1f, (code>>16)&0x1f);
+	}
+//-----------------sh--------------------
+	else if(0x9ac00000 == (code&0xffc00000)){
+		u8 r0 = code&0x1f;
+		u8 r1 = (code>>5)&0x1f;
+		u8 r2 = (code>>16)&0x1f;
+		switch(code&0xfc00){
+		case 0x0800:printf("udiv	x%d = x%d / x%d\n", r0, r1, r2);
+		case 0x0c00:printf("sdiv	x%d = x%d / x%d\n", r0, r1, r2);
+		case 0x2000:printf("lsl	x%d = x%d << x%d\n", r0, r1, r2);
+		case 0x2400:printf("lsr	x%d = x%d >> x%d\n", r0, r1, r2);
+		case 0x2800:printf("asr	x%d = x%d >> x%d\n", r0, r1, r2);
+		case 0x2c00:printf("ror	x%d = x%d >> x%d\n", r0, r1, r2);
+		case 0x3000:printf("pacga	x%d, x%d, x%d\n", r0, r1, r2);
+		case 0x4c00:printf("crc32x	x%d, x%d, x%d\n", r0, r1, r2);
+		case 0x5c00:printf("crc32cx	x%d, x%d, x%d\n", r0, r1, r2);
+		default:printf("unknown\n");
 		}
 	}
 	else if(0xd3400000 == (code&0xffc00000)){
 		u8 lsb = (code>>16)&0x3f;
 		u8 msb = (code>>10)&0x3f;
-		printf("x%d = x%d.[%d,%d]\n", code&0x1f, (code>>5)&0x1f, lsb, msb);
-/*
-		if(0xfc <= ((code>>8)&0xff)){
-			printf("x%d = x%d >> %d\n", code&0x1f, (code>>5)&0x1f, sh-0x40);
-		}
-		else{
-			printf("x%d = x%d << %d\n", code&0x1f, (code>>5)&0x1f, 0x80-sh);
-		}
-*/
+		printf("ubfx	x%d = x%d.[%d,%d]\n", code&0x1f, (code>>5)&0x1f, lsb, msb);
 	}
 //---------------mem-----------------
+	else if(0x08000000 == (code&0xff000000)){
+		u8 val = code&0x1f;
+		u8 adr = (code>>5)&0x1f;
+		u8 sts = (code>>16)&0x1f;
+		printf("ldxrb	w%d = [x%d].byte\n", val, adr);
+		printf("stxrb	[x%d].byte = w%d, w%d = status\n", adr, val, sts);
+	}
 	else if(0x58000000 == (code&0xff800000)){
 		u8 r0 = code&0x1f;
 		int off = ((code>>5)&0x3ffff)<<2;
-		printf("x%d = [0x%x]\n", r0, off);
+		printf("ldr	x%d = [0x%x]\n", r0, off);
 	}
 	else if(0x18000000 == (code&0xff800000)){
 		u8 r0 = code&0x1f;
 		int off = ((code>>5)&0x3ffff)<<2;
-		printf("w%d = [0x%x]\n", r0, off);
+		printf("ldr	w%d = [0x%x]\n", r0, off);
 	}
-	else if(0xb8000400 == (code&0xff400400)){
+	else if(0xb8000000 == (code&0xff000000)){
 		u8 r0 = code&0x1f;
 		u8 r1 = (code>>5)&0x1f;
-		int off = (code>>12)&0xff;
-		if(code&0x100000)off -= 256;
-		printf("[x%d] %+d = w%d\n", r1, off, r0);
+
+		switch(code&0xc00000){
+		case 0x000000:{
+			int off = (code>>12)&0xff;
+			if(code&0x100000)off -= 256;
+
+			switch(code&0xc00){
+			case 0x000:printf("stur	[x%d %+d] = w%d\n", r1, off, r0);break;
+			case 0x400:printf("str	[x%d] %+d = w%d\n", r1, off, r0);break;
+			case 0x800:printf("sttr	[x%d %+d] = w%d\n", r1, off, r0);break;
+			case 0xc00:printf("str!	[x%d %+d] = w%d\n", r1, off, r0);break;
+			}
+			break;
+		}
+		case 0x400000:{
+			int off = (code>>12)&0xff;
+			if(code&0x100000)off -= 256;
+
+			switch(code&0xc00){
+			case 0x000:printf("ldur	w%d == [x%d %+d]\n", r0, r1, off);break;
+			case 0x400:printf("ldr	w%d == [x%d] %+d\n", r0, r1, off);break;
+			case 0x800:printf("ldtr	w%d == [x%d %+d]\n", r0, r1, off);break;
+			case 0xc00:printf("ldr!	w%d == [x%d %+d]\n", r0, r1, off);break;
+			}
+			break;
+		}
+		default:printf("err\n");
+		}
 	}
-	else if(0xb8400400 == (code&0xff400400)){
+	else if(0xa8000000 == (code&0xff000000)){
 		u8 r0 = code&0x1f;
-		u8 r1 = (code>>5)&0x1f;
-		int off = (code>>12)&0xff;
-		printf("w%d = [x%d] %+d\n", r0, r1, off);
+		u8 r1 = (code>>10)&0x1f;
+		u8 rr = (code>>5)&0x1f;
+		int off = (code>>15)&0x3f;
+		if(code&0x200000)off -= 0x40;
+		off *= 8;
+
+		switch(code&0xc00000){
+		case 0x000000:printf("stnp	[x%d %+d] = x%d,x%d\n", rr,off, r0,r1);break;
+		case 0x400000:printf("ldnp	x%d,x%d = [x%d %+d]\n", r0,r1, rr,off);break;
+		case 0x800000:printf("stp	[x%d] = x%d,x%d, x%d += %d\n", rr, r0,r1, rr,off);break;
+		case 0xc00000:printf("ldp	x%d,x%d = [x%d], x%d += %d\n", r0,r1, rr, rr,off);break;
+		}
 	}
 	else if(0xa9000000 == (code&0xff000000)){
 		u8 r0 = code&0x1f;
@@ -1157,24 +1309,22 @@ for(j=0;j<len;j+=4){
 		if(code&0x200000)off -= 0x40;
 		off *= 8;
 
-		if(code&0x400000){
-			if(code&0x800000)printf("x%d,x%d = [x%d %+d]!\n", r0,r1, rr,off);
-			else printf("x%d,x%d = [x%d %+d]\n", r0,r1, rr,off);
-		}
-		else{
-			if(code&0x800000)printf("[x%d %+d]! = x%d,x%d\n", rr,off, r0,r1);
-			else printf("[x%d %+d] = x%d,x%d\n", rr,off, r0,r1);
+		switch(code&0xc00000){
+		case 0x000000:printf("stp	[x%d %+d] = x%d,x%d\n", rr,off, r0,r1);break;
+		case 0x400000:printf("ldp	x%d,x%d = [x%d %+d]\n", r0,r1, rr,off);break;
+		case 0x800000:printf("stp!	[x%d %+d] = x%d,x%d\n", rr,off, r0,r1);break;
+		case 0xc00000:printf("ldp!	x%d,x%d = [x%d %+d]\n", r0,r1, rr,off);break;
 		}
 	}
 	else if(0xb9000000 == (code&0xff000000)){
 		u8 r0 = code&0x1f;
 		u8 r1 = (code>>5)&0x1f;
 		int off = (code>>10)&0xfff;
-		if(code&0x400000){
-			printf("w%d = [x%d %+d]\n", r0, r1, off<<2);
-		}
-		else{
-			printf("[x%d %+d] = w%d\n", r1, off<<2, r0);
+		switch(code&0xc00000){
+		case 0x000000:printf("str	[x%d %+d] = w%d\n", r1, off<<2, r0);break;
+		case 0x400000:printf("ldr	w%d = [x%d %+d]\n", r0, r1, off<<2);break;
+		case 0x800000:printf("ldrsw	x%d = [x%d %+d]\n", r0, r1, off<<2);break;
+		default:printf("unknown\n");
 		}
 	}
 	else if(0xf8000000 == (code&0xff000000)){
@@ -1187,10 +1337,10 @@ for(j=0;j<len;j+=4){
 			if(code&0x100000)val -= 256;
 
 			switch(code&0xc00){
-			case 0x000:printf("[x%d %+d] = x%d\n", rr, val, r0);break;
-			case 0x400:printf("[x%d]  %+d= x%d\n", rr, val, r0);break;
-			case 0x800:printf("[x%d %+d] = x%d\n", rr, val, r0);break;
-			case 0xc00:printf("[x%d %+d]! = x%d\n", rr, val, r0);break;
+			case 0x000:printf("stur	[x%d %+d] = x%d\n", rr, val, r0);break;
+			case 0x400:printf("str	[x%d] = x%d, x%d += %d\n", rr, r0, rr,val);break;
+			case 0x800:printf("sttr	[x%d %+d] = x%d\n", rr, val, r0);break;
+			case 0xc00:printf("str!	[x%d %+d] = x%d\n", rr, val, r0);break;
 			}
 			break;
 		}
@@ -1199,10 +1349,10 @@ for(j=0;j<len;j+=4){
 			if(code&0x100000)val -= 256;
 
 			switch(code&0xc00){
-			case 0x000:printf("x%d = [x%d %+d]\n", r0, rr, val);break;
-			case 0x400:printf("x%d = [x%d] %+d\n", r0, rr, val);break;
-			case 0x800:printf("x%d = [x%d %+d]\n", r0, rr, val);break;
-			case 0xc00:printf("x%d = [x%d %+d]!\n", r0, rr, val);break;
+			case 0x000:printf("ldur	x%d = [x%d %+d]\n", r0, rr, val);break;
+			case 0x400:printf("ldr	x%d = [x%d], x%d += %d\n", r0, rr, rr,val);break;
+			case 0x800:printf("ldtr	x%d = [x%d %+d]\n", r0, rr, val);break;
+			case 0xc00:printf("ldr!	x%d = [x%d %+d]\n", r0, rr, val);break;
 			}
 			break;
 		}
@@ -1214,10 +1364,10 @@ for(j=0;j<len;j+=4){
 		u8 rr = (code>>5)&0x1f;
 		int off = (code>>10)&0xfff;
 		if(code&0x400000){
-			printf("x%d = [x%d %+d]\n", r0, rr, off*8);
+			printf("ldr	x%d = [x%d %+d]\n", r0, rr, off*8);
 		}
 		else{
-			printf("[x%d %+d] = x%d\n", rr, off*8, r0);
+			printf("str	[x%d %+d] = x%d\n", rr, off*8, r0);
 		}
 	}
 	else if(0xfd000000 == (code&0xff000000)){
@@ -1225,11 +1375,41 @@ for(j=0;j<len;j+=4){
 		u8 r1 = (code>>5)&0x1f;
 		int val = ((code>>10)&0xfff)<<3;
 		if(code & 0x400000){
-			printf("d%d = [x%d + %d]\n", r0, r1,val);
+			printf("ldr	d%d = [x%d + %d]\n", r0, r1,val);
 		}
 		else{
-			printf("[x%d + %d] = d%d\n", r1,val, r0);
+			printf("str	[x%d + %d] = d%d\n", r1,val, r0);
 		}
+	}
+	else if((0x00 == buf[j+3]) |
+		(0x01 == buf[j+3]) |
+		(0x02 == buf[j+3]) |
+		(0x03 == buf[j+3]) |
+		(0x20 == buf[j+3]) |
+		(0x40 == buf[j+3]) |
+		(0x60 == buf[j+3]) |
+		(0x80 == buf[j+3]) |
+		(0xa0 == buf[j+3]) |
+		(0xc0 == buf[j+3]) |
+		(0xe0 == buf[j+3]) |
+		(0x3f == buf[j+3]) |
+		(0x8e == buf[j+3]) |
+		(0x8f == buf[j+3]) |
+//used:(0x9e == buf[j+3]) |
+		(0x9f == buf[j+3]) |
+		(0xae == buf[j+3]) |
+		(0xaf == buf[j+3]) |
+		(0xbe == buf[j+3]) |
+		(0xbf == buf[j+3]) |
+//used:(0xce == buf[j+3]) |
+		(0xcf == buf[j+3]) |
+		(0xde == buf[j+3]) |
+		(0xdf == buf[j+3]) |
+		(0xee == buf[j+3]) |
+		(0xef == buf[j+3]) |
+		(0xfe == buf[j+3]) |
+		(0xff == buf[j+3]) ){
+		printf("unknown\n");
 	}
 //--------------???0000000000000000000
 	else{
