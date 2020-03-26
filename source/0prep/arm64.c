@@ -17,20 +17,20 @@
 
 
 /*
-0 EQ equal (zero)
-1 NE nonequal (nonzero)
-2 CS=HS carry set
-3 CC=LO carry clear
-4 MI minus
-5 PL positive or zero
-6 VS overflow set
-7 VC overflow clear
-8 HI unsigned higher
-9 LS unsigned lower or same
-a GE signed greater or equal ?
-b LT signed less ?
-c GT signed greater than
-d LE signed less than or equal
+0 EQ	Z=1	equal
+1 NE	Z=0	nonequal
+2 CS=HS	C=1	carry set
+3 CC=LO C=0	carry clear
+4 MI	N=1	minus
+5 PL	N=0	positive or zero
+6 VS	V=1	overflow set
+7 VC	V=0	overflow clear
+8 HI	C=1,Z=0	unsigned higher
+9 LS	C=0,Z=1	unsigned lower or same
+a GE	N=V	signed greater or equal
+b LT	N!V	signed less
+c GT	Z=0,N=V	signed greater
+d LE	Z=1,N!V	signed less or equal
 e AL always ?
 f NV never ?
 */
@@ -748,7 +748,7 @@ void disasm_arm64_mrs(u32 code)
 
 
 
-
+/*
 void disasm_arm64_one(u8* buf, int len)
 {
 int j,cnt=0;
@@ -759,130 +759,6 @@ for(j=0;j<len;j+=4){
 	code = *(u32*)(buf+j);
 	printf("%8x:	%08x	", j, code);
 
-	if(0xd65f03c0 == code){
-		printf("ret\n");
-	}
-	else if(0xd69f03e0 == code){
-		printf("eret\n");
-	}
-//---------------msr,mrs-------------
-	else if(0xd5000000 == (code&0xffe00000)){
-		disasm_arm64_msr(code);
-	}
-	else if(0xd5200000 == (code&0xffe00000)){
-		disasm_arm64_mrs(code);
-	}
-//-----------------jmp---------------------
-	else if(0x14000000 == (code&0xfc000000)){
-		u32 off = code&0x3ffffff;
-		if(off&0x2000000){
-			off = (0x4000000-off)<<2;
-			printf("b	pc = 0x%x (pc-=0x%x)\n", j-off, off);
-		}
-		else{
-			off = off<<2;
-			printf("b	pc = 0x%x (pc+=0x%x)\n", j+off, off);
-		}
-	}
-	else if(0x94000000 == (code&0xfc000000)){
-		u32 off = code&0x3ffffff;
-		if(off&0x2000000){
-			off = (0x4000000-off)<<2;
-			printf("bl	lr = 0x%x, pc = 0x%x (pc-=0x%x)\n", j+4, j-off, off);
-		}
-		else{
-			off = off<<2;
-			printf("bl	lr = 0x%x, pc = 0x%x (pc+=0x%x)\n", j+4, j+off, off);
-		}
-	}
-	else if(0x54 == buf[j+3]){
-		u8 c = code&0x1f;
-		u32 off = (code>>5)&0x7ffff;
-		printf("b.%s	", cond+c*3);
-		if(code&0x800000){
-			off = (0x80000-off)<<2;
-			printf("pc = 0x%x (pc-=0x%x)\n", j-off, off);
-		}
-		else{
-			off = off<<2;
-			printf("pc = 0x%x (pc+=0x%x)\n", j+off, off);
-		}
-	}
-	else if(0xd6 == buf[j+3]){
-		u8 r0 = (code>>5)&0x1f;
-		u8 op = (code>>21)&3;
-		if(0 == op)printf("br	pc = x%d\n", r0);
-		if(1 == op)printf("blr	lr = 0x%x, pc = x%d\n", j+4, r0);
-	}
-//-----------------mov-------------------
-	else if(0xaa0003e0 == (code&0xffc003e0)){
-		printf("mov	x%d = x%d\n", code&0x1f, (code>>16)&0x1f);
-	}
-	else if(0x2a0003e0 == (code&0xffc003e0)){
-		printf("mov	w%d = w%d\n", code&0x1f, (code>>16)&0x1f);
-	}
-	else if(0xd2800000 == (code&0xfff00000)){
-		printf("mov	x%d = %d\n", (code&0x1f), (code>>5)&0x7fff);
-	}
-	else if(0x52800000 == (code&0xfff00000)){
-		printf("mov	w%d = %d\n", (code&0x1f), (code>>5)&0x7fff);
-	}
-	else if(0xf2800000 == (code&0xff800000)){
-		u8 r0 = code&0x1f;
-		u8 sh = ((code>>21)&0x3)<<4;
-		u32 val = (code>>5)&0xffff;
-		printf("movk	x%d.[%d,%d] = %d\n", r0, sh,sh+15, val);
-	}
-	else if(0x72800000 == (code&0xff800000)){
-		u8 r0 = code&0x1f;
-		u8 sh = ((code>>21)&0x3)<<4;
-		u32 val = (code>>5)&0xffff;
-		printf("movk	w%d.[%d,%d] = %d\n", r0, sh,sh+15, val);
-	}
-//-----------------adrp-----------------
-	else if(0x10000000 == (code&0x9f000000)){
-		u8 r0 = code&0x1f;
-		int val = (code>>5)&0x7ffff;
-		if(code&0x800000)val -= 0x80000;
-		val = (val<<2)+((code>>29)&3);
-		printf("adr	x%d = 0x%x (+0x%x)\n", r0, j+val, val);
-	}
-	else if(0x90000000 == (code&0x9f000000)){
-		u8 r0 = code&0x1f;
-		int val = (code>>5)&0x7ffff;
-		if(code&0x800000)val -= 0x80000;
-		val = (val<<2)+((code>>29)&3);
-		printf("adrp	x%d = 0x%x (+0x%x)\n", r0, ((j>>12)+val)<<12, val<<12);
-	}
-//-----------------cbz,cbnz-----------------
-	else if(0x34000000 == (code&0xff000000)){
-		u8 r0 = code&0x1f;
-		int val = (code>>5)&0x7ffff;
-		if(code&0x800000)val -= 0x80000;
-		val = val<<2;
-		printf("cbz	if(0==w%d)b 0x%x (+0x%x)\n", r0, j+val, val);
-	}
-	else if(0x35000000 == (code&0xff000000)){
-		u8 r0 = code&0x1f;
-		int val = (code>>5)&0x7ffff;
-		if(code&0x800000)val -= 0x80000;
-		val = val<<2;
-		printf("cbnz	if(x%d)b 0x%x (+0x%x)\n", r0, j+val, val);
-	}
-	else if(0xb4000000 == (code&0xff000000)){
-		u8 r0 = code&0x1f;
-		int val = (code>>5)&0x7ffff;
-		if(code&0x800000)val -= 0x80000;
-		val = val<<2;
-		printf("cbz	if(0==x%d)b 0x%x (+0x%x)\n", r0, j+val, val);
-	}
-	else if(0xb5000000 == (code&0xff000000)){
-		u8 r0 = code&0x1f;
-		int val = (code>>5)&0x7ffff;
-		if(code&0x800000)val -= 0x80000;
-		val = val<<2;
-		printf("cbnz	if(x%d)b 0x%x (+0x%x)\n", r0, j+val, val);
-	}
 //-----------------cmp------------------
 	else if(0xea000000 == (code&0xff000000)){
 		u8 r0 = code&0x1f;
@@ -947,12 +823,6 @@ for(j=0;j<len;j+=4){
 	else if(0x6b00001f == (code&0xffc0001f)){
 		printf("cmp	w%d ? w%d\n", (code>>5)&0x1f, (code>>16)&0x1f);
 	}
-	else if(0xf100001f == (code&0xffc0001f)){
-		printf("cmp	x%d ? %d\n", (code>>5)&0x1f, (code>>10)&0xfff);
-	}
-	else if(0x7100001f == (code&0xffc0001f)){
-		printf("cmp	w%d ? %d\n", (code>>5)&0x1f, (code>>10)&0xfff);
-	}
 //-----------------add-----------------
 	else if(0x8b000000 == (code&0xff000000)){
 		u8 r0 = code&0x1f;
@@ -1010,28 +880,6 @@ for(j=0;j<len;j+=4){
 		case 0x400000:printf("lsr(w%d,%d)\n", r2, sh);break;
 		case 0x800000:printf("asr(w%d,%d)\n", r2, sh);break;
 		default:printf("err\n");
-		}
-	}
-	else if(0x91000000 == (code&0xff000000)){
-		u8 r0 = code&0x1f;
-		u8 r1 = (code>>5)&0x1f;
-		u32 val = (code>>10)&0xfff;
-		if(code & 0x400000){
-			printf("add	x%d = x%d + %d<<12\n", r0, r1, val);
-		}
-		else{
-			printf("add	x%d = x%d + %d\n", r0, r1, val);
-		}
-	}
-	else if(0x11000000 == (code&0xff000000)){
-		u8 r0 = code&0x1f;
-		u8 r1 = (code>>5)&0x1f;
-		u32 val = (code>>10)&0xfff;
-		if(code & 0x400000){
-			printf("add	w%d = w%d + %d<<12\n", r0, r1, val);
-		}
-		else{
-			printf("add	w%d = w%d + %d\n", r0, r1, val);
 		}
 	}
 //--------------------sub----------------------
@@ -1093,28 +941,6 @@ for(j=0;j<len;j+=4){
 		default:printf("err\n");
 		}
 	}
-	else if(0xd1000000 == (code&0xff000000)){
-		u8 r0 = code&0x1f;
-		u8 r1 = (code>>5)&0x1f;
-		u32 val = (code>>10)&0xfff;
-		if(code & 0x400000){
-			printf("sub	x%d = x%d - %d<<12\n", r0, r1, val);
-		}
-		else{
-			printf("sub	x%d = x%d - %d\n", r0, r1, val);
-		}
-	}
-	else if(0x51000000 == (code&0xff000000)){
-		u8 r0 = code&0x1f;
-		u8 r1 = (code>>5)&0x1f;
-		u32 val = (code>>10)&0xfff;
-		if(code & 0x400000){
-			printf("sub	w%d = w%d - %d<<12\n", r0, r1, val);
-		}
-		else{
-			printf("sub	w%d = w%d - %d\n", r0, r1, val);
-		}
-	}
 //-----------------and-------------------
 	else if(0x8a000000 == (code&0xff000000)){
 		u8 r0 = code&0x1f;
@@ -1127,33 +953,6 @@ for(j=0;j<len;j+=4){
 		u8 r1 = (code>>5)&0x1f;
 		u8 r2 = (code>>16)&0x1f;
 		printf("and	w%d = w%d & w%d\n", r0, r1, r2);
-	}
-	else if(0x92000000 == (code&0xff800000)){
-		u8 r0 = code&0x1f;
-		u8 r1 = (code>>5)&0x1f;
-		printf("and	x%d = x%d & ", r0, r1);
-
-		u8 bit10 = (code>>10)&0x3f;
-		u8 bit16 = (code>>16)&0x3f;
-		u64 mask = table64(bit10);
-		if(0x400000 != (code&0xff0000)){
-			mask = rotateleft64(mask, 0x80-bit16);
-		}
-		printf("%llx\n", mask);
-	}
-	else if(0x12000000 == (code&0xff000000)){
-		u8 r0 = code&0x1f;
-		u8 r1 = (code>>5)&0x1f;
-		printf("and	w%d = w%d & ", r0, r1);
-
-		u8 bit10 = (code>>10)&0x1f;
-		u8 bit16 = (code>>16)&0x1f;
-		u32 mask = table32(bit10);
-		//printf("(%x,%x,%x)",bit10,bit16,mask);
-		//if(0x000000 == (code&0xff0000)){
-			mask = rotateleft32(mask, 0x20-bit16);
-		//}
-		printf("0x%x\n", mask);
 	}
 //-----------------orr-------------------
 	else if(0xaa000000 == (code&0xff000000)){
@@ -1169,33 +968,6 @@ for(j=0;j<len;j+=4){
 		u8 sh = (code>>10)&0x1f;
 		u8 r2 = (code>>16)&0x1f;
 		printf("orr	w%d = w%d | w%d<<%d\n", r0, r1, r2, sh);
-	}
-	else if(0xb2400000 == (code&0xff800000)){
-		u8 r0 = code&0x1f;
-		u8 r1 = (code>>5)&0x1f;
-		printf("orr	x%d = x%d | ", r0, r1);
-
-		u8 bit10 = (code>>10)&0x3f;
-		u8 bit16 = (code>>16)&0x3f;
-		u64 mask = table64(bit10);
-		if(0x400000 != (code&0xff0000)){
-			mask = rotateleft64(mask, 0x80-bit16);
-		}
-		printf("%llx\n", mask);
-	}
-	else if(0x32000000 == (code&0xff000000)){
-		u8 r0 = code&0x1f;
-		u8 r1 = (code>>5)&0x1f;
-		printf("orr	w%d = w%d | ", r0, r1);
-
-		u8 bit10 = (code>>10)&0x1f;
-		u8 bit16 = (code>>16)&0x1f;
-		u32 mask = table32(bit10);
-		//printf("(%x,%x,%x)",bit10,bit16,mask);
-		//if(0x000000 == (code&0xff0000)){
-			mask = rotateleft32(mask, 0x20-bit16);
-		//}
-		printf("0x%x\n", mask);
 	}
 //---------------eor,eon-----------------
 	else if(0xca000000 == (code&0xff000000)){
@@ -1237,150 +1009,6 @@ for(j=0;j<len;j+=4){
 		printf("ubfx	x%d = x%d.[%d,%d]\n", code&0x1f, (code>>5)&0x1f, lsb, msb);
 	}
 //---------------mem-----------------
-	else if(0x08000000 == (code&0xff000000)){
-		u8 val = code&0x1f;
-		u8 adr = (code>>5)&0x1f;
-		u8 sts = (code>>16)&0x1f;
-		printf("ldxrb	w%d = [x%d].byte\n", val, adr);
-		printf("stxrb	[x%d].byte = w%d, w%d = status\n", adr, val, sts);
-	}
-	else if(0x58000000 == (code&0xff800000)){
-		u8 r0 = code&0x1f;
-		int off = ((code>>5)&0x3ffff)<<2;
-		printf("ldr	x%d = [0x%x]\n", r0, off);
-	}
-	else if(0x18000000 == (code&0xff800000)){
-		u8 r0 = code&0x1f;
-		int off = ((code>>5)&0x3ffff)<<2;
-		printf("ldr	w%d = [0x%x]\n", r0, off);
-	}
-	else if(0xb8000000 == (code&0xff000000)){
-		u8 r0 = code&0x1f;
-		u8 r1 = (code>>5)&0x1f;
-
-		switch(code&0xc00000){
-		case 0x000000:{
-			int off = (code>>12)&0xff;
-			if(code&0x100000)off -= 256;
-
-			switch(code&0xc00){
-			case 0x000:printf("stur	[x%d %+d] = w%d\n", r1, off, r0);break;
-			case 0x400:printf("str	[x%d] %+d = w%d\n", r1, off, r0);break;
-			case 0x800:printf("sttr	[x%d %+d] = w%d\n", r1, off, r0);break;
-			case 0xc00:printf("str!	[x%d %+d] = w%d\n", r1, off, r0);break;
-			}
-			break;
-		}
-		case 0x400000:{
-			int off = (code>>12)&0xff;
-			if(code&0x100000)off -= 256;
-
-			switch(code&0xc00){
-			case 0x000:printf("ldur	w%d == [x%d %+d]\n", r0, r1, off);break;
-			case 0x400:printf("ldr	w%d == [x%d] %+d\n", r0, r1, off);break;
-			case 0x800:printf("ldtr	w%d == [x%d %+d]\n", r0, r1, off);break;
-			case 0xc00:printf("ldr!	w%d == [x%d %+d]\n", r0, r1, off);break;
-			}
-			break;
-		}
-		default:printf("err\n");
-		}
-	}
-	else if(0xa8000000 == (code&0xff000000)){
-		u8 r0 = code&0x1f;
-		u8 r1 = (code>>10)&0x1f;
-		u8 rr = (code>>5)&0x1f;
-		int off = (code>>15)&0x3f;
-		if(code&0x200000)off -= 0x40;
-		off *= 8;
-
-		switch(code&0xc00000){
-		case 0x000000:printf("stnp	[x%d %+d] = x%d,x%d\n", rr,off, r0,r1);break;
-		case 0x400000:printf("ldnp	x%d,x%d = [x%d %+d]\n", r0,r1, rr,off);break;
-		case 0x800000:printf("stp	[x%d] = x%d,x%d, x%d += %d\n", rr, r0,r1, rr,off);break;
-		case 0xc00000:printf("ldp	x%d,x%d = [x%d], x%d += %d\n", r0,r1, rr, rr,off);break;
-		}
-	}
-	else if(0xa9000000 == (code&0xff000000)){
-		u8 r0 = code&0x1f;
-		u8 r1 = (code>>10)&0x1f;
-		u8 rr = (code>>5)&0x1f;
-		int off = (code>>15)&0x3f;
-		if(code&0x200000)off -= 0x40;
-		off *= 8;
-
-		switch(code&0xc00000){
-		case 0x000000:printf("stp	[x%d %+d] = x%d,x%d\n", rr,off, r0,r1);break;
-		case 0x400000:printf("ldp	x%d,x%d = [x%d %+d]\n", r0,r1, rr,off);break;
-		case 0x800000:printf("stp!	[x%d %+d] = x%d,x%d\n", rr,off, r0,r1);break;
-		case 0xc00000:printf("ldp!	x%d,x%d = [x%d %+d]\n", r0,r1, rr,off);break;
-		}
-	}
-	else if(0xb9000000 == (code&0xff000000)){
-		u8 r0 = code&0x1f;
-		u8 r1 = (code>>5)&0x1f;
-		int off = (code>>10)&0xfff;
-		switch(code&0xc00000){
-		case 0x000000:printf("str	[x%d %+d] = w%d\n", r1, off<<2, r0);break;
-		case 0x400000:printf("ldr	w%d = [x%d %+d]\n", r0, r1, off<<2);break;
-		case 0x800000:printf("ldrsw	x%d = [x%d %+d]\n", r0, r1, off<<2);break;
-		default:printf("unknown\n");
-		}
-	}
-	else if(0xf8000000 == (code&0xff000000)){
-		u8 r0 = code&0x1f;
-		u8 rr = (code>>5)&0x1f;
-
-		switch(code&0xe00000){
-		case 0x000000:{
-			int val = (code>>12)&0xff;
-			if(code&0x100000)val -= 256;
-
-			switch(code&0xc00){
-			case 0x000:printf("stur	[x%d %+d] = x%d\n", rr, val, r0);break;
-			case 0x400:printf("str	[x%d] = x%d, x%d += %d\n", rr, r0, rr,val);break;
-			case 0x800:printf("sttr	[x%d %+d] = x%d\n", rr, val, r0);break;
-			case 0xc00:printf("str!	[x%d %+d] = x%d\n", rr, val, r0);break;
-			}
-			break;
-		}
-		case 0x400000:{
-			int val = (code>>12)&0xff;
-			if(code&0x100000)val -= 256;
-
-			switch(code&0xc00){
-			case 0x000:printf("ldur	x%d = [x%d %+d]\n", r0, rr, val);break;
-			case 0x400:printf("ldr	x%d = [x%d], x%d += %d\n", r0, rr, rr,val);break;
-			case 0x800:printf("ldtr	x%d = [x%d %+d]\n", r0, rr, val);break;
-			case 0xc00:printf("ldr!	x%d = [x%d %+d]\n", r0, rr, val);break;
-			}
-			break;
-		}
-		default:printf("err\n");
-		}
-	}
-	else if(0xf9000000 == (code&0xff000000)){
-		u8 r0 = code&0x1f;
-		u8 rr = (code>>5)&0x1f;
-		int off = (code>>10)&0xfff;
-		if(code&0x400000){
-			printf("ldr	x%d = [x%d %+d]\n", r0, rr, off*8);
-		}
-		else{
-			printf("str	[x%d %+d] = x%d\n", rr, off*8, r0);
-		}
-	}
-	else if(0xfd000000 == (code&0xff000000)){
-		u8 r0 = code&0x1f;
-		u8 r1 = (code>>5)&0x1f;
-		int val = ((code>>10)&0xfff)<<3;
-		if(code & 0x400000){
-			printf("ldr	d%d = [x%d + %d]\n", r0, r1,val);
-		}
-		else{
-			printf("str	[x%d + %d] = d%d\n", r1,val, r0);
-		}
-	}
 	else if((0x00 == buf[j+3]) |
 		(0x01 == buf[j+3]) |
 		(0x02 == buf[j+3]) |
@@ -1426,6 +1054,1169 @@ for(j=0;j<256;j+=8){
 	);
 };
 printf("fail / total = %d / %d = %d%%\n", cnt, len/4, (100*cnt)/(len/4));
+}*/
+void disasm_arm64_100x(u32 addr, u32 code)
+{
+	switch((code>>22)&0xf){
+//PC-rel. addressing
+	case 0x0:
+	case 0x1:
+	case 0x2:
+	case 0x3:{
+		u8 r0 = code&0x1f;
+		int val = (code>>5)&0x7ffff;
+		if(code&0x800000)val -= 0x80000;
+		val = (val<<2)+((code>>29)&3);
+		if(0x10000000 == (code&0x9f000000)){
+			printf("adr	x%d = 0x%x (+0x%x)\n", r0, addr+val, val);
+			return;
+		}
+		if(0x90000000 == (code&0x9f000000)){
+			printf("adrp	x%d = 0x%x (+0x%x)\n", r0, ((addr>>12)+val)<<12, val<<12);
+			return;
+		}
+		break;
+	}
+
+//Add/subtract (immediate)
+	case 0x4:
+	case 0x5:{
+		u8 r0 = code&0x1f;
+		u8 r1 = (code>>5)&0x1f;
+		u32 val = (code>>10)&0xfff;
+
+		switch(code&0xff000000){
+		case 0x11000000:{
+			if(code & 0x400000){
+				printf("add	w%d = w%d + 0x%x<<12\n", r0, r1, val);
+			}
+			else{
+				printf("add	w%d = w%d + 0x%x\n", r0, r1, val);
+			}
+			return;
+		}
+		case 0x31000000:{
+			if(0x1f == r0)printf("cmn	w%d + ", r1);
+			else printf("adds	w%d = w%d + ", r0, r1);
+
+			if(code & 0x400000)printf("0x%x<<12\n", val);
+			else printf("0x%x\n", val);
+			return;
+		}
+		case 0x51000000:{
+			if(code & 0x400000){
+				printf("sub	w%d = w%d - 0x%x<<12\n", r0, r1, val);
+			}
+			else{
+				printf("sub	w%d = w%d - 0x%x\n", r0, r1, val);
+			}
+			return;
+		}
+		case 0x71000000:{
+			if(0x1f == r0)printf("cmp	w%d - ", r1);
+			else printf("subs	w%d = w%d - ", r0, r1);
+
+			if(code & 0x400000)printf("0x%x<<12\n", val);
+			else printf("0x%x\n", val);
+			return;
+		}
+		case 0x91000000:{
+			if(code & 0x400000){
+				printf("add	x%d = x%d + 0x%x<<12\n", r0, r1, val);
+			}
+			else{
+				printf("add	x%d = x%d + 0x%x\n", r0, r1, val);
+			}
+			return;
+		}
+		case 0xb1000000:{
+			if(0x1f == r0)printf("cmn	x%d + ", r1);
+			else printf("adds	x%d = x%d + ", r0, r1);
+
+			if(code & 0x400000)printf("0x%x<<12\n", val);
+			else printf("0x%x\n", val);
+			return;
+		}
+		case 0xd1000000:{
+			if(code & 0x400000){
+				printf("sub	x%d = x%d - 0x%x<<12\n", r0, r1, val);
+			}
+			else{
+				printf("sub	x%d = x%d - 0x%x\n", r0, r1, val);
+			}
+			return;
+		}
+		case 0xf1000000:{
+			if(0x1f == r0)printf("cmp	x%d - ", r1);
+			else printf("subs	x%d = x%d - ", r0, r1);
+
+			if(code & 0x400000)printf("0x%x<<12\n", val);
+			else printf("0x%x\n", val);
+			return;
+		}
+		}
+		break;
+	}
+
+//Add/subtract (immediate, with tags)
+	case 0x6:
+	case 0x7:{
+		u8 r0 = code&0x1f;
+		u8 r1 = (code>>5)&0x1f;
+		u8 uimm4 = (code>>10)&0xf;
+		u32 uimm6 = ((code>>16)&0x3f)*16;
+		if(0x91 == (code>>24)){
+			printf("addg	tag = 0x%x, x%d = x%d + 0x%x + carry\n", uimm4, r0, r1, uimm6);
+			return;
+		}
+		if(0x91 == (code>>24)){
+			printf("subg	tag = %d, x%d = x%d + 0x%x + carry\n", uimm4, r0, r1, uimm6);
+			return;
+		}
+		break;
+	}
+
+//Logical (immediate)
+	case 0x8:
+	case 0x9:{
+		u8 r0 = code&0x1f;
+		u8 r1 = (code>>5)&0x1f;
+
+		switch(code>>24){
+		//and
+		case 0x12:{
+			printf("and	w%d = w%d & ", r0, r1);
+
+			u8 bit10 = (code>>10)&0x1f;
+			u8 bit16 = (code>>16)&0x1f;
+			u32 mask = table32(bit10);
+			//printf("(%x,%x,%x)",bit10,bit16,mask);
+			//if(0x000000 == (code&0xff0000)){
+				mask = rotateleft32(mask, 0x20-bit16);
+			//}
+			printf("0x%x\n", mask);
+			return;
+		}
+		case 0x92:{
+			printf("and	x%d = x%d & ", r0, r1);
+
+			u8 bit10 = (code>>10)&0x3f;
+			u8 bit16 = (code>>16)&0x3f;
+			u64 mask = table64(bit10);
+			if(0x400000 != (code&0xff0000)){
+				mask = rotateleft64(mask, 0x80-bit16);
+			}
+			printf("0x%llx\n", mask);
+			return;
+		}
+
+		//orr
+		case 0x32:{
+			printf("orr	w%d = w%d | ", r0, r1);
+
+			u8 bit10 = (code>>10)&0x1f;
+			u8 bit16 = (code>>16)&0x1f;
+			u32 mask = table32(bit10);
+			//printf("(%x,%x,%x)",bit10,bit16,mask);
+			//if(0x000000 == (code&0xff0000)){
+				mask = rotateleft32(mask, 0x20-bit16);
+			//}
+			printf("0x%x\n", mask);
+			return;
+		}
+		case 0xb2:{
+			printf("orr	x%d = x%d | ", r0, r1);
+
+			u8 bit10 = (code>>10)&0x3f;
+			u8 bit16 = (code>>16)&0x3f;
+			u64 mask = table64(bit10);
+			if(0x400000 != (code&0xff0000)){
+				mask = rotateleft64(mask, 0x80-bit16);
+			}
+			printf("0x%llx\n", mask);
+			return;
+		}
+
+		//eor
+		case 0x52:{
+			printf("eor	w%d = w%d | ", r0, r1);
+
+			u8 bit10 = (code>>10)&0x1f;
+			u8 bit16 = (code>>16)&0x1f;
+			u32 mask = table32(bit10);
+			//printf("(%x,%x,%x)",bit10,bit16,mask);
+			//if(0x000000 == (code&0xff0000)){
+				mask = rotateleft32(mask, 0x20-bit16);
+			//}
+			printf("0x%x\n", mask);
+			return;
+		}
+		case 0xd2:{
+			printf("eor	x%d = x%d | ", r0, r1);
+
+			u8 bit10 = (code>>10)&0x3f;
+			u8 bit16 = (code>>16)&0x3f;
+			u64 mask = table64(bit10);
+			if(0x400000 != (code&0xff0000)){
+				mask = rotateleft64(mask, 0x80-bit16);
+			}
+			printf("0x%llx\n", mask);
+			return;
+		}
+
+		//ands
+		case 0x72:{
+			if(0x1f == r0)printf("tst	w%d & ", r1);
+			else printf("ands	w%d = w%d & ", r0, r1);
+
+			u8 bit10 = (code>>10)&0x1f;
+			u8 bit16 = (code>>16)&0x1f;
+			u32 mask = table32(bit10);
+			//printf("(%x,%x,%x)",bit10,bit16,mask);
+			//if(0x000000 == (code&0xff0000)){
+				mask = rotateleft32(mask, 0x20-bit16);
+			//}
+			printf("0x%x\n", mask);
+			return;
+		}
+		case 0xf2:{
+			if(0x1f == r0)printf("tst	x%d & ", r1);
+			else printf("ands	x%d = x%d & ", r0, r1);
+
+			u8 bit10 = (code>>10)&0x3f;
+			u8 bit16 = (code>>16)&0x3f;
+			u64 mask = table64(bit10);
+			if(0x400000 != (code&0xff0000)){
+				mask = rotateleft64(mask, 0x80-bit16);
+			}
+			printf("0x%llx\n", mask);
+			return;
+		}
+		}//switch(code>>24)
+
+		break;
+	}
+
+//Move wide (immediate)
+	case 0xa:
+	case 0xb:{
+		u8 rd = code&0x1f;
+		u8 hw = ((code>>21)&3)<<4;
+		u32 imm16 = (code>>5)&0xffff;
+		switch(code>>24){
+		//movn
+		case 0x12:{
+			printf("movn	w%d = ~(0x%x<<%d)\n", rd, imm16, hw);
+			return;
+		}
+		case 0x92:{
+			printf("movn	x%d = ~(0x%x<<%d)\n", rd, imm16, hw);
+			return;
+		}
+		//movz
+		case 0x52:{
+			printf("movz	w%d = 0x%x<<%d\n", rd, imm16, hw);
+			return;
+		}
+		case 0xd2:{
+			printf("movz	x%d = 0x%x<<%d\n", rd, imm16, hw);
+			return;
+		}
+		//movk
+		case 0x72:{
+			printf("movk	w%d.[%d,%d] = 0x%x\n", rd, hw,hw+15, imm16);
+			return;
+		}
+		case 0xf2:{
+			printf("movk	x%d.[%d,%d] = 0x%x\n", rd, hw,hw+15, imm16);
+			return;
+		}
+		}//switch(code>>24)
+
+		break;
+	}
+
+//Bitfield
+	case 0xc:
+	case 0xd:{
+		u8 rd = code&0x1f;
+		switch(code&0xfc000000){
+		//sbfm
+		case 0x13000000:{
+			printf("sbfm	w%d = \n", rd);
+			return;
+		}
+		case 0x93400000:{
+			u8 bit10 = (code>>10)&0x3f;
+			u8 bit16 = (code>>16)&0x3f;
+			u64 mask = table64(bit10);
+			if(0x400000 != (code&0xff0000)){
+				mask = rotateleft64(mask, 0x80-bit16);
+			}
+			printf("sbfm	x%d = 0x%llx\n", rd, mask);
+			return;
+		}
+		//bfm
+		case 0x33000000:{
+			printf("bfm	w%d = \n", rd);
+			return;
+		}
+		case 0xb3400000:{
+			printf("bfm	x%d = \n", rd);
+			return;
+		}
+		//ubfm
+		case 0x53000000:{
+			printf("ubfm	w%d = \n", rd);
+			return;
+		}
+		case 0xd3400000:{
+			printf("ubfm	x%d = \n", rd);
+			return;
+		}
+		}
+		break;
+	}
+
+//Extract
+	case 0xe:
+	case 0xf:{
+		u8 rd = code&0x1f;
+		u8 rn = (code>>5)&0x1f;
+		u8 lsb = (code>>10)&0x3f;
+		u8 rm = (code>>16)&0x1f;
+		if(0x13800000 == (code&0xfff00000)){
+			if(rn == rm)printf("ror	w%d = ror(w%d,%d)\n", rd, rn, lsb);
+			else printf("extr	w%d = (w%d,w%d)>>%d\n", rd, rn,rm, lsb);
+			return;
+		}
+		if(0x93c00000 == (code&0xffe00000)){
+			if(rn == rm)printf("ror	x%d = ror(x%d,%d)\n", rd, rn, lsb);
+			else printf("extr	x%d = (x%d,x%d)>>%d\n", rd, rn,rm, lsb);
+			return;
+		}
+		break;
+	}
+	}
+
+	printf("unknown	data-imm\n");
+}
+void disasm_arm64_101x(u32 addr, u32 code)
+{
+	switch(code>>24){
+	case 0x54:{
+		u8 c = code&0xf;
+		u32 off = (code>>5)&0x7ffff;
+		printf("b.%s	", cond+c*3);
+		if(code&0x800000){
+			off = (0x80000-off)<<2;
+			printf("pc = 0x%x (pc-=0x%x)\n", addr-off, off);
+		}
+		else{
+			off = off<<2;
+			printf("pc = 0x%x (pc+=0x%x)\n", addr+off, off);
+		}
+		return;
+	}//Conditional branch (immediate)
+
+	case 0x14:
+	case 0x15:
+	case 0x16:
+	case 0x17:
+	case 0x94:
+	case 0x95:
+	case 0x96:
+	case 0x97:{
+		u32 off = code&0x3ffffff;
+		if(code&0x80000000){
+			if(off&0x2000000){
+				off = (0x4000000-off)<<2;
+				printf("bl	lr = 0x%x, pc = 0x%x (pc-=0x%x)\n", addr+4, addr-off, off);
+			}
+			else{
+				off = off<<2;
+				printf("bl	lr = 0x%x, pc = 0x%x (pc+=0x%x)\n", addr+4, addr+off, off);
+			}
+		}
+		else{
+			if(off&0x2000000){
+				off = (0x4000000-off)<<2;
+				printf("b	pc = 0x%x (pc-=0x%x)\n", addr-off, off);
+			}
+			else{
+				off = off<<2;
+				printf("b	pc = 0x%x (pc+=0x%x)\n", addr+off, off);
+			}
+		}
+		return;
+	}//Unconditional branch (immediate)
+
+	case 0x34:{
+		u8 r0 = code&0x1f;
+		int val = (code>>5)&0x7ffff;
+		if(code&0x800000)val -= 0x80000;
+		val = val<<2;
+		printf("cbz	if(0==w%d)b 0x%x (+0x%x)\n", r0, addr+val, val);
+		return;
+	}
+	case 0x35:{
+		u8 r0 = code&0x1f;
+		int val = (code>>5)&0x7ffff;
+		if(code&0x800000)val -= 0x80000;
+		val = val<<2;
+		printf("cbnz	if(w%d)b 0x%x (+0x%x)\n", r0, addr+val, val);
+		return;
+	}
+	case 0xb4:{
+		u8 r0 = code&0x1f;
+		int val = (code>>5)&0x7ffff;
+		if(code&0x800000)val -= 0x80000;
+		val = val<<2;
+		printf("cbz	if(0==x%d)b 0x%x (+0x%x)\n", r0, addr+val, val);
+		return;
+	}
+	case 0xb5:{
+		u8 r0 = code&0x1f;
+		int val = (code>>5)&0x7ffff;
+		if(code&0x800000)val -= 0x80000;
+		val = val<<2;
+		printf("cbnz	if(x%d)b 0x%x (+0x%x)\n", r0, addr+val, val);
+		return;
+	}//Compare and branch (immediate)
+
+	case 0x36:{
+		u8 r0 = code&0x1f;
+		u8 bit = (code>>19)&0x1f;
+		int val = (code>>5)&0x3fff;
+		if(val&0x2000)val -= 0x4000;
+		val = val<<2;
+		printf("tbz	if(0==w%d.bit%d)b 0x%x (+0x%x)\n", r0,bit, addr+val, val);
+		return;
+	}
+	case 0x37:{
+		u8 r0 = code&0x1f;
+		u8 bit = (code>>19)&0x1f;
+		int val = (code>>5)&0x3fff;
+		if(val&0x2000)val -= 0x4000;
+		val = val<<2;
+		printf("tbnz	if(w%d.bit%d)b 0x%x (+0x%x)\n", r0,bit, addr+val, val);
+		return;
+	}
+	case 0xb6:{
+		u8 r0 = code&0x1f;
+		u8 bit = (code>>19)&0x1f;
+		bit += 32;
+		int val = (code>>5)&0x3fff;
+		if(val&0x2000)val -= 0x4000;
+		val = val<<2;
+		printf("tbz	if(0==x%d.bit%d)b 0x%x (+0x%x)\n", r0,bit, addr+val, val);
+		return;
+	}
+	case 0xb7:{
+		u8 r0 = code&0x1f;
+		u8 bit = (code>>19)&0x1f;
+		bit += 32;
+		int val = (code>>5)&0x3fff;
+		if(val&0x2000)val -= 0x4000;
+		val = val<<2;
+		printf("tbnz	if(x%d.bit%d)b 0x%x (+0x%x)\n", r0,bit, addr+val, val);
+		return;
+	}//Test and branch (immediate)
+
+	case 0xd4:{
+		u8 ophi = (code>>21)&0x7;
+		u8 oplo = code&0x1f;
+		int imm16 = (code>>5)&0xffff;
+		if(0 == ophi){
+			if(1 == oplo){printf("svc	0x%x\n",imm16);return;}
+			if(2 == oplo){printf("hvc	0x%x\n",imm16);return;}
+			if(3 == oplo){printf("smc	0x%x\n",imm16);return;}
+		}
+		if(1 == ophi){
+			if(0 == oplo){printf("brk	0x%x\n",imm16);return;}
+		}
+		if(2 == ophi){
+			if(0 == oplo){printf("hlt	0x%x\n",imm16);return;}
+		}
+		if(5 == ophi){
+			if(1 == oplo){printf("dcps1	0x%x\n",imm16);return;}
+			if(2 == oplo){printf("dcps2	0x%x\n",imm16);return;}
+			if(3 == oplo){printf("dcps3	0x%x\n",imm16);return;}
+		}
+		break;
+	}
+
+	case 0xd5:{
+		if(0xd5000000 == (code&0xffe00000)){
+			disasm_arm64_msr(code);
+			return;
+		}
+		if(0xd5200000 == (code&0xffe00000)){
+			disasm_arm64_mrs(code);
+			return;
+		}
+		break;
+	}
+
+	case 0xd6:
+	case 0xd7:{
+		u8 r0 = code&0x1f;
+		u8 r5 = (code>>5)&0x1f;
+		u8 op10 = (code>>10)&0x3f;
+		u8 op16 = (code>>16)&0x1f;
+		u8 op21 = (code>>21)&0xf;
+		if(0x1f != op16)break;
+
+		switch(op21){
+		case 0x0:{
+			if((0 == op10)&&(0x00 == r0)){
+				printf("br	pc = x%d\n", r5);
+				return;
+			}
+			if((2 == op10)&&(0x1f == r0)){
+				printf("braa	keya\n");
+				return;
+			}
+			if((3 == op10)&&(0x1f == r0)){
+				printf("braa	keyb\n");
+				return;
+			}
+		}
+		case 0x1:{
+			if((0 == op10)&&(0x00 == r0)){
+				printf("blr	pc = x%d\n", r5);
+				return;
+			}
+			if((2 == op10)&&(0x1f == r0)){
+				printf("blraa	keya\n");
+				return;
+			}
+			if((3 == op10)&&(0x1f == r0)){
+				printf("blraa	keyb\n");
+				return;
+			}
+		}
+		case 0x2:{
+			if((0 == op10)&&(0x00 == r0)){
+				printf("ret	pc = x%d\n", r5);
+				return;
+			}
+			if((2 == op10)&&(0x1f == r5)&&(0x1f == r0)){
+				printf("retaa\n");
+				return;
+			}
+			if((3 == op10)&&(0x1f == r5)&&(0x1f == r0)){
+				printf("retab\n");
+				return;
+			}
+		}
+		case 0x4:{
+			if((0 == op10)&&(0x00 == r0)){
+				printf("eret	pc = x%d\n", r5);
+				return;
+			}
+			if((2 == op10)&&(0x1f == r5)&&(0x1f == r0)){
+				printf("eretaa\n");
+				return;
+			}
+			if((3 == op10)&&(0x1f == r5)&&(0x1f == r0)){
+				printf("eretab\n");
+				return;
+			}
+		}
+		case 0x5:{
+			if((0 == op10)&&(0x1f == r5)&&(0x00 == r0)){
+				printf("drps\n");
+				return;
+			}
+		}
+		case 0x8:{
+			if(2 == op10){
+				printf("braa	keya,reg\n");
+				return;
+			}
+			if(3 == op10){
+				printf("braa	keyb,reg\n");
+				return;
+			}
+		}
+		case 0x9:{
+			if(2 == op10){
+				printf("blraa	keya,reg\n");
+				return;
+			}
+			if(3 == op10){
+				printf("blraa	keyb,reg\n");
+				return;
+			}
+		}
+		break;
+		}//switch
+	break;
+	}//Unconditional branch (register)
+
+	}//switch
+
+	//other undefined
+	printf("unknown	system-inst\n");
+}
+void disasm_arm64_x1x0(u32 addr, u32 code)
+{/*
+	if(0x08000000 == (code&0xff000000)){
+		u8 val = code&0x1f;
+		u8 adr = (code>>5)&0x1f;
+		u8 sts = (code>>16)&0x1f;
+		printf("ldxrb	w%d = [x%d].byte\n", val, adr);
+		printf("stxrb	[x%d].byte = w%d, w%d = status\n", adr, val, sts);
+	}*/
+	if(0x58000000 == (code&0xff800000)){
+		u8 r0 = code&0x1f;
+		int off = ((code>>5)&0x3ffff)<<2;
+		printf("ldr	x%d = [0x%x]\n", r0, off);
+		return;
+	}
+	if(0x18000000 == (code&0xff800000)){
+		u8 r0 = code&0x1f;
+		int off = ((code>>5)&0x3ffff)<<2;
+		printf("ldr	w%d = [0x%x]\n", r0, off);
+		return;
+	}
+	if(0xb8000000 == (code&0xff000000)){
+		u8 r0 = code&0x1f;
+		u8 r1 = (code>>5)&0x1f;
+
+		switch(code&0xc00000){
+		case 0x000000:{
+			int off = (code>>12)&0xff;
+			if(code&0x100000)off -= 256;
+
+			switch(code&0xc00){
+			case 0x000:printf("stur	[x%d %+d] = w%d\n", r1, off, r0);return;
+			case 0x400:printf("str	[x%d] %+d = w%d\n", r1, off, r0);return;
+			case 0x800:printf("sttr	[x%d %+d] = w%d\n", r1, off, r0);return;
+			case 0xc00:printf("str!	[x%d %+d] = w%d\n", r1, off, r0);return;
+			}
+			break;
+		}
+		case 0x400000:{
+			int off = (code>>12)&0xff;
+			if(code&0x100000)off -= 256;
+
+			switch(code&0xc00){
+			case 0x000:printf("ldur	w%d == [x%d %+d]\n", r0, r1, off);return;
+			case 0x400:printf("ldr	w%d == [x%d] %+d\n", r0, r1, off);return;
+			case 0x800:printf("ldtr	w%d == [x%d %+d]\n", r0, r1, off);return;
+			case 0xc00:printf("ldr!	w%d == [x%d %+d]\n", r0, r1, off);return;
+			}
+			break;
+		}
+		}
+	}
+	if(0xa8000000 == (code&0xff000000)){
+		u8 r0 = code&0x1f;
+		u8 r1 = (code>>10)&0x1f;
+		u8 rr = (code>>5)&0x1f;
+		int off = (code>>15)&0x3f;
+		if(code&0x200000)off -= 0x40;
+		off *= 8;
+
+		switch(code&0xc00000){
+		case 0x000000:printf("stnp	[x%d %+d] = x%d,x%d\n", rr,off, r0,r1);return;
+		case 0x400000:printf("ldnp	x%d,x%d = [x%d %+d]\n", r0,r1, rr,off);return;
+		case 0x800000:printf("stp	[x%d] = x%d,x%d, x%d += %d\n", rr, r0,r1, rr,off);return;
+		case 0xc00000:printf("ldp	x%d,x%d = [x%d], x%d += %d\n", r0,r1, rr, rr,off);return;
+		}
+	}
+	if(0xa9000000 == (code&0xff000000)){
+		u8 r0 = code&0x1f;
+		u8 r1 = (code>>10)&0x1f;
+		u8 rr = (code>>5)&0x1f;
+		int off = (code>>15)&0x3f;
+		if(code&0x200000)off -= 0x40;
+		off *= 8;
+
+		switch(code&0xc00000){
+		case 0x000000:printf("stp	[x%d %+d] = x%d,x%d\n", rr,off, r0,r1);return;
+		case 0x400000:printf("ldp	x%d,x%d = [x%d %+d]\n", r0,r1, rr,off);return;
+		case 0x800000:printf("stp!	[x%d %+d] = x%d,x%d\n", rr,off, r0,r1);return;
+		case 0xc00000:printf("ldp!	x%d,x%d = [x%d %+d]\n", r0,r1, rr,off);return;
+		}
+	}
+	if(0xb9000000 == (code&0xff000000)){
+		u8 r0 = code&0x1f;
+		u8 r1 = (code>>5)&0x1f;
+		int off = (code>>10)&0xfff;
+		switch(code&0xc00000){
+		case 0x000000:printf("str	[x%d %+d] = w%d\n", r1, off<<2, r0);return;
+		case 0x400000:printf("ldr	w%d = [x%d %+d]\n", r0, r1, off<<2);return;
+		case 0x800000:printf("ldrsw	x%d = [x%d %+d]\n", r0, r1, off<<2);return;
+		}
+	}
+	if(0xf8000000 == (code&0xff000000)){
+		u8 r0 = code&0x1f;
+		u8 rr = (code>>5)&0x1f;
+
+		switch(code&0xe00000){
+		case 0x000000:{
+			int val = (code>>12)&0xff;
+			if(code&0x100000)val -= 256;
+
+			switch(code&0xc00){
+			case 0x000:printf("stur	[x%d %+d] = x%d\n", rr, val, r0);return;
+			case 0x400:printf("str	[x%d] = x%d, x%d += %d\n", rr, r0, rr,val);return;
+			case 0x800:printf("sttr	[x%d %+d] = x%d\n", rr, val, r0);return;
+			case 0xc00:printf("str!	[x%d %+d] = x%d\n", rr, val, r0);return;
+			}
+		}
+		case 0x400000:{
+			int val = (code>>12)&0xff;
+			if(code&0x100000)val -= 256;
+
+			switch(code&0xc00){
+			case 0x000:printf("ldur	x%d = [x%d %+d]\n", r0, rr, val);return;
+			case 0x400:printf("ldr	x%d = [x%d], x%d += %d\n", r0, rr, rr,val);return;
+			case 0x800:printf("ldtr	x%d = [x%d %+d]\n", r0, rr, val);return;
+			case 0xc00:printf("ldr!	x%d = [x%d %+d]\n", r0, rr, val);return;
+			}
+		}
+		}
+	}
+	if(0xf9000000 == (code&0xff000000)){
+		u8 r0 = code&0x1f;
+		u8 rr = (code>>5)&0x1f;
+		int off = (code>>10)&0xfff;
+		if(code&0x400000){
+			printf("ldr	x%d = [x%d %+d]\n", r0, rr, off*8);
+		}
+		else{
+			printf("str	[x%d %+d] = x%d\n", rr, off*8, r0);
+		}
+		return;
+	}
+	if(0xfd000000 == (code&0xff000000)){
+		u8 r0 = code&0x1f;
+		u8 r1 = (code>>5)&0x1f;
+		int val = ((code>>10)&0xfff)<<3;
+		if(code & 0x400000){
+			printf("ldr	d%d = [x%d + %d]\n", r0, r1,val);
+		}
+		else{
+			printf("str	[x%d + %d] = d%d\n", r1,val, r0);
+		}
+		return;
+	}
+	printf("unknown	load,store\n");
+}
+void disasm_arm64_x101(u32 addr, u32 code)
+{
+//-----------------mov-------------------
+/*
+	else if(0xaa0003e0 == (code&0xffc003e0)){
+		printf("mov	x%d = x%d\n", code&0x1f, (code>>16)&0x1f);
+	}
+	else if(0x2a0003e0 == (code&0xffc003e0)){
+		printf("mov	w%d = w%d\n", code&0x1f, (code>>16)&0x1f);
+	}
+	else if(0xd2800000 == (code&0xfff00000)){
+		printf("mov	x%d = %d\n", (code&0x1f), (code>>5)&0x7fff);
+	}
+	else if(0x52800000 == (code&0xfff00000)){
+		printf("mov	w%d = %d\n", (code&0x1f), (code>>5)&0x7fff);
+	}
+*/
+	u8 op0 = (code>>30)&1;
+	u8 op1 = (code>>28)&1;
+	u8 op2 = (code>>21)&0xf;
+	u8 op3 = (code>>10)&0x3f;
+	//Data-processing (2 source)
+	if((0 == op0)&&(1 == op1)&&(6 == op2)){
+		printf("\n");
+		return;
+	}
+	//Data-processing (1 source)
+	if((0 == op0)&&(1 == op1)&&(6 == op2)){
+		printf("\n");
+		return;
+	}
+	if(0 == op1){
+		//Logical (shifted register)
+		if(op2 < 4){
+			u8 r0 = code&0x1f;
+			u8 r1 = (code>>5)&0x1f;
+
+			u8 sz = 'w';
+			if(code>>31)sz = 'x';
+
+			u8 lo = (code>>21)&1;
+			u8 hi = ((code>>29)&3)<<1;
+			switch(hi | lo){
+			case 0:printf("and	%c%d = %c%d & ", sz,r0, sz,r1);break;
+			case 1:printf("bic	%c%d = %c%d & ~",sz,r0, sz,r1);break;
+			case 2:printf("orr	%c%d = %c%d | ", sz,r0, sz,r1);break;
+			case 3:printf("orn	%c%d = %c%d | ~",sz,r0, sz,r1);break;
+			case 4:printf("eor	%c%d = %c%d ^ ", sz,r0, sz,r1);break;
+			case 5:printf("eon	%c%d = %c%d ^ ~",sz,r0, sz,r1);break;
+			case 6:printf("ands	%c%d = %c%d & ", sz,r0, sz,r1);break;
+			case 7:printf("bics	%c%d = %c%d & ~",sz,r0, sz,r1);break;
+			}
+
+			u8 sh = (code>>10)&0x3f;
+			u8 r2 = (code>>16)&0x1f;
+			u8 op = (code>>22)&3;
+			if(0 == op){
+				if(0 == sh)printf("%c%d\n", sz,r2);
+				else printf("lsl(%c%d,%d)\n", sz,r2, sh);
+				return;
+			}
+			if(1 == op){
+				printf("lsr(%c%d,%d)\n", sz,r2, sh);
+				return;
+			}
+			if(2 == op){
+				printf("asr(%c%d,%d)\n", sz,r2, sh);
+				return;
+			}
+			if(3 == op){
+				printf("ror(%c%d,%d)\n", sz,r2, sh);
+				return;
+			}
+		}
+		//Add/subtract (shifted register)
+		if(8 == (op2 & 9)){
+			u8 r0 = code&0x1f;
+			u8 r1 = (code>>5)&0x1f;
+
+			u8 sz = 'w';
+			if(code>>31)sz = 'x';
+
+			switch((code>>29)&3){
+			case 0:{
+				printf("add	%c%d = %c%d + ", sz,r0, sz,r1);
+				break;
+			}
+			case 1:{
+				if(0x1f == r0)printf("cmn	%c%d + ", sz,r1);
+				else printf("adds	%c%d = %c%d + ", sz,r0, sz,r1);
+				break;
+			}
+			case 2:{
+				printf("sub	%c%d = %c%d - ", sz,r0, sz,r1);
+				break;
+			}
+			case 3:{
+				if(0x1f == r0)printf("cmp	%c%d - ", sz,r1);
+				else if(0x1f == r1)printf("negs	%c%d = - ", sz,r0);
+				else printf("subs	%c%d = %c%d - ", sz,r0, sz,r1);
+				break;
+			}
+			}
+
+			u8 sh = (code>>10)&0x3f;
+			u8 r2 = (code>>16)&0x1f;
+			u8 op = (code>>22)&3;
+			if(0 == op){
+				if(0 == sh)printf("%c%d\n", sz,r2);
+				else printf("lsl(%c%d,%d)\n", sz,r2, sh);
+				return;
+			}
+			if(1 == op){
+				printf("lsr(%c%d,%d)\n", sz,r2, sh);
+				return;
+			}
+			if(2 == op){
+				printf("asr(%c%d,%d)\n", sz,r2, sh);
+				return;
+			}
+		}
+		//Add/subtract (extended register)
+		if(9 == (op2 & 9)){
+			u8 r0 = code&0x1f;
+			u8 r1 = (code>>5)&0x1f;
+
+			u8 sz = 'w';
+			if(code>>31)sz = 'x';
+
+			switch((code>>29)&3){
+			case 0:{
+				printf("add	%c%d = %c%d + ", sz,r0, sz,r1);
+				break;
+			}
+			case 1:{
+				if(0x1f == r0)printf("cmn	%c%d + ", sz,r1);
+				else printf("adds	%c%d = %c%d + ", sz,r0, sz,r1);
+				break;
+			}
+			case 2:{
+				printf("sub	%c%d = %c%d - ", sz,r0, sz,r1);
+				break;
+			}
+			case 3:{
+				if(0x1f == r0)printf("cmp	%c%d - ", sz,r1);
+				else if(0x1f == r1)printf("negs	%c%d = - ", sz,r0);
+				else printf("subs	%c%d = %c%d - ", sz,r0, sz,r1);
+				break;
+			}
+			}
+
+			u8 sh = (code>>10)&0x7;
+			u8 op = (code>>13)&0x7;
+			u8 r2 = (code>>16)&0x1f;
+			switch(op){
+			case 0:printf("uxtb(%c%d,%d)\n", sz,r2, sh);return;
+			case 1:printf("uxth(%c%d,%d)\n", sz,r2, sh);return;
+			case 2:{
+				if((0x1f == r1)&&(0 == (code>>31))){
+					if(0 == sh)printf("%c%d", sz,r2);
+					else printf("lsl(%c%d,%d)\n", sz,r2, sh);
+				}
+				else printf("uxtw(%c%d,%d)\n", sz,r2, sh);
+				return;
+			}
+			case 3:{
+				if((0x1f == r1)&&(code>>31)){
+					if(0 == sh)printf("%c%d", sz,r2);
+					else printf("lsl(%c%d,%d)\n", sz,r2, sh);
+				}
+				else printf("uxtx(%c%d,%d)\n", sz,r2, sh);
+				return;
+			}
+			case 4:printf("sxtb(%c%d,%d)\n", sz,r2, sh);return;
+			case 5:printf("sxth(%c%d,%d)\n", sz,r2, sh);return;
+			case 6:printf("sxtw(%c%d,%d)\n", sz,r2, sh);return;
+			case 7:printf("sxtx(%c%d,%d)\n", sz,r2, sh);return;
+			}
+		}
+	}
+	if(1 == op1){
+		if(0 == op2){
+			//Add/subtract (with carry)
+			if(0 == op3){
+				u8 rd = code&0x1f;
+				u8 rn = (code>>5)&0x1f;
+				u8 rm = (code>>16)&0x1f;
+				switch(code>>29){
+				case 0:{
+					printf("adc	w%d = w%d + w%d + carry\n", rd, rn, rm);
+					return;
+				}
+				case 1:{
+					printf("adcs	w%d = w%d + w%d + carry\n", rd, rn, rm);
+					return;
+				}
+				case 2:{
+					printf("sbc	w%d = w%d + ~w%d + carry\n", rd, rn, rm);
+					return;
+				}
+				case 3:{
+					printf("sbcs	w%d = w%d + ~w%d + carry\n", rd, rn, rm);
+					return;
+				}
+				case 4:{
+					printf("adc	x%d = x%d + x%d + carry\n", rd, rn, rm);
+					return;
+				}
+				case 5:{
+					printf("adcs	x%d = x%d + x%d + carry\n", rd, rn, rm);
+					return;
+				}
+				case 6:{
+					printf("sbc	x%d = x%d + ~x%d + carry\n", rd, rn, rm);
+					return;
+				}
+				case 7:{
+					printf("sbcs	x%d = x%d + ~x%d + carry\n", rd, rn, rm);
+					return;
+				}
+				}
+			}
+			//Rotate right into flags
+			if(1 == (op3&0x1f)){
+				if(0xba000400 == (code&0xffe007c10)){
+					u8 rn = (code>>5)&0x1f;
+					u8 imm6 = (code>>15)&0x3f;
+					printf("rmif	x%d, %d\n", rn, imm6);
+					return;
+				}
+			}
+			//Evaluate into flags
+			if(2 == (op3&0x0f)){
+				u8 rn = (code>>5)&0x1f;
+				if(0x3a00080d == (code&0xfffffc1f)){
+					printf("setf8	w%d\n", rn);
+					return;
+				}
+				if(0x3a00480d == (code&0xfffffc1f)){
+					printf("setf16	w%d\n", rn);
+					return;
+				}
+			}
+		}//0==op2
+
+		if(2 == op2){
+			//Conditional compare (register)
+			if(0 == (op3 & 2)){
+				u8 rn = (code>>5)&0x1f;
+				u8 rm = (code>>16)&0x1f;
+
+				switch(code>>29){
+				case 1:printf("ccmn	w%d,w%d\n", rn, rm);return;
+				case 3:printf("ccmp	w%d,w%d\n", rn, rm);return;
+				case 5:printf("ccmn	x%d,x%d\n", rn, rm);return;
+				case 7:printf("ccmp	x%d,x%d\n", rn, rm);return;
+				}
+			}
+			//Conditional compare (immediate)
+			if(op3 & 2){
+				u8 rn = (code>>5)&0x1f;
+				u8 imm5 = (code>>16)&0x1f;
+
+				switch(code>>29){
+				case 1:printf("ccmn	w%d, %d\n", rn, imm5);return;
+				case 3:printf("ccmp	w%d, %d\n", rn, imm5);return;
+				case 5:printf("ccmn	x%d, %d\n", rn, imm5);return;
+				case 7:printf("ccmp	x%d, %d\n", rn, imm5);return;
+				}
+			}
+		}
+
+		//Conditional select
+		if(4 == op2){
+			u8 rd = code&0x1f;
+			u8 rn = (code>>5)&0x1f;
+			u8 cd = (code>>12)&0xf;
+			u8 rm = (code>>16)&0x1f;
+
+			u8 aa = (code>>30)<<1;
+			u8 bb = (code>>10)&1;
+			switch(aa | bb){
+			case 0:printf("csel	w%d = %s ? w%d : w%d\n", rd, cond+3*cd, rn, rm);return;
+			case 1:printf("csinc	w%d = %s ? w%d : (w%d+1)\n", rd, cond+3*cd, rn, rm);return;
+			case 2:printf("csinv	w%d = %s ? w%d : ~w%d\n", rd, cond+3*cd, rn, rm);return;
+			case 3:printf("csneg	w%d = %s ? w%d : (~w%d+1)\n", rd, cond+3*cd, rn, rm);return;
+			case 4:printf("csel	x%d = %s ? x%d : x%d\n", rd, cond+3*cd, rn, rm);return;
+			case 5:printf("csinc	x%d = %s ? x%d : (x%d+1)\n", rd, cond+3*cd, rn, rm);return;
+			case 6:printf("csinv	x%d = %s ? x%d : ~x%d\n", rd, cond+3*cd, rn, rm);return;
+			case 7:printf("csneg	x%d = %s ? x%d : (~x%d+1)\n", rd, cond+3*cd, rn, rm);return;
+			}
+		}
+
+		//Data-processing (3 source)
+		if(op2 & 0x8){
+			u8 rd = code&0x1f;
+			u8 rn = (code>>5)&0x1f;
+			u8 ra = (code>>10)&0x1f;
+			u8 rm = (code>>16)&0x1f;
+			//madd
+			if(0x1b000000 == (code&0xff008000)){
+				if(0x1f == ra)printf("mul	w%d = w%d * w%d\n", rd, rn, rm);
+				else printf("madd	w%d = w%d + (w%d * w%d)\n", rd, ra, rn, rm);
+				return;
+			}
+			if(0x9b000000 == (code&0xff008000)){
+				if(0x1f == ra)printf("mul	x%d = x%d * x%d\n", rd, rn, rm);
+				else printf("madd	x%d = x%d + (x%d * x%d)\n", rd, ra, rn, rm);
+				return;
+			}
+			//msub
+			if(0x1b008000 == (code&0xff008000)){
+				if(0x1f == ra)printf("mneg	w%d = - (w%d * w%d)\n", rd, rn, rm);
+				else printf("msub	w%d = w%d - (w%d * w%d)\n", rd, ra, rn, rm);
+				return;
+			}
+			if(0x9b008000 == (code&0xff008000)){
+				if(0x1f == ra)printf("mneg	x%d = - (x%d * x%d)\n", rd, rn, rm);
+				else printf("msub	x%d = x%d - (x%d * x%d)\n", rd, ra, rn, rm);
+				return;
+			}
+
+			//smaddl
+			if(0x9b200000 == (code&0xffe08000)){
+				if(0x1f == ra)printf("smull	x%d = smul(w%d, w%d)\n", rd, rn, rm);
+				else printf("smaddl	x%d = x%d + smul(w%d, %d)\n", rd, ra, rn, rm);
+				return;
+			}
+			//smsubl
+			if(0x9b208000 == (code&0xffe08000)){
+				if(0x1f == ra)printf("smnegl	x%d = - smul(w%d, w%d)\n", rd, rn, rm);
+				else printf("smaddl	x%d = x%d - smul(w%d, %d)\n", rd, ra, rn, rm);
+				return;
+			}
+			//smulh
+			if(0x9b208000 == (code&0xffe08000)){
+				printf("smulh	x%d = smul(x%d, x%d)>>64\n", rd, rn, rm);
+				return;
+			}
+
+			//umaddl
+			if(0x9ba00000 == (code&0xffe08000)){
+				if(0x1f == ra)printf("umull	x%d = umul(w%d, w%d)\n", rd, rn, rm);
+				else printf("umaddl	x%d = x%d + umul(w%d, %d)\n", rd, ra, rn, rm);
+				return;
+			}
+			//umsubl
+			if(0x9ba08000 == (code&0xffe08000)){
+				if(0x1f == ra)printf("umnegl	x%d = - umul(w%d, w%d)\n", rd, rn, rm);
+				else printf("umaddl	x%d = x%d - umul(w%d, %d)\n", rd, ra, rn, rm);
+				return;
+			}
+			//umulh
+			if(0x9bc00000 == (code&0xffe08000)){
+				printf("umulh	x%d = umul(x%d, x%d)>>64\n", rd, rn, rm);
+				return;
+			}
+		}
+	}
+	//
+	printf("unknown	data-reg\n");
+}
+void disasm_arm64_x111(u32 addr, u32 code)
+{
+	printf("unknown	data-fp\n");
+}
+void disasm_arm64_one(u8* buf, int len)
+{
+int j;
+u32 code;
+for(j=0;j<len;j+=4){
+	code = *(u32*)(buf+j);
+	printf("%8x:	%08x	", j, code);
+
+	switch((code>>25) & 0xf){
+	//100x: Data Processing -- Immediate
+	case 0x8:
+	case 0x9:{
+		disasm_arm64_100x(j, code);
+		break;
+	}
+	//101x: Branches, Exception Generating and System instructions
+	case 0xa:
+	case 0xb:{
+		disasm_arm64_101x(j, code);
+		break;
+	}
+	//x1x0: Loads and Stores
+	case 0x4:
+	case 0x6:
+	case 0xc:
+	case 0xe:{
+		disasm_arm64_x1x0(j, code);
+		break;
+	}
+	//x101: Data Processing -- Register
+	case 0x5:
+	case 0xd:{
+		disasm_arm64_x101(j, code);
+		break;
+	}
+	//x111: Data Processing -- Scalar Floating-Point and Advanced SIMD
+	case 0x7:
+	case 0xf:{
+		disasm_arm64_x111(j, code);
+		break;
+	}
+	default:printf("unknown\n");
+	}
+}
 }
 void disasm_arm64(int argc, char** argv)
 {
