@@ -32,14 +32,15 @@ int conv(int argc,char** argv);
 int disasm_arm64(int argc,char** argv);
 int disasm_x8664(int argc,char** argv);
 //
+int process(int argc,char** argv);
+int learn(int argc,char** argv);
+//
 int create(int argc,char** argv);
 int delete(int argc,char** argv);
 int search(int argc,char** argv);
 int modify(int argc,char** argv);
 //
-int learn(int argc,char** argv);
 int think(int argc,char** argv);
-//
 int graph(int argc,char** argv);
 int kirchhoff(int argc,char** argv);
 int route(int argc,char** argv);
@@ -51,19 +52,20 @@ int serve(int argc,char** argv);
 void help(char* buf)
 {
 	if(buf != 0)printf("wrong usage: %s\n", buf);
-	printf("prep:\n");
+	printf("me <- machine code\n");
 	printf("	a.exe conv ac2intel test.ac\n");
 	printf("	a.exe disasm_arm64 xxx.bin\n");
 	printf("	a.exe disasm_x8664 xxx.bin\n");
-	printf("dbop\n");
+	printf("me <- human text\n");
+	printf("	a.exe process macro.c\n");
+	printf("	a.exe learn aaa.c /some/dir/bbb.cpp /my/folder/haha*\n");
+	printf("me -> database:\n");
 	printf("	a.exe insert\n");
 	printf("	a.exe delete\n");
 	printf("	a.exe change\n");
 	printf("	a.exe search str func@c0 file@20\n");
-	printf("think:\n");
-	printf("	a.exe learn aaa.c /some/dir/bbb.cpp /my/folder/haha*\n");
+	printf("me -> indite:\n");
 	printf("	a.exe think\n");
-	printf("indite:\n");
 	printf("	a.exe graph\n");
 	printf("	a.exe kirchhoff\n");
 	printf("	a.exe route\n");
@@ -115,7 +117,7 @@ int main(int argc, char** argv)
 
 
 
-	//prepare
+	//me <- machine code
 	if(strcmp(argv[1], "conv") == 0){
 		conv(argc-1, argv+1);
 	}
@@ -126,7 +128,15 @@ int main(int argc, char** argv)
 		disasm_x8664(argc-1, argv+1);
 	}
 
-	//database
+	//me <- human text
+/*	else if(strcmp(argv[1], "learn") == 0){
+		learn(argc-1, argv+1);
+	}*/
+	else if(strcmp(argv[1], "learn") == 0){
+		learn(argc-1, argv+1);
+	}
+
+	//me -> database
 	else if(strcmp(argv[1], "create") == 0){
 		create(argc-1, argv+1);
 	}
@@ -140,10 +150,7 @@ int main(int argc, char** argv)
 		modify(argc-1, argv+1);
 	}
 
-	//indite
-	else if(strcmp(argv[1], "learn") == 0){
-		learn(argc-1, argv+1);
-	}
+	//me -> indite
 	else if(strcmp(argv[1], "think") == 0){
 		think(argc-1, argv+1);
 	}

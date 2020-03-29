@@ -132,6 +132,32 @@ int decstr2data(u8* src, void* dst)
 	else *(u32*)dst = data&0xffffffff;
 	return j;
 }
+int hexstr2u32(u8* src, u32* dat)
+{
+	int j;
+	u32 val = 0;
+	for(j=0;j<8;j++)
+	{
+		if((src[j] >= 'a') && (src[j] <= 'f'))
+		{
+			val = val << 4;
+			val += src[j] - 'a' + 10;
+			continue;
+		}
+
+		if(src[j]>=0x30 && src[j]<=0x39)
+		{
+			val = val << 4;
+			val += src[j] - '0';
+			continue;
+		}
+
+		break; 
+	}
+
+	*dat = val;
+	return j;
+}
 int hexstr2data(u8* src,u64* data)
 {
 	int j;
