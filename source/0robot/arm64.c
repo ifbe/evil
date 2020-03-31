@@ -2479,12 +2479,12 @@ for(j=0;j<len;j+=4){
 }
 void disasm_arm64(int argc, char** argv)
 {
-	u32 ss = 0;
-        u32 ee = 0;
+	u32 at = 0;
+	u32 sz = 0;
 	if(argc < 2)return;
-        if(argc > 2)hexstr2u32(argv[2], &ss);
-        if(argc > 3)hexstr2u32(argv[3], &ee);
-	if(0 == ee)ee = 0x1000000;
+	if(argc > 2)hexstr2u32(argv[2], &at);
+	if(argc > 3)hexstr2u32(argv[3], &sz);
+	if(0 == sz)sz = 0x1000000;
 
 	int fd = open(argv[1] , O_RDONLY);
 	if(fd <= 0){
@@ -2492,21 +2492,27 @@ void disasm_arm64(int argc, char** argv)
 		return;
 	}
 
-	u8* buf = malloc(ee);
+	u8* buf = malloc(sz);
 	if(0 == buf){
 		printf("errno=%d@malloc\n", errno);
 		goto theend;
 	}
 
-	int ret = read(fd, buf, ee);
+	int ret = lseek(fd, at, SEEK_SET);
+	if(ret < 0){
+		printf("errno=%d@lseek\n", errno);
+		goto release;
+	}
+
+	ret = read(fd, buf, sz);
 	if(ret <= 0){
 		printf("errno=%d@read\n", errno);
-		goto theend;
+		goto release;
 	}
-	if(ee > ret)ee = ret;
+	disasm_arm64_one(buf, ret);
 
-	disasm_arm64_one(buf+ss, ee-ss);
-
+release:
+	free(buf);
 theend:
 	close(fd);
 }
