@@ -324,11 +324,13 @@ yes:
 	printf("%s\n",str);
 	return 1;
 }
-int disasm_x8664_sib(u64 rip, u8* p, char* str, s64* dat)
+int disasm_x8664_sib(u64 rip, u8* p, char* str, s64* dat, char** istr, char** bstr)
 {
 	u8 _s,_i,_b;
 	u8 src,dst;
 	s64 off;
+	if(0 == istr)istr = reg64;
+	if(0 == bstr)bstr = reg64;
 /*
 	//p[1]: [c0,ff]: register
 	if(p[1] >= 0xc0){
@@ -343,7 +345,7 @@ int disasm_x8664_sib(u64 rip, u8* p, char* str, s64* dat)
 		if(4 != (p[1] &7)){
 			dst = p[1]&7;
 			off = *(int*)(p+2);
-			snprintf(str, 64, "%s +0x%llx", reg64[dst], off);
+			snprintf(str, 64, "%s +0x%llx", bstr[dst], off);
 			return 6;
 		}
 
@@ -353,11 +355,11 @@ int disasm_x8664_sib(u64 rip, u8* p, char* str, s64* dat)
 		_b = p[2]&7;
 		off = *(int*)(p+3);
 		if(4 == _i){
-			snprintf(str, 64, "%s +0x%llx", reg64[_b], off);
+			snprintf(str, 64, "%s +0x%llx", bstr[_b], off);
 		}
 		//p[2] != above
 		else{
-			snprintf(str, 64, "%d*%s +%s +0x%llx", _s, reg64[_i], reg64[_b], off);
+			snprintf(str, 64, "%d*%s +%s +0x%llx", _s, istr[_i], bstr[_b], off);
 		}
 		return 7;
 	}
@@ -367,7 +369,7 @@ int disasm_x8664_sib(u64 rip, u8* p, char* str, s64* dat)
 		//p[1] != *4 *c
 		if(4 != (p[1] &7)){
 			dst = p[1]&7;
-			snprintf(str, 64, "%s %+d", reg64[dst], *(char*)(p+2));
+			snprintf(str, 64, "%s %+d", bstr[dst], *(char*)(p+2));
 			return 3;
 		}
 
@@ -376,11 +378,11 @@ int disasm_x8664_sib(u64 rip, u8* p, char* str, s64* dat)
 		_i = (p[2]>>3)&7;
 		_b = p[2]&7;
 		if(4 == _i){
-			snprintf(str, 64, "%s %+d", reg64[_b], *(char*)(p+3));
+			snprintf(str, 64, "%s %+d", bstr[_b], *(char*)(p+3));
 		}
 		//p[2] != above
 		else{
-			snprintf(str, 64, "%d*%s +%s %+d", _s, reg64[_i], reg64[_b], *(char*)(p+3));
+			snprintf(str, 64, "%d*%s +%s %+d", _s, istr[_i], bstr[_b], *(char*)(p+3));
 		}
 		return 4;
 	}
@@ -390,7 +392,7 @@ int disasm_x8664_sib(u64 rip, u8* p, char* str, s64* dat)
 		//p[1] != *4 *5 *c *d
 		if(4 != (p[1] & 6)){
 			dst = p[1]&7;
-			snprintf(str, 64, "%s", reg64[dst]);
+			snprintf(str, 64, "%s", bstr[dst]);
 			return 2;
 		}
 		//p[1] = *5 *d
@@ -408,12 +410,12 @@ int disasm_x8664_sib(u64 rip, u8* p, char* str, s64* dat)
 		if(5 == _b){
 			off = *(int*)(p+3);
 			if(4 == _i)snprintf(str, 64, "%llx", off);
-			else snprintf(str, 64, "%d*%s+0x%llx", _s, reg64[_i], off);
+			else snprintf(str, 64, "%d*%s+0x%llx", _s, istr[_i], off);
 			return 7;
 		}
 		//p[2] = else
-		if(4 == _i)snprintf(str, 64, "%s", reg64[_b]);
-		else snprintf(str, 64, "%d*%s+%s", _s, reg64[_i], reg64[_b]);
+		if(4 == _i)snprintf(str, 64, "%s", bstr[_b]);
+		else snprintf(str, 64, "%d*%s+%s", _s, istr[_i], bstr[_b]);
 		return 3;
 	}//add [rel 0x1234],al
 
@@ -458,16 +460,15 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 
 	if(fix44)fix345 = &fix345[8];
 	if(fix41)fix012 = &fix012[8];
-/*
-	//-------32bit.special, scale index base---------
-	char** fix_b;
-	char** fix_i;
-	if(fix67)fix_b = fix_i = reg32;
-	else fix_b = fix_i = reg64;
 
-	if(fix42)fix_i = &fix_i[8];
-	if(fix41)fix_b = &fix_b[8];
-*/
+	//-------32bit.special, scale index base---------
+	char** bstr;
+	char** istr;
+	if(fix67)bstr = istr = reg32;
+	else bstr = istr = reg64;
+
+	if(fix42)istr = &istr[8];
+	if(fix41)bstr = &bstr[8];
 
 
 //printf("%llx,%llx\n",fix,opc);
@@ -485,7 +486,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			printf("add	%s += %s\n", fixbyte[bit0], fixbyte[bit3]);
 			return 2;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("add	[%s] += %s\n", tmp, fixbyte[bit3]);
 		return ret;
@@ -496,7 +497,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			printf("add	%s += %s\n", fix012[bit0], fix345[bit3]);
 			return 2;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("add	[%s] += %s\n", tmp, fix345[bit3]);
 		return ret;
@@ -507,7 +508,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			printf("add	%s += %s\n", fixbyte[bit3], fixbyte[bit0]);
 			return 2;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("add	%s += [%s]\n", fixbyte[bit3], tmp);
 		return ret;
@@ -518,7 +519,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			printf("add	%s += %s\n", fix345[bit3], fix012[bit0]);
 			return 2;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("add	%s += [%s]\n", fix345[bit3], tmp);
 		return ret;
@@ -542,7 +543,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			printf("or	%s |= %s\n", fixbyte[bit0], fixbyte[bit3]);
 			return 2;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("or	[%s] |= %s\n", tmp, fixbyte[bit3]);
 		return ret;
@@ -553,7 +554,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			printf("or	%s |= %s\n", fix012[bit0], fix345[bit3]);
 			return 2;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("or	[%s] |= %s\n", tmp, fix345[bit3]);
 		return ret;
@@ -564,7 +565,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			printf("or	%s |= %s\n", fixbyte[bit3], fixbyte[bit0]);
 			return 2;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("or	%s |= [%s]\n", fixbyte[bit3], tmp);
 		return ret;
@@ -575,7 +576,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			printf("or	%s |= %s\n", fix345[bit3], fix012[bit0]);
 			return 2;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("or	%s |= [%s]\n", fix345[bit3], tmp);
 		return ret;
@@ -600,7 +601,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			printf("adc	%s += %s\n", fixbyte[bit0], fixbyte[bit3]);
 			return 2;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("adc	[%s] += %s\n", tmp, fixbyte[bit3]);
 		return ret;
@@ -611,7 +612,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			printf("adc	%s += %s\n", fix012[bit0], fix345[bit3]);
 			return 2;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("adc	[%s] += %s\n", tmp, fix345[bit3]);
 		return ret;
@@ -622,7 +623,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			printf("adc	%s += %s\n", fixbyte[bit3], fixbyte[bit0]);
 			return 2;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("adc	%s += [%s]\n", fixbyte[bit3], tmp);
 		return ret;
@@ -633,7 +634,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			printf("adc	%s += %s\n", fix345[bit3], fix012[bit0]);
 			return 2;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("adc	%s += [%s]\n", fix345[bit3], tmp);
 		return ret;
@@ -657,7 +658,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			printf("sbb	%s -= %s\n", fixbyte[bit0], fixbyte[bit3]);
 			return 2;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("sbb	[%s] -= %s\n", tmp, fixbyte[bit3]);
 		return ret;
@@ -668,7 +669,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			printf("sbb	%s -= %s\n", fix012[bit0], fix345[bit3]);
 			return 2;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("sbb	[%s] -= %s\n", tmp, fix345[bit3]);
 		return ret;
@@ -679,7 +680,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			printf("sbb	%s -= %s\n", fixbyte[bit3], fixbyte[bit0]);
 			return 2;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("sbb	%s -= [%s]\n", fixbyte[bit3], tmp);
 		return ret;
@@ -690,7 +691,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			printf("sbb	%s -= %s\n", fix345[bit3], fix012[bit0]);
 			return 2;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("sbb	%s -= [%s]\n", fix345[bit3], tmp);
 		return ret;
@@ -714,7 +715,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			printf("and	%s &= %s\n", fixbyte[bit0], fixbyte[bit3]);
 			return 2;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("and	[%s] &= %s\n", tmp, fixbyte[bit3]);
 		return ret;
@@ -725,7 +726,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			printf("and	%s &= %s\n", fix012[bit0], fix345[bit3]);
 			return 2;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("and	[%s] &= %s\n", tmp, fix345[bit3]);
 		return ret;
@@ -736,7 +737,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			printf("and	%s &= %s\n", fixbyte[bit3], fixbyte[bit0]);
 			return 2;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("and	%s &= [%s]\n", fixbyte[bit3], tmp);
 		return ret;
@@ -747,7 +748,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			printf("and	%s &= %s\n", fix345[bit3], fix012[bit0]);
 			return 2;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("and	%s &= [%s]\n", fix345[bit3], tmp);
 		return ret;
@@ -772,7 +773,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			printf("sub	%s -= %s\n", fixbyte[bit0], fixbyte[bit3]);
 			return 2;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("sub	[%s] -= %s\n", tmp, fixbyte[bit3]);
 		return ret;
@@ -783,7 +784,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			printf("sub	%s -= %s\n", fix012[bit0], fix345[bit3]);
 			return 2;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("sub	[%s] -= %s\n", tmp, fix345[bit3]);
 		return ret;
@@ -794,7 +795,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			printf("sub	%s -= %s\n", fixbyte[bit3], fixbyte[bit0]);
 			return 2;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("sub	%s -= [%s]\n", fixbyte[bit3], tmp);
 		return ret;
@@ -805,7 +806,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			printf("sub	%s -= %s\n", fix345[bit3], fix012[bit0]);
 			return 2;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("sub	%s -= [%s]\n", fix345[bit3], tmp);
 		return ret;
@@ -830,7 +831,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			printf("xor	%s ^= %s\n", fixbyte[bit0], fixbyte[bit3]);
 			return 2;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("xor	[%s] ^= %s\n", tmp, fixbyte[bit3]);
 		return ret;
@@ -841,7 +842,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			printf("xor	%s ^= %s\n", fix012[bit0], fix345[bit3]);
 			return 2;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("xor	[%s] ^= %s\n", tmp, fix345[bit3]);
 		return ret;
@@ -852,7 +853,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			printf("xor	%s ^= %s\n", fixbyte[bit3], fixbyte[bit0]);
 			return 2;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("xor	%s ^= [%s]\n", fixbyte[bit3], tmp);
 		return ret;
@@ -863,7 +864,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			printf("xor	%s ^= %s\n", fix345[bit3], fix012[bit0]);
 			return 2;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("xor	%s ^= [%s]\n", fix345[bit3], tmp);
 		return ret;
@@ -888,7 +889,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			printf("cmp	%s - %s\n", fixbyte[bit0], fixbyte[bit3]);
 			return 2;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("cmp	[%s] - %s\n", tmp, fixbyte[bit3]);
 		return ret;
@@ -899,7 +900,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			printf("cmp	%s - %s\n", fix012[bit0], fix345[bit3]);
 			return 2;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("cmp	[%s] - %s\n", tmp, fix345[bit3]);
 		return ret;
@@ -910,7 +911,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			printf("cmp	%s - %s\n", fixbyte[bit3], fixbyte[bit0]);
 			return 2;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("cmp	%s - [%s]\n", fixbyte[bit3], tmp);
 		return ret;
@@ -921,7 +922,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			printf("cmp	%s - %s\n", fix345[bit3], fix012[bit0]);
 			return 2;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("cmp	%s - [%s]\n", fix345[bit3], tmp);
 		return ret;
@@ -963,7 +964,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 				fix345[bit3], fix012[bit0], *(u32*)(opc+2));
 			return 6;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, &rel);
+		ret = disasm_x8664_sib(rip, opc, tmp, &rel, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret+4);
 		printf("imul4	%s = ", fix345[bit3]);
 		if(0x05 != (opc[1]&0xc7))printf("[%s]", tmp);
@@ -984,7 +985,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 				fix345[bit3], fix012[bit0], (char)opc[2]);
 			return 3;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, &rel);
+		ret = disasm_x8664_sib(rip, opc, tmp, &rel, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret+1);
 		printf("imul1	%s = ", fix345[bit3]);
 		if(0x05 != (opc[1]&0xc7))printf("[%s]", tmp);
@@ -1001,7 +1002,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 	//j: [70,7f]
 	if(0x70 == (opc[0]&0xf0)){
 		disasm_x8664_print(pre, opc-pre+2);
-		printf("j%s	0x%llx\n", cond[opc[0]&0xf], (char)opc[1] + (rip+2));
+		printf("j%s	rip = 0x%llx\n", cond[opc[0]&0xf], (char)opc[1] + (rip+2));
 		return 2;
 	}
 
@@ -1013,7 +1014,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			name80[bit3], fix012[bit0], symbol[bit3], opc[2]);
 			return 3;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, &rel);
+		ret = disasm_x8664_sib(rip, opc, tmp, &rel, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret+1);
 		printf("%s	", name80[bit3]);
 		if(0x05 != (opc[1]&0xc7))printf("byte@[%s]", tmp);
@@ -1029,7 +1030,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			name81[bit3], fix012[bit0], symbol[bit3], *(u32*)(opc+2));
 			return 6;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, &rel);
+		ret = disasm_x8664_sib(rip, opc, tmp, &rel, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret+4);
 		printf("%s	", name81[bit3]);
 		if(0x05 != (opc[1]&0xc7))printf("dword@[%s]", tmp);
@@ -1046,7 +1047,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			name83[bit3], fix012[bit0], symbol[bit3], opc[2]);
 			return 3;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, &rel);
+		ret = disasm_x8664_sib(rip, opc, tmp, &rel, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret+1);
 		printf("%s	", name83[bit3]);
 		if(0x05 != (opc[1]&0xc7))printf("dword@[%s]", tmp);
@@ -1062,7 +1063,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			printf("test	%s & %s\n", fixbyte[bit3], fixbyte[bit0]);
 			return 2;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("test	%s & [%s]\n", fixbyte[bit3], tmp);
 		return ret;
@@ -1073,7 +1074,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			printf("test	%s & %s\n", fix345[bit3], fix012[bit0]);
 			return 2;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("test	%s & [%s]\n", fix345[bit3], tmp);
 		return ret;
@@ -1085,7 +1086,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			printf("xchg	%s, %s\n", fixbyte[bit3], fixbyte[bit0]);
 			return 2;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("xchg	%s, [%s]\n", fixbyte[bit3], tmp);
 		return ret;
@@ -1096,7 +1097,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			printf("xchg	%s, %s\n", fix345[bit3], fix012[bit0]);
 			return 2;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("xchg	%s, [%s]\n", fix345[bit3], tmp);
 		return ret;
@@ -1109,7 +1110,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			printf("mov	%s = %s\n", fixbyte[bit0], fixbyte[bit3]);
 			return 2;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("mov	[%s] = %s\n", tmp, fixbyte[bit3]);
 		return ret;
@@ -1120,7 +1121,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			printf("mov	%s = %s\n", fix012[bit0], fix345[bit3]);
 			return 2;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("mov	[%s] = ", tmp);
 		printf("%s\n", fix345[bit3]);
@@ -1132,7 +1133,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			printf("mov	%s = %s\n", fixbyte[bit3], fixbyte[bit0]);
 			return 2;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("mov	%s = [%s]\n", fixbyte[bit3], tmp);
 		return ret;
@@ -1143,7 +1144,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			printf("mov	%s = %s\n", fix345[bit3], fix012[bit0]);
 			return 2;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("mov	%s = [%s]\n", fix345[bit3], tmp);
 		return ret;
@@ -1152,7 +1153,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 	//8c: mov xxx,cs/ds/es/gs...
 	//8d: lea
 	if(0x8d == opc[0]){
-		ret = disasm_x8664_sib(rip, opc, tmp, 0);
+		ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret);
 		printf("lea	");
 		printf("%s", fix345[bit3]);
@@ -1241,7 +1242,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			namec0[bit3], fixbyte[bit0], opc[2]);
 			return 3;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, &rel);
+		ret = disasm_x8664_sib(rip, opc, tmp, &rel, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret+1);
 		printf("%s	", namec0[bit3]);
 		if(0x05 != (opc[1]&0xc7))printf("byte@[%s]", tmp);
@@ -1257,7 +1258,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 			namec1[bit3], fix012[bit0], opc[2]);
 			return 3;
 		}
-		ret = disasm_x8664_sib(rip, opc, tmp, &rel);
+		ret = disasm_x8664_sib(rip, opc, tmp, &rel, istr, bstr);
 		disasm_x8664_print(pre, opc-pre+ret+1);
 		printf("%s	", namec1[bit3]);
 		if(0x05 != (opc[1]&0xc7))printf("dword@[%s]", tmp);
@@ -1287,7 +1288,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 		case 0x00:
 		case 0x40:
 		case 0x80:{
-			ret = disasm_x8664_sib(rip, opc, tmp, &rel);
+			ret = disasm_x8664_sib(rip, opc, tmp, &rel, istr, bstr);
 			disasm_x8664_print(pre, opc-pre+ret+1);
 			printf("mov1	");
 			if(0x05 != (opc[1]&0xc7))printf("[%s]", tmp);
@@ -1314,7 +1315,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 		case 0x00:
 		case 0x40:
 		case 0x80:{
-			ret = disasm_x8664_sib(rip, opc, tmp, &rel);
+			ret = disasm_x8664_sib(rip, opc, tmp, &rel, istr, bstr);
 			disasm_x8664_print(pre, opc-pre+ret+4);
 			printf("mov4	");
 			if(0x05 != (opc[1]&0xc7))printf("[%s]", tmp);
@@ -1408,18 +1409,18 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 
 	if(0xe8 == opc[0]){
 		disasm_x8664_print(pre, opc-pre+5);
-		printf("call	0x%llx\n", (u64)(*(int*)(opc+1) + (rip+5)));
+		printf("call	push 0x%llx, rip = 0x%llx\n", rip+5, (u64)(*(int*)(opc+1) + (rip+5)));
 		return 5;
 	}
 	if(0xe9 == opc[0]){
 		disasm_x8664_print(pre, opc-pre+5);
-		printf("jmp	0x%llx\n", (u64)(*(int*)(opc+1) + (rip+5)));
+		printf("jmp	rip = 0x%llx\n", (u64)(*(int*)(opc+1) + (rip+5)));
 		return 5;
 	}
 	//ea:unused
 	if(0xeb == opc[0]){
 		disasm_x8664_print(pre, opc-pre+2);
-		printf("jmp	0x%llx\n", (u64)((char)opc[1] + (rip+2)));
+		printf("jmp	rip = 0x%llx\n", (u64)((char)opc[1] + (rip+2)));
 		return 2;
 	}
 	//ec: in al,dx
@@ -1450,7 +1451,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 		}//test reg8, reg8
 		else{
 			if(0 == bit3){
-				ret = disasm_x8664_sib(rip, opc, tmp, &rel);
+				ret = disasm_x8664_sib(rip, opc, tmp, &rel, istr, bstr);
 				disasm_x8664_print(pre, opc-pre+ret+1);
 				printf("test1	");
 				if(0x05 != (opc[1]&0xc7))printf("[%s]", tmp);
@@ -1459,7 +1460,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 				return ret+1;
 			}//0
 			if(1 != bit3){
-				ret = disasm_x8664_sib(rip, opc, tmp, 0);
+				ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 				disasm_x8664_print(pre, opc-pre+ret);
 				printf("%s	[%s]\n", namef6[bit3], tmp);
 				return ret;
@@ -1482,7 +1483,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 		}//test reg32, reg32
 		else{
 			if(0 == bit3){
-				ret = disasm_x8664_sib(rip, opc, tmp, &rel);
+				ret = disasm_x8664_sib(rip, opc, tmp, &rel, istr, bstr);
 				disasm_x8664_print(pre, opc-pre+ret+4);
 				printf("test4	");
 				if(0x05 != (opc[1]&0xc7))printf("[%s]", tmp);
@@ -1491,7 +1492,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 				return ret+4;
 			}//0
 			if(1 != bit3){
-				ret = disasm_x8664_sib(rip, opc, tmp, 0);
+				ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 				disasm_x8664_print(pre, opc-pre+ret);
 				printf("%s	[%s]\n", namef7[bit3], tmp);
 				return ret;
@@ -1517,7 +1518,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 		case 0x00:
 		case 0x40:
 		case 0x80:{
-			ret = disasm_x8664_sib(rip, opc, tmp, 0);
+			ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 			disasm_x8664_print(pre, opc-pre+ret);
 			printf("%s	[%s]\n", namefe[bit3], tmp);
 			return ret;
@@ -1560,7 +1561,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 		case 0xa0:	//jmp8
 		case 0xa8:	//jmp4
 		case 0xb0:{	//push8
-			ret = disasm_x8664_sib(rip, opc, tmp, 0);
+			ret = disasm_x8664_sib(rip, opc, tmp, 0, istr, bstr);
 			disasm_x8664_print(pre, opc-pre+ret);
 			printf("%s	[%s]\n", nameff[bit3], tmp);
 			return ret;
@@ -1572,6 +1573,106 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 }
 int disasm_x8664_0f(u64 rip, u8* p)
 {
+	//00:
+	//	[00,07]: sldt r/m
+	//	[08,0f]: str r/m
+	//	[10,17]: lldt r/m
+	//	[18,1f]: ltr r/m
+	//	[20,27]: verr r/m
+	//	[28,2f]: verw r/m
+	//	[30,37]: jmpe r/m
+	//01:
+	//	[00,07]: sgdt r/m
+	//	[08,0f]: sidt r/m
+	//	[10,17]: lgdt r/m
+	//	[18,1f]: lidt r/m
+	//	[20,27]: smss r/m
+	//	[30,37]: lmsw r/m
+	//	[38,3f]: invlpg r/m
+	//	c0: enclv
+	//	c1: vmcall
+	//	c2: vmlaunch
+	//	c3: vmresume
+	//	c4: vmxoff
+	//	c5: pconfig
+	//	c8: monitor
+	//	c9: mwait
+	//	ca: clac
+	//	cb: stac
+	//	cf: encls
+	//	d0: xgetbv
+	//	d1: xsetbv
+	//	d4: vmfunc
+	//	d5: xsend
+	//	d6: xtest
+	//	d7: enclu
+	//	d8: vmrun
+	//	d9: vmmcall
+	//	da: vmload
+	//	db: vmsave
+	//	dc: stgi
+	//	dd: clgi
+	//	de: skinit
+	//	df: invlpga rax,ecx
+	//	[e0,e7]: smsw reg32
+	//	ee: rdpkru
+	//	ef: wrpkru
+	//	[f0,f7]: lmsw reg16
+	//	f8: swapgs
+	//	f9: rdtscp
+	//	fa: monitorx
+	//	fb: mwaitx
+	//	fc: clzero
+	//02: lar reg, r/m
+	//03: lsl reg, r/m
+
+	if(0x05 == p[1]){
+		disasm_x8664_print(p,2);
+		printf("syscall\n");
+		return 2;
+	}
+	if(0x06 == p[1]){
+		disasm_x8664_print(p,2);
+		printf("clts\n");
+		return 2;
+	}
+	if(0x07 == p[1]){
+		disasm_x8664_print(p,2);
+		printf("sysret\n");
+		return 2;
+	}
+	if(0x08 == p[1]){
+		disasm_x8664_print(p,2);
+		printf("invd\n");
+		return 2;
+	}
+	if(0x09 == p[1]){
+		disasm_x8664_print(p,2);
+		printf("wbinvd\n");
+		return 2;
+	}
+	if(0x0b == p[1]){
+		disasm_x8664_print(p,2);
+		printf("ud2	trigger(#ud)\n");
+		return 2;
+	}
+	//0d: prefetch
+	if(0x0e == p[1]){
+		disasm_x8664_print(p,2);
+		printf("femms\n");
+		return 2;
+	}
+	//0f: mm*
+	//10: movups xmm*, r/m
+	//11: movups r/m, xmm*
+	//12: movlps xmm*, r/m
+	//13: movlps r/m, xmm*
+	//14: unpcklps xmm*, r/m
+	//15: unpckhps xmm*, r/m
+	//16: movhps xmm*, r/m
+	//17: movhps r/m, xmm*
+	//[18,1e]: hint_nop?
+
 	if(0x1f == p[1])
 	{
 		if(0 == p[2])
@@ -1605,129 +1706,519 @@ int disasm_x8664_0f(u64 rip, u8* p)
 			return 4;
 		}
 	}
-	else if((0x0f == p[0])&&(0x29 == p[1])&&(0x44 == p[2])&&(0x24 == p[3]))
-	{
+
+	if((0x20 == p[1])&&(p[2]>=0xc0)){
+		u8 b0 = p[2]&0x7;
+		u8 b3 = (p[2]>>3)&0x7;
+		disasm_x8664_print(p,3);
+		printf("mov	%s = cr%d\n", reg64[b0], b3);
+		return 3;
+	}
+	if((0x21 == p[1])&&(p[2]>=0xc0)){
+		u8 b0 = p[2]&0x7;
+		u8 b3 = (p[2]>>3)&0x7;
+		disasm_x8664_print(p,3);
+		printf("mov	%s = dr%d\n", reg64[b0], b3);
+		return 3;
+	}
+	if((0x22 == p[1])&&(p[2]>=0xc0)){
+		u8 b0 = p[2]&0x7;
+		u8 b3 = (p[2]>>3)&0x7;
+		disasm_x8664_print(p,3);
+		printf("mov	cr%d = %s\n", b3, reg64[b0]);
+		return 3;
+	}
+	if((0x23 == p[1])&&(p[2]>=0xc0)){
+		u8 b0 = p[2]&0x7;
+		u8 b3 = (p[2]>>3)&0x7;
+		disasm_x8664_print(p,3);
+		printf("mov	dr%d = %s\n", b3, reg64[b0]);
+		return 3;
+	}
+	//28: movaps xmm*, r/m
+	//29: movaps r/m, xmm*
+	if(0x29 == p[1]){
+		if((0x44 == p[2])&&(0x24 == p[3]))
+		{
 		disasm_x8664_print(p,5);
 		printf("[rsp+0x%x] = xmm0\n", p[4]);
 		return 5;
-	}
-	else if((0x0f == p[0])&&(0x29 == p[1])&&(0x4c == p[2])&&(0x24 == p[3]))
-	{
+		}
+		if((0x4c == p[2])&&(0x24 == p[3]))
+		{
 		disasm_x8664_print(p,5);
 		printf("[rsp+0x%x] = xmm1\n", p[4]);
 		return 5;
-	}
-	else if((0x0f == p[0])&&(0x29 == p[1])&&(0x54 == p[2])&&(0x24 == p[3]))
-	{
+		}
+		if((0x54 == p[2])&&(0x24 == p[3]))
+		{
 		disasm_x8664_print(p,5);
 		printf("[rsp+0x%x] = xmm2\n", p[4]);
 		return 5;
-	}
-	else if((0x0f == p[0])&&(0x29 == p[1])&&(0x9c == p[2])&&(0x24 == p[3]))
-	{
+		}
+		if((0x9c == p[2])&&(0x24 == p[3]))
+		{
 		disasm_x8664_print(p,5);
 		printf("[rsp+0x%x] = xmm3\n", p[4]);
 		return 5;
-	}
-	else if((0x0f == p[0])&&(0x29 == p[1])&&(0xa4 == p[2])&&(0x24 == p[3]))
-	{
+		}
+		if((0xa4 == p[2])&&(0x24 == p[3]))
+		{
 		disasm_x8664_print(p,5);
 		printf("[rsp+0x%x] = xmm4\n", p[4]);
 		return 5;
-	}
-	else if((0x0f == p[0])&&(0x29 == p[1])&&(0xac == p[2])&&(0x24 == p[3]))
-	{
+		}
+		if((0xac == p[2])&&(0x24 == p[3]))
+		{
 		disasm_x8664_print(p,5);
 		printf("[rsp+0x%x] = xmm5\n", p[4]);
 		return 5;
-	}
-	else if((0x0f == p[0])&&(0x29 == p[1])&&(0xb4 == p[2])&&(0x24 == p[3]))
-	{
+		}
+		if((0xb4 == p[2])&&(0x24 == p[3]))
+		{
 		disasm_x8664_print(p,5);
 		printf("[rsp+0x%x] = xmm6\n", p[4]);
 		return 5;
-	}
-	else if((0x0f == p[0])&&(0x29 == p[1])&&(0xbc == p[2])&&(0x24 == p[3]))
-	{
+		}
+		if((0xbc == p[2])&&(0x24 == p[3]))
+		{
 		disasm_x8664_print(p,5);
 		printf("[rsp+0x%x] = xmm7\n", p[4]);
 		return 5;
+		}
 	}
-	else if((0x0f == p[0])&&(0x47 == p[1])&&(0xc0 == (p[2]&0xc0)))
-	{
-		disasm_x8664_print(p,3);
-		printf("if(a)%s = %s\n", reg32[(p[2]&0x3f)>>3], reg32[p[2]&0x7]);
-		return 3;
+	//2a: cvtpi2ps xmm*, r/m
+	//2b: movntps r/m, xmm*
+	//2c: cvttps2pi mm*, r/m
+	//2d: cvtps2pi mm*, r/m
+	//2e: ucomiss xmm*, r/m
+	//2f: comiss xmm*, r/m
+	if(0x30 == p[1]){
+		disasm_x8664_print(p,2);
+		printf("wrmsr\n");
+		return 2;
 	}
-	else if((0x0f == p[0])&&(0x80 == (p[1]&0xf0)))
+	if(0x31 == p[1]){
+		disasm_x8664_print(p,2);
+		printf("rdtsc\n");
+		return 2;
+	}
+	if(0x32 == p[1]){
+		disasm_x8664_print(p,2);
+		printf("rdmsr\n");
+		return 2;
+	}
+	if(0x33 == p[1]){
+		disasm_x8664_print(p,2);
+		printf("rdpmc\n");
+		return 2;
+	}
+	if(0x34 == p[1]){
+		disasm_x8664_print(p,2);
+		printf("sysenter\n");
+		return 2;
+	}
+	if(0x35 == p[1]){
+		disasm_x8664_print(p,2);
+		printf("sysexit\n");
+		return 2;
+	}
+	//36: rdshr r/m
+	if(0x37 == p[1]){
+		disasm_x8664_print(p,2);
+		printf("rdsec\n");
+		return 2;
+	}
+	//38: pshufb mm*, r/m
+	if(0x39 == p[1]){
+		disasm_x8664_print(p,2);
+		printf("dmint\n");
+		return 2;
+	}
+	//0F3A0F: palignr mm*, r/m, byte
+	//0F3ACC: sha1rnds4 xmm*, r/m, byte
+	if(0x3c == p[1]){
+		disasm_x8664_print(p,2);
+		printf("cpu_write\n");
+		return 2;
+	}
+	if(0x3d == p[1]){
+		disasm_x8664_print(p,2);
+		printf("cpu_read\n");
+		return 2;
+	}
+	if(0x40 == (p[1]&0xf0)){
+		u8 b0 = p[2]&0x7;
+		u8 b3 = (p[2]>>3)&0x7;
+		u8 b6 = (p[2]>>6)&0x3;
+		if(3 == b6){
+			disasm_x8664_print(p,2);
+			printf("cmov%s	%s = %s\n", cond[p[1]&0xf], reg32[b3], reg32[b0]);
+			return 3;
+		}
+
+		char tmp[64];
+		int ret = disasm_x8664_sib(rip, p+1, tmp, 0, 0, 0);
+		disasm_x8664_print(p,ret+1);
+		printf("cmov%s	%s = %s\n", cond[p[1]&0xf], reg32[b3], tmp);
+		return ret+1;
+	}
+	//50: paveb mm*, r/m
+	//51: sqrtps xmm*, r/m
+	//52: rsqrtps xmm*, r/m
+	//53: rcpps xmm*, r/m
+	//54: andps xmm*, r/m
+	//55: andnps xmm*, r/m
+	//56: orps xmm*, r/m
+	//57: xorps xmm*, r/m
+	//58: addps xmm*, r/m
+	//59: mulps xmm*, r/m
+	//5a: cvtps2pd xmm*, r/m
+	//5b: cvtdq2ps xmm*, r/m
+	//5c: subps xmm*, r/m
+	//5c: subps xmm*, r/m
+	//5d: minps xmm*, r/m
+	//5e: divps xmm*, r/m
+	//5f: maxps xmm*, r/m
+
+	//60: punpcklbw mm*, r/m
+	//61: punpcklwd mm*, r/m
+	//62: punpckldq mm*, r/m
+	//63: packsswb mm*, r/m
+	//64: pcmpgtb mm*, r/m
+	//65: pcmpgtw mm*, r/m
+	//66: pcmpgtd mm*, r/m
+	//67: packuswb mm*, r/m
+	//68: punpckhbw mm*, r/m
+	//69: punpckhwd mm*, r/m
+	//6a: punpckhdq mm*, r/m
+	//6b: packssdw mm*, r/m
+	//6e: movd mm*, r/m
+	//6f: movq mm*, r/m
+
+	//70: pshufw mm*, r/m, byte
+	//71:
+	//	[d0,d7]: psrlw mm*, byte
+	//	[e0,e7]: psraw mm*, byte
+	//	[f0,f7]: psllw mm*, byte
+	//72:
+	//	[d0,d7]: psrld mm*, byte
+	//	[e0,e7]: psrad mm*, byte
+	//	[f0,f7]: pslld mm*, byte
+	//73:
+	//	[d0,d7]: psrlq mm*, byte
+	//	[f0,f7]: psllq mm*, byte
+	//74: pcmpeqb mm*, r/m
+	//75: pcmpeqw mm*, r/m
+	//76: pcmpeqd mm*, r/m
+	if(0x77 == p[1]){
+		disasm_x8664_print(p,2);
+		printf("emms\n");
+		return 2;
+	}
+
+	//78: vmread r/m, reg
+	//79: vmwrite r/m, reg
+	//7b: rsldt r/m
+	//7c: svts r/m
+	//7d: rsts r/m
+	//7e: movd r/m, mm*
+	//7f: movq r/m, mm*
+
+	//[80,8f]: jump +-32bit
+	if(0x80 == (p[1]&0xf0))
 	{
 		disasm_x8664_print(p,6);
-		if(0x80 == p[1])printf("if(o)");
-		else if(0x81 == p[1])printf("if(no)");
-		else if(0x82 == p[1])printf("if(c)");
-		else if(0x83 == p[1])printf("if(nc)");
-		else if(0x84 == p[1])printf("if(z)");
-		else if(0x85 == p[1])printf("if(nz)");
-		else if(0x86 == p[1])printf("if(na)");
-		else if(0x87 == p[1])printf("if(a)");
-		else if(0x88 == p[1])printf("if(s)");
-		else if(0x89 == p[1])printf("if(ns)");
-		else if(0x8a == p[1])printf("if(pe)");
-		else if(0x8b == p[1])printf("if(po)");
-		else if(0x8c == p[1])printf("if(l)");
-		else if(0x8d == p[1])printf("if(nl)");
-		else if(0x8e == p[1])printf("if(ng)");
-		else if(0x8f == p[1])printf("if(g)");
-		printf("jmp 0x%llx\n", *(int*)(p+2) + (rip+6));
+		printf("j%s	rip = 0x%llx\n", cond[p[1]&0xf], *(int*)(p+2) + (rip+6));
 		return 6;
 	}
-	else if((0x0f == p[0])&&(0x94 == p[1])&&(0xc1 == p[2]))
+
+	//[90,9f]: seto r/m
+	if(0x90 == (p[1]&0xf0))
 	{
-		disasm_x8664_print(p,3);
-		printf("setz cl\n");
-		return 3;
+		if(0xc0 == (p[2]&0xf8)){
+			disasm_x8664_print(p,3);
+			printf("set%s	%s\n", cond[p[1]&0xf], reg08[p[2]&7]);
+			return 3;
+		}
 	}
-	else if((0x0f == p[0])&&(0xb6 == p[1])&&(0x02 == p[2]))
+
+	if(0xa0 == p[1]){
+		disasm_x8664_print(p,2);
+		printf("push	fs\n");
+		return 2;
+	}
+	if(0xa1 == p[1]){
+		disasm_x8664_print(p,2);
+		printf("pop	fs\n");
+		return 2;
+	}
+	if(0xa2 == p[1]){
+		disasm_x8664_print(p,2);
+		printf("cpuid\n");
+		return 2;
+	}
+	//a3: bt r/m, reg
+	//a4: shld r/m, reg32, byte
+	//a5: shld r/m, reg32, reg08
+	if(0xa6 == p[1]){
+		if(0xc0 == p[2]){
+			disasm_x8664_print(p,3);
+			printf("montmul\n");
+			return 3;
+		}
+		if(0xc8 == p[2]){
+			disasm_x8664_print(p,3);
+			printf("xsha1\n");
+			return 3;
+		}
+		if(0xd0 == p[2]){
+			disasm_x8664_print(p,3);
+			printf("xsha256\n");
+			return 3;
+		}
+	}
+	if(0xa7 == p[1]){
+		if(0xc0 == p[2]){
+			disasm_x8664_print(p,3);
+			printf("xstore\n");
+			return 3;
+		}
+		else if(0xc8 == p[2]){
+			disasm_x8664_print(p,3);
+			printf("xcryptecb\n");
+			return 3;
+		}
+		else if(0xd0 == p[2]){
+			disasm_x8664_print(p,3);
+			printf("xcryptcbc\n");
+			return 3;
+		}
+		else if(0xd8 == p[2]){
+			disasm_x8664_print(p,3);
+			printf("xcryptctr\n");
+			return 3;
+		}
+		else if(0xe0 == p[2]){
+			disasm_x8664_print(p,3);
+			printf("xcryptcfb\n");
+			return 3;
+		}
+		else if(0xe8 == p[2]){
+			disasm_x8664_print(p,3);
+			printf("xcryptofb\n");
+			return 3;
+		}
+	}
+	if(0xa8 == p[1]){
+		disasm_x8664_print(p,2);
+		printf("push	gs\n");
+		return 2;
+	}
+	if(0xa9 == p[1]){
+		disasm_x8664_print(p,2);
+		printf("pop	gs\n");
+		return 2;
+	}
+	if(0xaa == p[1]){
+		disasm_x8664_print(p,2);
+		printf("rsm\n");
+		return 2;
+	}
+	//ab: bts r/m, reg
+	//ac: shrd r/m, reg, byte
+	//ad: shrd r/m, reg, reg08
+	//ae:
+	//	[00,07]: fxsave
+	//	[08,0f]: fxrstor
+	//	[10,17]: ldmxcsr
+	//	[18,1f]: stmxcsr
+	//	[20,27]: xsave
+	//	[28,2f]: xrstor
+	//	[30,37]: xsaveopt
+	//	[38,3f]: clflush
+	//	...
+	//	[e0,e7]: ptwrite reg
+	//	e8: lfence
+	//	f0: mfence
+	//	f8: sfence
+
+	//af: imul reg, r/m
+
+	//b0: cmpxchg r/m, reg08
+	//b1: cmpxchg r/m, reg32
+
+	//b2: lss reg, r/m
+	//b3: btr r/m, reg
+	//b4: lfs reg, r/m
+	//b5: lgs reg, r/m
+
+	//b6: movzx reg32, r/m08
+	if((0xb6 == p[1])&&(0x02 == p[2]))
 	{
 		disasm_x8664_print(p,3);
 		printf("eax = [rdx, 1]\n");
 		return 3;
 	}
-	else if((0x0f == p[0])&&(0xb6 == p[1])&&(0x3b == p[2]))
+	if((0xb6 == p[1])&&(0x3b == p[2]))
 	{
 		disasm_x8664_print(p,3);
 		printf("edi = [rbx,1]\n");
 		return 3;
 	}
-	else if((0x0f == p[0])&&(0xb6 == p[1])&&(0x75 == p[2]))
+	if((0xb6 == p[1])&&(0x75 == p[2]))
 	{
 		disasm_x8664_print(p,4);
 		printf("esi = [rbp + 0x%x,1]\n", p[3]);
 		return 4;
 	}
-	else if((0x0f == p[0])&&(0xb7 == p[1])&&(0x6a == p[2]))
+
+	//b7: movzx reg32, r/m16
+	if((0xb7 == p[1])&&(0x6a == p[2]))
 	{
 		disasm_x8664_print(p,4);
 		printf("ebp = [rdx+0x%x, 2]\n", p[3]);
 		return 4;
 	}
-	else if((0x0f == p[0])&&(0xb7 == p[1])&&(0xc0 == p[2]))
+	if((0xb7 == p[1])&&(0xc0 == p[2]))
 	{
 		disasm_x8664_print(p,3);
 		printf("eax = ax\n");
 		return 3;
 	}
-	else if((0x0f == p[0])&&(0xbe == p[1])&&(0x0a == p[2]))
+
+	if(0xb8 == p[1]){
+		disasm_x8664_print(p,6);
+		printf("jmpe	rip = %llx\n", *(int*)(p+2) + (rip+6));
+		return 6;
+	}
+	//ba: bt dword r/m, byte
+	//bb: btc r/m, reg32
+	//bc: bsf reg, r/m
+	//bd: bsr reg, r/m
+
+	//be: movsx reg32, r/m08
+	if((0xbe == p[1])&&(0x0a == p[2]))
 	{
 		disasm_x8664_print(p,3);
 		printf("ecx = (s32)[rdx,1]\n");
 		return 3;
 	}
-	else if((0x0f == p[0])&&(0xbe == p[1])&&(0xc8 == p[2]))
+	if((0xbe == p[1])&&(0xc8 == p[2]))
 	{
 		disasm_x8664_print(p,3);
 		printf("ecx = (s32)al\n");
 		return 3;
+	}
+
+	//bf: movsx reg32, r/m16
+
+	//c0: xadd r/m, reg08
+	//c1: xadd r/m, reg32
+	//c2: cmpps xmm*, r/m, byte
+	//c3: movnti r/m, reg32
+	//c4: pinsrw mm*, r/m, byte
+	//c5: pextrw reg32, mm*, byte
+	//c6: shufps xmm*, r/m, byte
+
+	if(0xc7 == p[1]){
+	switch(p[2]&0xf8){
+		//08: cmpxchg8b r/m
+		//48: cmpxchg8b r/m
+		//88: cmpxchg8b r/m
+
+		//18: xrstors r/m
+		//58: xrstors r/m
+		//98: xrstors r/m
+
+		//20: xsavec r/m
+		//60: xsavec r/m
+		//a0: xsavec r/m
+
+		//28: xsaves r/m
+		//68: xsaves r/m
+		//a8: xsaves r/m
+
+		//30: vmptrld r/m
+		//70: vmptrld r/m
+		//b0: vmptrld r/m
+
+		//38: vmptrst r/m
+		//78: vmptrst r/m
+		//b8: vmptrst r/m
+
+		case 0xf0:{
+			disasm_x8664_print(p,3);
+			printf("rdrand	%s\n", reg32[p[2]&7]);
+			return 3;
+		}//f0
+		case 0xf8:{
+			disasm_x8664_print(p,3);
+			printf("rdseed	%s\n", reg32[p[2]&7]);
+			return 3;
+		}//f8
+	}//switch
+	}//c7
+
+	//[c8,cf]: bswap
+	if(0xc8 == (p[1]&0xf8)){
+		disasm_x8664_print(p,2);
+		printf("bswap	%s\n", reg32[p[1]&7]);
+		return 2;
+	}
+
+	//d1: psrlw mm*, r/m
+	//d2: psrld mm*, r/m
+	//d3: psrlq mm*, r/m
+	//d4: paddq mm*, r/m
+	//d5: pmullw mm*, r/m
+	//d7c0: pmovmskb reg32, mm*
+	//d8: psubusb mm*, r/m
+	//d9: psubusw mm*, r/m
+	//da: pminub mm*, r/m
+	//db: pand mm*, r/m
+	//dc: paddusb mm*, r/m
+	//dd: paddusw mm*, r/m
+	//de: pmaxub mm*, r/m
+	//df: pandn mm*, r/m
+
+	//e0: pavgb mm*, r/m
+	//e1: psraw mm*, r/m
+	//e2: psrad mm*, r/m
+	//e3: pavgw mm*, r/m
+	//e4: pmulhuw mm*, r/m
+	//e5: pmulhw mm*, r/m
+	//e6: pmulhw mm*, r/m
+
+	//e7: movntq r/m, mm*
+	//e8: psubsb mm*, r/m
+	//e9: psubsw mm*, r/m
+	//ea: pminsw mm*, r/m
+	//eb: por mm*, r/m
+	//ec: paddsb mm*, r/m
+	//ed: paddsw mm*, r/m
+	//ee: pmaxsw mm*, r/m
+	//ef: pxor mm*, r/m
+
+	//f1: psllw mm*, r/m
+	//f2: pslld mm*, r/m
+	//f3: psllq mm*, r/m
+	//f4: pmuludq mm*, r/m
+	//f5: pmaddwd mm*, r/m
+	//f6: psadbw mm*, r/m
+	//f7c0: maskmovq mm*, mm*
+	//f8: psubb mm*, r/m
+	//f9: psubw mm*, r/m
+	//fa: psubd mm*, r/m
+	//fb: psubq mm*, r/m
+	//fc: paddb mm*, r/m
+	//fd: paddw mm*, r/m
+	//fe: paddd mm*, r/m
+
+	if(0xff == p[1]){
+		disasm_x8664_print(p,2);
+		printf("ud0	trigger(#ud0)\n");
+		return 2;
 	}
 
 	disasm_x8664_print(p,1);
@@ -1825,6 +2316,9 @@ int disasm_x8664_66(u64 rip, u8* p)
 }
 int disasm_x8664_67(u64 rip, u8* p)
 {
+	int k = disasm_x8664_normal(p, p+1, rip+1);
+	if(k > 0)return k+1;
+
 	disasm_x8664_print(p,1);
 	printf("error\n");
 	return 1;
