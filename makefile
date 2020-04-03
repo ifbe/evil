@@ -27,8 +27,10 @@ library/extra/3d.c \
 library/extra/force.c \
 library/extra/inout.c \
 source/0robot/conv.c \
-source/0robot/arm64.c \
-source/0robot/x8664.c \
+source/0robot/disasm/arm64.c \
+source/0robot/disasm/x8664.c \
+source/0robot/follow/arm64.c \
+source/0robot/follow/x8664.c \
 source/1human/learn.c \
 source/1human/circuit/cir.c \
 source/1human/circuit/dsn.c \
