@@ -89,7 +89,7 @@ void disasm_x8664_print(u8* p, int k)
 	buf[30] = 0;
 	printf("%s	",buf);
 }
-int disasm_x8664_1b(u8* p)
+int disasm_x8664_1b(u8* p, u64 rip)
 {
 	char buf[16];
 	char* str;
@@ -1585,7 +1585,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 
 	return 0;
 }
-int disasm_x8664_0f(u64 rip, u8* p)
+int disasm_x8664_0f(u8* p, u64 rip)
 {
 	//00:
 	//	[00,07]: sldt r/m
@@ -2243,7 +2243,7 @@ int disasm_x8664_0f(u64 rip, u8* p)
 	printf("0f	error\n");
 	return 1;
 }
-int disasm_x8664_4x(u64 rip, u8* p)
+int disasm_x8664_4x(u8* p, u64 rip)
 {
 	int k;
 	if(0x41 == p[0]){
@@ -2269,7 +2269,7 @@ int disasm_x8664_4x(u64 rip, u8* p)
 	printf("error\n");
 	return 1;
 }
-int disasm_x8664_66(u64 rip, u8* p)
+int disasm_x8664_66(u8* p, u64 rip)
 {
 	if((0x0f == p[1])&&(0x1f == p[2]))
 	{
@@ -2332,7 +2332,7 @@ int disasm_x8664_66(u64 rip, u8* p)
 	printf("error\n");
 	return 1;
 }
-int disasm_x8664_67(u64 rip, u8* p)
+int disasm_x8664_67(u8* p, u64 rip)
 {
 	int k = disasm_x8664_normal(p, p+1, rip+1);
 	if(k > 0)return k+1;
@@ -2341,42 +2341,42 @@ int disasm_x8664_67(u64 rip, u8* p)
 	printf("error\n");
 	return 1;
 }
-int disasm_x8664_one(u8* buf, int j)
+int disasm_x8664_one(u8* buf, u64 rip)
 {
-	printf("%8x:	", j);
+	printf("%8llx:	", rip);
 
-	if(disasm_x8664_1b(buf+j)){
+	if(disasm_x8664_1b(buf, rip)){
 		return 1;
 	}
 
-	if(0x0f == buf[j]){
-		return disasm_x8664_0f(j, buf+j);
+	if(0x0f == buf[0]){
+		return disasm_x8664_0f(buf, rip);
 	}
-	if(0x40 == (buf[j]&0xf0)){
-		return disasm_x8664_4x(j, buf+j);
+	if(0x40 == (buf[0]&0xf0)){
+		return disasm_x8664_4x(buf, rip);
 	}
-	if(0x66 == buf[j]){
-		return disasm_x8664_66(j, buf+j);
+	if(0x66 == buf[0]){
+		return disasm_x8664_66(buf, rip);
 	}
-	if(0x67 == buf[j]){
-		return disasm_x8664_67(j, buf+j);
+	if(0x67 == buf[0]){
+		return disasm_x8664_67(buf, rip);
 	}
 
-	int k = disasm_x8664_normal(buf+j, buf+j, j);
+	int k = disasm_x8664_normal(buf, buf, rip);
 	if(k > 0)return k;
 
-	disasm_x8664_print(buf+j,1);
+	disasm_x8664_print(buf,1);
 	printf("error\n");
 	return 1;
 }
-void disasm_x8664_all(u8* buf, int len)
+void disasm_x8664_all(u8* buf, int len, u64 rip)
 {
 	int j = 0;
 	while(1)
 	{
 		if(j>=len)break;
 
-		j += disasm_x8664_one(buf, j);
+		j += disasm_x8664_one(buf+j, rip+j);
 	}//while
 }
 void disasm_x8664(int argc, char** argv)
@@ -2412,7 +2412,7 @@ void disasm_x8664(int argc, char** argv)
 		goto release;
 	}
 
-	disasm_x8664_all(buf, ret);
+	disasm_x8664_all(buf, ret, 0);
 
 release:
 	free(buf);

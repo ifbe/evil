@@ -20,17 +20,19 @@ int disasm_x8664_one(u8* buf, int rip);
 
 
 
-void follow_x8664_one(u8* buf, int len, int cur, int end, int sp)
+static int* knowntable = 0;
+static int knowncount = 0;
+void follow_x8664_one(u8* buf, int len, int cur, int end, int ip, int sp)
 {
 	int j,k;
 begin:
-	printf("enter: depth=%d\n", sp);
+	printf("@enter: depth=%d\n", sp);
 
 	while(1)
 	{
 		if(cur >= end)break;
 //printf("cur=%x,end=%x,%x\n",cur,end,buf[cur]);
-		j = disasm_x8664_one(buf, cur);
+		j = disasm_x8664_one(buf+cur, ip+cur);
 
 		if(0xc3 == buf[cur]){
 			break;
@@ -38,20 +40,25 @@ begin:
 		if(0xe8 == buf[cur]){
 			k = *(int*)(buf+cur+1);
 			k += cur+5;
-			follow_x8664_one(
-				buf, len,
-				k, len,
-				sp+1);
+
+			if((k>=0)&&(k<len)){
+				//if(known)skip this
+				//else known++, follow this
+				follow_x8664_one(buf, len, k, len, ip, sp+1);
+			}//valid addr
 		}
 		if(0xe9 == buf[cur]){
 			k = *(int*)(buf+cur+1);
-			cur = cur+5+k;
-			goto begin;
+			k += cur+5;
+			if((k>=0)&&(k<len)){
+				cur = k;
+				goto begin;
+			}//valid addr
 		}
 
 		cur += j;
 	}//while
-	printf("leave: depth=%d\n", sp);
+	printf("@leave: depth=%d\n", sp);
 }
 void follow_x8664(int argc, char** argv)
 {
@@ -80,7 +87,7 @@ void follow_x8664(int argc, char** argv)
 		goto release;
 	}
 
-	follow_x8664_one(buf, ret, at, ret, 0);
+	follow_x8664_one(buf, ret, at, ret, 0x10000, 0);
 
 release:
 	free(buf);

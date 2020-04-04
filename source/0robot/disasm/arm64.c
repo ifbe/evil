@@ -1475,32 +1475,19 @@ void disasm_arm64_101x(u32 addr, u32 code)
 	case 0x14:
 	case 0x15:
 	case 0x16:
-	case 0x17:
+	case 0x17:{
+		int off = (code&0x03ffffff)<<2;
+		if(off > 0x08000000)off -= 0x10000000;
+		printf("b	pc = 0x%x (pc+=0x%x)\n", addr+off, off);
+		return;
+	}
 	case 0x94:
 	case 0x95:
 	case 0x96:
 	case 0x97:{
-		u32 off = code&0x3ffffff;
-		if(code&0x80000000){
-			if(off&0x2000000){
-				off = (0x4000000-off)<<2;
-				printf("bl	lr = 0x%x, pc = 0x%x (pc-=0x%x)\n", addr+4, addr-off, off);
-			}
-			else{
-				off = off<<2;
-				printf("bl	lr = 0x%x, pc = 0x%x (pc+=0x%x)\n", addr+4, addr+off, off);
-			}
-		}
-		else{
-			if(off&0x2000000){
-				off = (0x4000000-off)<<2;
-				printf("b	pc = 0x%x (pc-=0x%x)\n", addr-off, off);
-			}
-			else{
-				off = off<<2;
-				printf("b	pc = 0x%x (pc+=0x%x)\n", addr+off, off);
-			}
-		}
+		int off = (code&0x03ffffff)<<2;
+		if(off > 0x08000000)off -= 0x10000000;
+		printf("bl	lr = 0x%x, pc = 0x%x (pc+=0x%x)\n", addr+4, addr+off, off);
 		return;
 	}//Unconditional branch (immediate)
 
@@ -2432,25 +2419,21 @@ void disasm_arm64_x111(u32 addr, u32 code)
 {
 	printf("unknown	data-fp\n");
 }
-void disasm_arm64_one(u8* buf, int len)
+void disasm_arm64_one(u32 code, u64 rip)
 {
-int j;
-u32 code;
-for(j=0;j<len;j+=4){
-	code = *(u32*)(buf+j);
-	printf("%8x:	%08x	", j, code);
+	printf("%8llx:	%08x	", rip, code);
 
 	switch((code>>25) & 0xf){
 	//100x: Data Processing -- Immediate
 	case 0x8:
 	case 0x9:{
-		disasm_arm64_100x(j, code);
+		disasm_arm64_100x(rip, code);
 		break;
 	}
 	//101x: Branches, Exception Generating and System instructions
 	case 0xa:
 	case 0xb:{
-		disasm_arm64_101x(j, code);
+		disasm_arm64_101x(rip, code);
 		break;
 	}
 	//x1x0: Loads and Stores
@@ -2458,24 +2441,32 @@ for(j=0;j<len;j+=4){
 	case 0x6:
 	case 0xc:
 	case 0xe:{
-		disasm_arm64_x1x0(j, code);
+		disasm_arm64_x1x0(rip, code);
 		break;
 	}
 	//x101: Data Processing -- Register
 	case 0x5:
 	case 0xd:{
-		disasm_arm64_x101(j, code);
+		disasm_arm64_x101(rip, code);
 		break;
 	}
 	//x111: Data Processing -- Scalar Floating-Point and Advanced SIMD
 	case 0x7:
 	case 0xf:{
-		disasm_arm64_x111(j, code);
+		disasm_arm64_x111(rip, code);
 		break;
 	}
 	default:printf("unknown\n");
 	}
 }
+void disasm_arm64_all(u8* buf, int len, int rip)
+{
+	int j;
+	u32 code;
+	for(j=0;j<len;j+=4){
+		code = *(u32*)(buf+j);
+		disasm_arm64_one(code, rip+j);
+	}
 }
 void disasm_arm64(int argc, char** argv)
 {
@@ -2509,7 +2500,7 @@ void disasm_arm64(int argc, char** argv)
 		printf("errno=%d@read\n", errno);
 		goto release;
 	}
-	disasm_arm64_one(buf, ret);
+	disasm_arm64_all(buf, ret, 0);
 
 release:
 	free(buf);

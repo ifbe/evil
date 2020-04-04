@@ -129,6 +129,9 @@ int main(int argc, char** argv)
 	else if(strcmp(argv[1], "disasm_x8664") == 0){
 		disasm_x8664(argc-1, argv+1);
 	}
+	else if(strcmp(argv[1], "follow_arm64") == 0){
+		follow_arm64(argc-1, argv+1);
+	}
 	else if(strcmp(argv[1], "follow_x8664") == 0){
 		follow_x8664(argc-1, argv+1);
 	}
