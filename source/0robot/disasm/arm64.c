@@ -466,13 +466,13 @@ void* disasm_arm64_str(u32 code)
 void disasm_arm64_msr(u32 code)
 {
 	switch(code){
-	case 0xd500407f:{printf("uao 0\n");return;}
-	case 0xd500409f:{printf("pan 0\n");return;}
-	case 0xd50040bf:{printf("spsel 0\n");return;}
+	case 0xd500407f:{printf("uao	0\n");return;}
+	case 0xd500409f:{printf("pan	0\n");return;}
+	case 0xd50040bf:{printf("spsel	0\n");return;}
 
-	case 0xd500417f:{printf("uao 1\n");return;}
-	case 0xd500419f:{printf("pan 1\n");return;}
-	case 0xd50041bf:{printf("spsel 1\n");return;}
+	case 0xd500417f:{printf("uao	1\n");return;}
+	case 0xd500419f:{printf("pan	1\n");return;}
+	case 0xd50041bf:{printf("spsel	1\n");return;}
 
 	case 0xd503201f:{printf("nop\n");return;}
 	case 0xd503203f:{printf("yield\n");return;}
@@ -486,7 +486,7 @@ void disasm_arm64_msr(u32 code)
 	case 0xd503219f:{printf("autia1716\n");return;}
 	case 0xd50321df:{printf("autib1716\n");return;}
 	case 0xd503221f:{printf("esb\n");return;}
-	case 0xd503223f:{printf("psb csync\n");return;}
+	case 0xd503223f:{printf("psb	csync\n");return;}
 	case 0xd503229f:{printf("csdb\n");return;}
 	case 0xd503231f:{printf("paciaz\n");return;}
 	case 0xd503233f:{printf("paciasp\n");return;}
@@ -497,69 +497,69 @@ void disasm_arm64_msr(u32 code)
 	case 0xd50323df:{printf("autibz\n");return;}
 	case 0xd50323ff:{printf("autibsp\n");return;}
 
-	case 0xd503305f:{printf("clrex 0\n");return;}
-	case 0xd503309f:{printf("dsb 0\n");return;}
-	case 0xd50330bf:{printf("dmb 0\n");return;}
-	case 0xd50330df:{printf("isb 0\n");return;}
-	case 0xd503315f:{printf("clrex 0x1\n");return;}
-	case 0xd503319f:{printf("dsb oshld\n");return;}
-	case 0xd50331bf:{printf("dmb oshld\n");return;}
-	case 0xd50331df:{printf("isb 0x1\n");return;}
-	case 0xd503325f:{printf("clrex 0x2\n");return;}
-	case 0xd503329f:{printf("dsb oshst\n");return;}
-	case 0xd50332bf:{printf("dmb oshst\n");return;}
-	case 0xd50332df:{printf("isb 0x2\n");return;}
-	case 0xd503335f:{printf("clrex 0x3\n");return;}
-	case 0xd503339f:{printf("dsb osh\n");return;}
-	case 0xd50333bf:{printf("dmb osh\n");return;}
-	case 0xd50333df:{printf("isb 0x3\n");return;}
-	case 0xd503345f:{printf("clrex 0x4\n");return;}
-	case 0xd503349f:{printf("dsb 0x4\n");return;}
-	case 0xd50334bf:{printf("dmb 0x4\n");return;}
-	case 0xd50334df:{printf("isb 0x4\n");return;}
-	case 0xd503355f:{printf("clrex 0x5\n");return;}
-	case 0xd503359f:{printf("dsb nshld\n");return;}
-	case 0xd50335bf:{printf("dmb nshld\n");return;}
-	case 0xd50335df:{printf("isb 0x5\n");return;}
-	case 0xd503365f:{printf("clrex 0x6\n");return;}
-	case 0xd503369f:{printf("dsb nshst\n");return;}
-	case 0xd50336bf:{printf("dmb nshst\n");return;}
-	case 0xd50336df:{printf("isb 0x6\n");return;}
-	case 0xd503375f:{printf("clrex 0x7\n");return;}
-	case 0xd503379f:{printf("dsb nsh\n");return;}
-	case 0xd50337bf:{printf("dmb nsh\n");return;}
-	case 0xd50337df:{printf("isb 0x7\n");return;}
-	case 0xd503385f:{printf("clrex 0x8\n");return;}
-	case 0xd503389f:{printf("dsb 0x8\n");return;}
-	case 0xd50338bf:{printf("dmb 0x8\n");return;}
-	case 0xd50338df:{printf("isb 0x8\n");return;}
-	case 0xd503395f:{printf("clrex 0x9\n");return;}
-	case 0xd503399f:{printf("dsb ishld\n");return;}
-	case 0xd50339bf:{printf("dmb ishld\n");return;}
-	case 0xd50339df:{printf("isb 0x9\n");return;}
-	case 0xd5033a5f:{printf("clrex 0xa\n");return;}
-	case 0xd5033a9f:{printf("dsb ishst\n");return;}
-	case 0xd5033abf:{printf("dmb ishst\n");return;}
-	case 0xd5033adf:{printf("isb 0xa\n");return;}
-	case 0xd5033b5f:{printf("clrex 0xb\n");return;}
-	case 0xd5033b9f:{printf("dsb ish\n");return;}
-	case 0xd5033bbf:{printf("dmb ish\n");return;}
-	case 0xd5033bdf:{printf("isb 0xb\n");return;}
-	case 0xd5033c5f:{printf("clrex 0xc\n");return;}
-	case 0xd5033c9f:{printf("dsb 0xc\n");return;}
-	case 0xd5033cbf:{printf("dmb 0xc\n");return;}
-	case 0xd5033cdf:{printf("isb 0xc\n");return;}
-	case 0xd5033d5f:{printf("clrex 0xd\n");return;}
-	case 0xd5033d9f:{printf("dsb ld\n");return;}
-	case 0xd5033dbf:{printf("dmb ld\n");return;}
-	case 0xd5033ddf:{printf("isb 0xd\n");return;}
-	case 0xd5033e5f:{printf("clrex 0xe\n");return;}
-	case 0xd5033e9f:{printf("dsb st\n");return;}
-	case 0xd5033ebf:{printf("dmb st\n");return;}
-	case 0xd5033edf:{printf("isb 0xe\n");return;}
+	case 0xd503305f:{printf("clrex	0\n");return;}
+	case 0xd503309f:{printf("dsb	0\n");return;}
+	case 0xd50330bf:{printf("dmb	0\n");return;}
+	case 0xd50330df:{printf("isb	0\n");return;}
+	case 0xd503315f:{printf("clrex	0x1\n");return;}
+	case 0xd503319f:{printf("dsb	oshld\n");return;}
+	case 0xd50331bf:{printf("dmb	oshld\n");return;}
+	case 0xd50331df:{printf("isb	0x1\n");return;}
+	case 0xd503325f:{printf("clrex	0x2\n");return;}
+	case 0xd503329f:{printf("dsb	oshst\n");return;}
+	case 0xd50332bf:{printf("dmb	oshst\n");return;}
+	case 0xd50332df:{printf("isb	0x2\n");return;}
+	case 0xd503335f:{printf("clrex	0x3\n");return;}
+	case 0xd503339f:{printf("dsb	osh\n");return;}
+	case 0xd50333bf:{printf("dmb	osh\n");return;}
+	case 0xd50333df:{printf("isb	0x3\n");return;}
+	case 0xd503345f:{printf("clrex	0x4\n");return;}
+	case 0xd503349f:{printf("dsb	0x4\n");return;}
+	case 0xd50334bf:{printf("dmb	0x4\n");return;}
+	case 0xd50334df:{printf("isb	0x4\n");return;}
+	case 0xd503355f:{printf("clrex	0x5\n");return;}
+	case 0xd503359f:{printf("dsb	nshld\n");return;}
+	case 0xd50335bf:{printf("dmb	nshld\n");return;}
+	case 0xd50335df:{printf("isb	0x5\n");return;}
+	case 0xd503365f:{printf("clrex	0x6\n");return;}
+	case 0xd503369f:{printf("dsb	nshst\n");return;}
+	case 0xd50336bf:{printf("dmb	nshst\n");return;}
+	case 0xd50336df:{printf("isb	0x6\n");return;}
+	case 0xd503375f:{printf("clrex	0x7\n");return;}
+	case 0xd503379f:{printf("dsb	nsh\n");return;}
+	case 0xd50337bf:{printf("dmb	nsh\n");return;}
+	case 0xd50337df:{printf("isb	0x7\n");return;}
+	case 0xd503385f:{printf("clrex	0x8\n");return;}
+	case 0xd503389f:{printf("dsb	0x8\n");return;}
+	case 0xd50338bf:{printf("dmb	0x8\n");return;}
+	case 0xd50338df:{printf("isb	0x8\n");return;}
+	case 0xd503395f:{printf("clrex	0x9\n");return;}
+	case 0xd503399f:{printf("dsb	ishld\n");return;}
+	case 0xd50339bf:{printf("dmb	ishld\n");return;}
+	case 0xd50339df:{printf("isb	0x9\n");return;}
+	case 0xd5033a5f:{printf("clrex	0xa\n");return;}
+	case 0xd5033a9f:{printf("dsb	ishst\n");return;}
+	case 0xd5033abf:{printf("dmb	ishst\n");return;}
+	case 0xd5033adf:{printf("isb	0xa\n");return;}
+	case 0xd5033b5f:{printf("clrex	0xb\n");return;}
+	case 0xd5033b9f:{printf("dsb	ish\n");return;}
+	case 0xd5033bbf:{printf("dmb	ish\n");return;}
+	case 0xd5033bdf:{printf("isb	0xb\n");return;}
+	case 0xd5033c5f:{printf("clrex	0xc\n");return;}
+	case 0xd5033c9f:{printf("dsb	0xc\n");return;}
+	case 0xd5033cbf:{printf("dmb	0xc\n");return;}
+	case 0xd5033cdf:{printf("isb	0xc\n");return;}
+	case 0xd5033d5f:{printf("clrex	0xd\n");return;}
+	case 0xd5033d9f:{printf("dsb	ld\n");return;}
+	case 0xd5033dbf:{printf("dmb	ld\n");return;}
+	case 0xd5033ddf:{printf("isb	0xd\n");return;}
+	case 0xd5033e5f:{printf("clrex	0xe\n");return;}
+	case 0xd5033e9f:{printf("dsb	st\n");return;}
+	case 0xd5033ebf:{printf("dmb	st\n");return;}
+	case 0xd5033edf:{printf("isb	0xe\n");return;}
 	case 0xd5033f5f:{printf("clrex\n");return;}
-	case 0xd5033f9f:{printf("dsb sy\n");return;}
-	case 0xd5033fbf:{printf("dmb sy\n");return;}
+	case 0xd5033f9f:{printf("dsb	sy\n");return;}
+	case 0xd5033fbf:{printf("dmb	sy\n");return;}
 	case 0xd5033fdf:{printf("isb\n");return;}
 
 	case 0xd503405f:{printf("dit = 0x0\n");return;}
@@ -599,8 +599,8 @@ void disasm_arm64_msr(u32 code)
 	}//switch
 
 	switch(code&0xffffffe0){
-	case 0xd5087100:{printf("ic ialluis\n");return;}
-	case 0xd5087500:{printf("ic iallu\n");return;}
+	case 0xd5087100:{printf("ic	ialluis\n");return;}
+	case 0xd5087500:{printf("ic	iallu\n");return;}
 	case 0xd5088100:{printf("vmalle1os\n");return;}
 	case 0xd5088300:{printf("vmalle1is\n");return;}
 	case 0xd5088700:{printf("vmalle1\n");return;}
@@ -1070,11 +1070,14 @@ void disasm_arm64_100x(u32 addr, u32 code)
 		if(code&0x800000)val -= 0x80000;
 		val = (val<<2)+((code>>29)&3);
 		if(0x10000000 == (code&0x9f000000)){
-			printf("adr	x%d = 0x%x (=pc+0x%x)\n", r0, addr+val, val);
+			printf("adr	x%d = 0x%x (0x%x+0x%x)\n", r0, addr+val, addr,val);
 			return;
 		}
 		if(0x90000000 == (code&0x9f000000)){
-			printf("adrp	x%d = 0x%x (=pc+0x%x)\n", r0, ((addr>>12)+val)<<12, val<<12);
+			printf("adrp	x%d = 0x%x (0x%x+0x%x)\n", r0,
+				(addr&0xfffff000)+(val<<12),
+				(addr&0xfffff000),(val<<12)
+			);
 			return;
 		}
 		break;
@@ -1393,38 +1396,41 @@ void disasm_arm64_100x(u32 addr, u32 code)
 	case 0xc:
 	case 0xd:{
 		u8 rd = code&0x1f;
-		switch(code&0xfc000000){
-		//sbfm
+		u8 rn = (code>>5)&0x1f;
+		u8 imms = (code>>10)&0x3f;
+		u8 immr = (code>>16)&0x3f;
+
+		switch(code&0xffc00000){
 		case 0x13000000:{
-			printf("sbfm	w%d = \n", rd);
+			if(immr<=imms)printf("sbfm	w%d = w%d.[%d,%d]\n", rd, rn, immr, imms);
+			else printf("sbfm	w%d.[%d,63] = w%d.[0,%d]\n", rd, 32-immr, rn, imms);
 			return;
 		}
 		case 0x93400000:{
-			u8 bit10 = (code>>10)&0x3f;
-			u8 bit16 = (code>>16)&0x3f;
-			u64 mask = table64(bit10);
-			if(0x400000 != (code&0xff0000)){
-				mask = rotateleft64(mask, 0x80-bit16);
-			}
-			printf("sbfm	x%d = 0x%llx\n", rd, mask);
+			if(immr<=imms)printf("sbfm	x%d = x%d.[%d,%d]\n", rd, rn, immr, imms);
+			else printf("sbfm	x%d.[%d,63] = x%d.[0,%d]\n", rd, 64-immr, rn, imms);
 			return;
 		}
 		//bfm
 		case 0x33000000:{
-			printf("bfm	w%d = \n", rd);
+			if(immr<=imms)printf("bfm	w%d = w%d.[%d,%d]\n", rd, rn, immr, imms);
+			else printf("bfm	w%d.[%d,%d] = w%d.[0,%d]\n", rd,32-immr,32-immr+imms, rn,imms);
 			return;
 		}
 		case 0xb3400000:{
-			printf("bfm	x%d = \n", rd);
+			if(immr<=imms)printf("bfm	x%d = x%d.[%d,%d]\n", rd, rn, immr, imms);
+			else printf("bfm	x%d.[%d,%d] = x%d.[0,%d]\n", rd,64-immr,64-immr+imms, rn,imms);
 			return;
 		}
 		//ubfm
 		case 0x53000000:{
-			printf("ubfm	w%d = \n", rd);
+			if(immr<=imms)printf("ubfm	w%d = w%d.[%d,%d]\n", rd, rn, immr, imms);
+			else printf("ubfm	w%d.[%d,63] = w%d.[0,%d]\n", rd, 32-immr, rn, imms);
 			return;
 		}
 		case 0xd3400000:{
-			printf("ubfm	x%d = \n", rd);
+			if(immr<=imms)printf("ubfm	x%d = x%d.[%d,%d]\n", rd, rn, immr, imms);
+			else printf("ubfm	x%d.[%d,63] = x%d.[0,%d]\n", rd, 64-immr, rn, imms);
 			return;
 		}
 		}
@@ -1459,16 +1465,11 @@ void disasm_arm64_101x(u32 addr, u32 code)
 	switch(code>>24){
 	case 0x54:{
 		u8 c = code&0xf;
-		u32 off = (code>>5)&0x7ffff;
+		int off = ((code>>5)&0x7ffff)<<2;
+		if(code&0x800000)off -= 0x200000;
+
 		printf("b.%s	", cond+c*3);
-		if(code&0x800000){
-			off = (0x80000-off)<<2;
-			printf("pc = 0x%x (pc-=0x%x)\n", addr-off, off);
-		}
-		else{
-			off = off<<2;
-			printf("pc = 0x%x (pc+=0x%x)\n", addr+off, off);
-		}
+		printf("pc = 0x%x (0x%x+0x%x)\n", addr+off, addr,off);
 		return;
 	}//Conditional branch (immediate)
 
@@ -1478,7 +1479,7 @@ void disasm_arm64_101x(u32 addr, u32 code)
 	case 0x17:{
 		int off = (code&0x03ffffff)<<2;
 		if(off > 0x08000000)off -= 0x10000000;
-		printf("b	pc = 0x%x (pc+=0x%x)\n", addr+off, off);
+		printf("b	pc = 0x%x (0x%x+0x%x)\n", addr+off, addr,off);
 		return;
 	}
 	case 0x94:
@@ -1487,7 +1488,7 @@ void disasm_arm64_101x(u32 addr, u32 code)
 	case 0x97:{
 		int off = (code&0x03ffffff)<<2;
 		if(off > 0x08000000)off -= 0x10000000;
-		printf("bl	lr = 0x%x, pc = 0x%x (pc+=0x%x)\n", addr+4, addr+off, off);
+		printf("bl	lr = 0x%x, pc = 0x%x (0x%x+0x%x)\n", addr+4, addr+off, addr,off);
 		return;
 	}//Unconditional branch (immediate)
 
@@ -1496,7 +1497,7 @@ void disasm_arm64_101x(u32 addr, u32 code)
 		int val = (code>>5)&0x7ffff;
 		if(code&0x800000)val -= 0x80000;
 		val = val<<2;
-		printf("cbz	if(0==w%d)b 0x%x (pc+=0x%x)\n", r0, addr+val, val);
+		printf("cbz	if(0==w%d)b 0x%x (0x%x+0x%x)\n", r0, addr+val, addr,val);
 		return;
 	}
 	case 0x35:{
@@ -1504,7 +1505,7 @@ void disasm_arm64_101x(u32 addr, u32 code)
 		int val = (code>>5)&0x7ffff;
 		if(code&0x800000)val -= 0x80000;
 		val = val<<2;
-		printf("cbnz	if(w%d)b 0x%x (pc+=0x%x)\n", r0, addr+val, val);
+		printf("cbnz	if(w%d)b 0x%x (0x%x+0x%x)\n", r0, addr+val, addr,val);
 		return;
 	}
 	case 0xb4:{
@@ -1512,7 +1513,7 @@ void disasm_arm64_101x(u32 addr, u32 code)
 		int val = (code>>5)&0x7ffff;
 		if(code&0x800000)val -= 0x80000;
 		val = val<<2;
-		printf("cbz	if(0==x%d)b 0x%x (pc+=0x%x)\n", r0, addr+val, val);
+		printf("cbz	if(0==x%d)b 0x%x (0x%x+0x%x)\n", r0, addr+val, addr,val);
 		return;
 	}
 	case 0xb5:{
@@ -1520,7 +1521,7 @@ void disasm_arm64_101x(u32 addr, u32 code)
 		int val = (code>>5)&0x7ffff;
 		if(code&0x800000)val -= 0x80000;
 		val = val<<2;
-		printf("cbnz	if(x%d)b 0x%x (pc+=0x%x)\n", r0, addr+val, val);
+		printf("cbnz	if(x%d)b 0x%x (0x%x+0x%x)\n", r0, addr+val, addr,val);
 		return;
 	}//Compare and branch (immediate)
 
@@ -1530,7 +1531,7 @@ void disasm_arm64_101x(u32 addr, u32 code)
 		int val = (code>>5)&0x3fff;
 		if(val&0x2000)val -= 0x4000;
 		val = val<<2;
-		printf("tbz	if(0==w%d.bit%d)b 0x%x (pc+=0x%x)\n", r0,bit, addr+val, val);
+		printf("tbz	if(0==w%d.bit%d)b 0x%x (0x%x+0x%x)\n", r0,bit, addr+val, addr,val);
 		return;
 	}
 	case 0x37:{
@@ -1539,7 +1540,7 @@ void disasm_arm64_101x(u32 addr, u32 code)
 		int val = (code>>5)&0x3fff;
 		if(val&0x2000)val -= 0x4000;
 		val = val<<2;
-		printf("tbnz	if(w%d.bit%d)b 0x%x (pc+=0x%x)\n", r0,bit, addr+val, val);
+		printf("tbnz	if(w%d.bit%d)b 0x%x (0x%x+0x%x)\n", r0,bit, addr+val, addr,val);
 		return;
 	}
 	case 0xb6:{
@@ -1549,7 +1550,7 @@ void disasm_arm64_101x(u32 addr, u32 code)
 		int val = (code>>5)&0x3fff;
 		if(val&0x2000)val -= 0x4000;
 		val = val<<2;
-		printf("tbz	if(0==x%d.bit%d)b 0x%x (pc+=0x%x)\n", r0,bit, addr+val, val);
+		printf("tbz	if(0==x%d.bit%d)b 0x%x (0x%x+0x%x)\n", r0,bit, addr+val, addr,val);
 		return;
 	}
 	case 0xb7:{
@@ -1559,7 +1560,7 @@ void disasm_arm64_101x(u32 addr, u32 code)
 		int val = (code>>5)&0x3fff;
 		if(val&0x2000)val -= 0x4000;
 		val = val<<2;
-		printf("tbnz	if(x%d.bit%d)b 0x%x (pc+=0x%x)\n", r0,bit, addr+val, val);
+		printf("tbnz	if(x%d.bit%d)b 0x%x (0x%x+0x%x)\n", r0,bit, addr+val, addr,val);
 		return;
 	}//Test and branch (immediate)
 
@@ -1709,16 +1710,16 @@ void disasm_arm64_x1x0(u32 addr, u32 code)
 		printf("ldxrb	w%d = [x%d].byte\n", val, adr);
 		printf("stxrb	[x%d].byte = w%d, w%d = status\n", adr, val, sts);
 	}*/
-	if(0x58000000 == (code&0xff800000)){
+	if(0x18000000 == (code&0xff000000)){
 		u8 r0 = code&0x1f;
 		int off = ((code>>5)&0x3ffff)<<2;
-		printf("ldr	x%d = [0x%x]\n", r0, off);
+		printf("ldr	w%d = [0x%x]\n", r0, addr+off);
 		return;
 	}
-	if(0x18000000 == (code&0xff800000)){
+	if(0x58000000 == (code&0xff000000)){
 		u8 r0 = code&0x1f;
-		int off = ((code>>5)&0x3ffff)<<2;
-		printf("ldr	w%d = [0x%x]\n", r0, off);
+		int off = ((code>>5)&0x7ffff)<<2;
+		printf("ldr	x%d = [0x%x]\n", r0, addr+off);
 		return;
 	}
 	if(0xb8000000 == (code&0xff000000)){
@@ -1778,8 +1779,8 @@ void disasm_arm64_x1x0(u32 addr, u32 code)
 		switch(code&0xc00000){
 		case 0x000000:printf("stp	[x%d %+d] = x%d,x%d\n", rr,off, r0,r1);return;
 		case 0x400000:printf("ldp	x%d,x%d = [x%d %+d]\n", r0,r1, rr,off);return;
-		case 0x800000:printf("stp!	[x%d %+d] = x%d,x%d\n", rr,off, r0,r1);return;
-		case 0xc00000:printf("ldp!	x%d,x%d = [x%d %+d]\n", r0,r1, rr,off);return;
+		case 0x800000:printf("stp!	x%d += 0x%x, [x%d] = x%d,x%d\n", rr,off, rr, r0,r1);return;
+		case 0xc00000:printf("ldp!	x%d += 0x%x, x%d,x%d = [x%d]\n", rr,off, r0,r1, rr);return;
 		}
 	}
 	if(0xb9000000 == (code&0xff000000)){
@@ -1804,8 +1805,8 @@ void disasm_arm64_x1x0(u32 addr, u32 code)
 			switch(code&0xc00){
 			case 0x000:printf("stur	[x%d %+d] = x%d\n", rr, val, r0);return;
 			case 0x400:printf("str	[x%d] = x%d, x%d += %d\n", rr, r0, rr,val);return;
-			case 0x800:printf("sttr	[x%d %+d] = x%d\n", rr, val, r0);return;
-			case 0xc00:printf("str!	[x%d %+d] = x%d\n", rr, val, r0);return;
+			case 0x800:printf("sttr	[x%d %+d] = x%d\n", rr,val, r0);return;
+			case 0xc00:printf("str!	x%d += 0x%x, [x%d] = x%d\n", rr,val, rr, r0);return;
 			}
 		}
 		case 0x400000:{
@@ -1815,8 +1816,8 @@ void disasm_arm64_x1x0(u32 addr, u32 code)
 			switch(code&0xc00){
 			case 0x000:printf("ldur	x%d = [x%d %+d]\n", r0, rr, val);return;
 			case 0x400:printf("ldr	x%d = [x%d], x%d += %d\n", r0, rr, rr,val);return;
-			case 0x800:printf("ldtr	x%d = [x%d %+d]\n", r0, rr, val);return;
-			case 0xc00:printf("ldr!	x%d = [x%d %+d]\n", r0, rr, val);return;
+			case 0x800:printf("ldtr	x%d = [x%d %+d]\n", r0, rr,val);return;
+			case 0xc00:printf("ldr!	x%d += 0x%x, x%d = [x%d]\n", rr,val, r0, rr);return;
 			}
 		}
 		}
