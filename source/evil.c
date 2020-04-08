@@ -33,6 +33,8 @@ int disasm_arm64(int argc,char** argv);
 int disasm_x8664(int argc,char** argv);
 int follow_arm64(int argc,char** argv);
 int follow_x8664(int argc,char** argv);
+int travel_arm64(int argc,char** argv);
+int travel_x8664(int argc,char** argv);
 //
 int process(int argc,char** argv);
 int learn(int argc,char** argv);
@@ -134,6 +136,12 @@ int main(int argc, char** argv)
 	}
 	else if(strcmp(argv[1], "follow_x8664") == 0){
 		follow_x8664(argc-1, argv+1);
+	}
+	else if(strcmp(argv[1], "travel_arm64") == 0){
+		travel_arm64(argc-1, argv+1);
+	}
+	else if(strcmp(argv[1], "travel_x8664") == 0){
+		travel_x8664(argc-1, argv+1);
 	}
 
 	//me <- human text

@@ -31,6 +31,8 @@ source/0robot/disasm/arm64.c \
 source/0robot/disasm/x8664.c \
 source/0robot/follow/arm64.c \
 source/0robot/follow/x8664.c \
+source/0robot/travel/arm64.c \
+source/0robot/travel/x8664.c \
 source/1human/learn.c \
 source/1human/circuit/cir.c \
 source/1human/circuit/dsn.c \
