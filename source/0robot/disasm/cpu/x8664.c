@@ -974,7 +974,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 	if(0x69 == opc[0]){
 		if(3 == bit6){
 			disasm_x8664_print(pre, opc-pre+6);
-			printf("imul4	%s = %s / %x\n",
+			printf("imul4	%s = %s / 0x%x\n",
 				fix345[bit3], fix012[bit0], *(u32*)(opc+2));
 			return 6;
 		}
@@ -1024,7 +1024,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 	if(0x80 == opc[0]){
 		if(3 == bit6){
 			disasm_x8664_print(pre, opc-pre+3);
-			printf("%s	%s %s byte %x\n",
+			printf("%s	%s %s byte 0x%x\n",
 			name80[bit3], fix012[bit0], symbol[bit3], opc[2]);
 			return 3;
 		}
@@ -1040,7 +1040,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 	if(0x81 == opc[0]){
 		if(3 == bit6){
 			disasm_x8664_print(pre, opc-pre+6);
-			printf("%s	%s %s dword %x\n",
+			printf("%s	%s %s dword 0x%x\n",
 			name81[bit3], fix012[bit0], symbol[bit3], *(u32*)(opc+2));
 			return 6;
 		}
@@ -1057,7 +1057,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 	if(0x83 == opc[0]){
 		if(3 == bit6){
 			disasm_x8664_print(pre, opc-pre+3);
-			printf("%s	%s %s byte %x\n",
+			printf("%s	%s %s byte 0x%x\n",
 			name83[bit3], fix012[bit0], symbol[bit3], opc[2]);
 			return 3;
 		}
@@ -1252,7 +1252,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 	if(0xc0 == opc[0]){
 		if(3 == bit6){
 			disasm_x8664_print(pre, opc-pre+3);
-			printf("%s	%s, byte %x\n",
+			printf("%s	%s, byte 0x%x\n",
 			namec0[bit3], fixbyte[bit0], opc[2]);
 			return 3;
 		}
@@ -1268,7 +1268,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 	if(0xc1 == opc[0]){
 		if(3 == bit6){
 			disasm_x8664_print(pre, opc-pre+3);
-			printf("%s	%s, byte %x\n",
+			printf("%s	%s, byte 0x%x\n",
 			namec1[bit3], fix012[bit0], opc[2]);
 			return 3;
 		}
@@ -1454,7 +1454,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 		if(3 == bit6){
 			if(0 == bit3){
 				disasm_x8664_print(pre, opc-pre+3);
-				printf("%s	%s & %x\n", namef6[bit3], fixbyte[bit0], opc[2]);
+				printf("%s	%s & 0x%x\n", namef6[bit3], fixbyte[bit0], opc[2]);
 				return 3;
 			}//0
 			if(1 != bit3){
@@ -1486,7 +1486,7 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 		if(3 == bit6){
 			if(0 == bit3){
 				disasm_x8664_print(pre, opc-pre+6);
-				printf("%s	%s & %x\n", namef7[bit3], fix012[bit0], *(u32*)(opc+2));
+				printf("%s	%s & 0x%x\n", namef7[bit3], fix012[bit0], *(u32*)(opc+2));
 				return 6;
 			}//0
 			if(1 != bit3){

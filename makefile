@@ -28,8 +28,11 @@ library/extra/force.c \
 library/extra/inout.c \
 source/0robot/conv.c \
 source/0robot/disasm/disasm.c \
-source/0robot/disasm/arm64.c \
-source/0robot/disasm/x8664.c \
+source/0robot/disasm/exe/elf.c \
+source/0robot/disasm/exe/mac.c \
+source/0robot/disasm/exe/pe.c \
+source/0robot/disasm/cpu/arm64.c \
+source/0robot/disasm/cpu/x8664.c \
 source/0robot/follow/arm64.c \
 source/0robot/follow/x8664.c \
 source/0robot/travel/arm64.c \
