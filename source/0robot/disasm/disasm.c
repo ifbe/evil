@@ -15,6 +15,8 @@
 #define s32 signed int
 #define s64 signed long long
 int hexstr2u32(void* str, void* dat);
+int check_elf(void*);
+int disasm_elf64(void*, int);
 int check_mach(void*);
 int disasm_macho64(void*, int);
 int check_pe(void*);
@@ -56,6 +58,10 @@ void disasm(int argc, char** argv)
 		goto release;
 	}
 
+	if(check_elf(buf)){
+		disasm_elf64(buf, ret);
+		goto release;
+	}
 	if(check_mach(buf)){
 		disasm_macho64(buf, ret);
 		goto release;
