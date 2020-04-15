@@ -27,6 +27,7 @@ library/extra/3d.c \
 library/extra/force.c \
 library/extra/inout.c \
 source/0robot/conv.c \
+source/0robot/disasm/disasm.c \
 source/0robot/disasm/arm64.c \
 source/0robot/disasm/x8664.c \
 source/0robot/follow/arm64.c \

@@ -29,6 +29,7 @@ void worker_create();
 void worker_delete();
 //
 int conv(int argc,char** argv);
+int disasm(int argc,char** argv);
 int disasm_arm64(int argc,char** argv);
 int disasm_x8664(int argc,char** argv);
 int follow_arm64(int argc,char** argv);
@@ -130,6 +131,9 @@ int main(int argc, char** argv)
 	}
 	else if(strcmp(argv[1], "disasm_x8664") == 0){
 		disasm_x8664(argc-1, argv+1);
+	}
+	else if(strcmp(argv[1], "disasm") == 0){
+		disasm(argc-1, argv+1);
 	}
 	else if(strcmp(argv[1], "follow_arm64") == 0){
 		follow_arm64(argc-1, argv+1);
