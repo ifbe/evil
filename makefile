@@ -62,8 +62,7 @@ source/3indite/graph/graph.c \
 source/3indite/kirchhoff/kirchhoff.c \
 source/3indite/route/route.c \
 source/3indite/serve/serve.c \
-source/3indite/string/think.c \
-source/3indite/string/substring.c \
+source/3indite/substr/substr.c \
 source/evil.c
 
 cli:

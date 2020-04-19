@@ -7,17 +7,19 @@
 #include <sys/types.h>
 #include "evil.h"
 #ifndef O_BINARY
-        #define O_BINARY 0x0
+	#define O_BINARY 0x0
 #endif
+void strdata_start(int);
+void strdata_stop();
+void strhash_start(int);
+void strhash_stop();
+void relation_start(int);
+void relation_stop();
+//
+int bplus_trav(u64*, u64*, u8*, int*);
 int strhash_export(void*, void*);
 void* strhash_write(void*, int);
 void* strhash_read(u64);
-
-
-
-
-static u8* sbuf = 0;
-static int scur = 0;
 
 
 
@@ -104,7 +106,7 @@ void think_line(u8* buf, int len)
 		j++;
 	}
 }
-void think_part()
+void think_part(u8* sbuf, int scur)
 {
 	int j,k = -1;
 	for(j=0;j<scur;j++)
@@ -127,9 +129,13 @@ void think_part()
 		//else printf("%x@%x\n", sbuf[j], j);
 	}
 }
-void think_substr()
+void substr(int argc, char** argv)
 {
-	u64 haha;
+	int ret;
+	u8* sbuf;
+	int slen;
+	u64 this;
+	u64 hash;
 
 	//malloc
 	sbuf = malloc(0x100000);
@@ -140,16 +146,24 @@ void think_substr()
 	}
 
 	//
-	haha = 0;
+	strdata_start(1);
+	strhash_start(1);
+	relation_start(1);
+
+	//
+	this = 0;
+	hash = 0;
 	while(1)
 	{
-		printf("@%llx\n", haha);
-		scur = strhash_export(sbuf, &haha);
-		if(scur == 0)break;
+		ret = bplus_trav(&this, &hash, sbuf, &slen);
+		if(0 == ret)break;
 
-		think_part();
-
-		haha++;
-		if(haha == 0)break;
+		printf("%8llx: %016llx: %.*s\n", this, hash, slen, sbuf);
+		//think_part(sbuf, slen);
 	}
+
+	//
+	relation_stop();
+	strhash_stop();
+	strdata_stop();
 }

@@ -811,6 +811,7 @@ void search_print(struct halfrel* self, struct halfrel* peer)
 }
 int search_item(struct hash* item)
 {
+	int cnt = 0;
 	struct relation* rel;
 
 	rel = relationread(item->irel0);
@@ -818,6 +819,7 @@ int search_item(struct hash* item)
 		if(0 == rel)break;
 
 		search_print((void*)&rel->dstchip, (void*)&rel->srcchip);
+		cnt += 1;
 
 		rel = samedstnextsrc(rel);
 	}
@@ -827,54 +829,58 @@ int search_item(struct hash* item)
 		if(0 == rel)break;
 
 		search_print((void*)&rel->srcchip, (void*)&rel->dstchip);
+		cnt += 1;
 
 		rel = samesrcnextdst(rel);
 	}
-	return 0;
+
+	return cnt;
 }
 int search_one(u8* dbuf, int dlen, u8* sbuf, int slen)
 {
+	int ret;
 	u64 temp;
-	struct hash* item;
+	struct hash* item = 0;
 
-	item = 0;
-	if(strncmp((void*)sbuf, "pin@", 4)==0)
-	{
-		hexstr2data(sbuf + 4, &temp);
-		item = pin_read(temp);
-		goto byebye;
-	}
-	else if(strncmp((void*)sbuf, "chip@", 5)==0)
-	{
-		hexstr2data(sbuf + 5, &temp);
-		item = chip_read(temp);
-		goto byebye;
-	}
-	else if(strncmp((void*)sbuf, "file@", 5)==0)
-	{
-		hexstr2data(sbuf + 5, &temp);
-		item = filemd5_read(temp);
-		goto byebye;
-	}
-	else if(strncmp((void*)sbuf, "func@", 5)==0)
-	{
-		hexstr2data(sbuf + 5, &temp);
-		item = funcindex_read(temp);
-		goto byebye;
-	}
-	else if(strncmp((void*)sbuf, "shap@", 5)==0)
-	{
-		hexstr2data(sbuf + 5, &temp);
-		item = shapeindex_read(temp);
-		goto byebye;
-	}
-	temp = strhash_generate(sbuf, slen);
-	item = strhash_read(temp);
-
-byebye:
 	sb = dbuf;
 	sl = dlen;
-	if(item)search_item(item);
+
+	if(strncmp((void*)sbuf, "pin@", 4)==0){
+		hexstr2data(sbuf + 4, &temp);
+		item = pin_read(temp);
+	}
+	else if(strncmp((void*)sbuf, "chip@", 5)==0){
+		hexstr2data(sbuf + 5, &temp);
+		item = chip_read(temp);
+	}
+	else if(strncmp((void*)sbuf, "file@", 5)==0){
+		hexstr2data(sbuf + 5, &temp);
+		item = filemd5_read(temp);
+	}
+	else if(strncmp((void*)sbuf, "func@", 5)==0){
+		hexstr2data(sbuf + 5, &temp);
+		item = funcindex_read(temp);
+	}
+	else if(strncmp((void*)sbuf, "shap@", 5)==0){
+		hexstr2data(sbuf + 5, &temp);
+		item = shapeindex_read(temp);
+	}
+	else{	//hash
+		temp = strhash_generate(sbuf, slen);
+		sb += snprintf((void*)sb, sl, "hash=%016llx\n", temp);
+		item = strhash_read(temp);
+	}
+
+	if(0 == item){
+		sb += snprintf((void*)sb, sl, "notfound\n");
+		return sb-dbuf;
+	}
+
+	ret = search_item(item);
+	if(0 == ret){
+		sb += snprintf((void*)sb, sl, "lonely@%llx\n", (u64)item);
+		return sb-dbuf;
+	}
 	return sb-dbuf;
 }
 void search(int argc, char** argv)
