@@ -71,6 +71,8 @@ void disasm(int argc, char** argv)
 		goto release;
 	}
 
+	printf("unknown filetype, bye bye!\n");
+
 release:
 	free(buf);
 theend:

@@ -208,7 +208,14 @@ void disasm_elf64(void* buf,int len)
 {
 //----------------0.header----------------
 	struct elf64_hdr* h = buf;
-	if(2 != h->e_ident[4])return;	//not 64bit
+	if(0x464c457f != *(u32*)h){
+		printf("not elf, bye bye!\n");
+		return;
+	}
+	if(2 != h->e_ident[4]){
+		printf("32bit elf, bye bye!\n");
+		return;
+	}
 
 	printf(
 	"head@[0,?):\n"
