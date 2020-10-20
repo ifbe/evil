@@ -176,9 +176,9 @@ void disasm_elf64_section(void* buf)
 	void* str = buf+sh[h->e_shstrndx].sh_offset;
 
 	printf("sh@[%llx,?),str@[%x,?):\n", h->e_shoff, sh[h->e_shstrndx].sh_offset);
-	printf("name  type  flag  addr  offs  size  link  info  align entsz\n");
+	printf("name    type    flag    addr    offs    size    link    info    align   entsz\n");
 	for(j=0;j<h->e_shnum;j++){
-		printf("%-6x%-6x%-6llx%-6llx%-6llx%-6llx%-6x%-6x%-6llx%-6llx%.16s\n",
+		printf("%-8x%-8x%-8llx%-8llx%-8llx%-8llx%-8x%-8x%-8llx%-8llx%s\n",
 		sh[j].sh_name,
 		sh[j].sh_type,
 		sh[j].sh_flags,
@@ -191,12 +191,17 @@ void disasm_elf64_section(void* buf)
 		sh[j].sh_entsize,
 		str + sh[j].sh_name
 		);
-		if(0 != strncmp(str + sh[j].sh_name, ".text", 5))continue;
 
-		switch(h->e_machine){
-		case 0x3e:disasm_x8664_all(buf+sh[j].sh_offset, sh[j].sh_size, 0);break;
-		case 0xb7:disasm_arm64_all(buf+sh[j].sh_offset, sh[j].sh_size, 0);break;
-		}
+		if( (0 == strcmp(str + sh[j].sh_name, ".init")) |
+		    (0 == strcmp(str + sh[j].sh_name, ".fini")) |
+		    (0 == strcmp(str + sh[j].sh_name, ".text")) |
+		    (0 == strcmp(str + sh[j].sh_name, ".plt")) )
+		{
+			switch(h->e_machine){
+			case 0x3e:disasm_x8664_all(buf+sh[j].sh_offset, sh[j].sh_size, sh[j].sh_addr);break;
+			case 0xb7:disasm_arm64_all(buf+sh[j].sh_offset, sh[j].sh_size, sh[j].sh_addr);break;
+			}//switch
+		}//if
 	}//for
 }
 void disasm_elf64(void* buf,int len)

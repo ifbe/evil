@@ -282,6 +282,7 @@ int disasm_x8664_1b(u8* p, u64 rip)
 		goto yes;
 	}
 	if(0xf3 == p[0]){
+		if(0x0f == p[1])return 0;
 		str = "rep";
 		goto yes;
 	}
@@ -1446,6 +1447,11 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 	//f1: int1
 	//f2: repne
 	//f3: rep
+	if((0xf3 == opc[0])&&(0x0f == opc[1])&&(0x1e == opc[2])&&(0xfa == opc[3])){
+		disasm_x8664_print(pre, opc-pre+4);
+		printf("endbr64\n");
+		return 4;
+	}
 	//f4: hlt
 	//f5: cmc
 
