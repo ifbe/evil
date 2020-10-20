@@ -65,42 +65,42 @@ int disasm_x8664_all(void* buf, int len, u64 rip);
 
 //
 struct mach_header_64 {
-uint32_t magic;      /* mach magic number identifier */
-uint32_t cputype;    /* cpu specifier */
-uint32_t cpusubtype; /* machine specifier */
-uint32_t filetype;   /* type of file */
-uint32_t ncmds;      /* number of load commands */
-uint32_t sizeofcmds; /* the size of all the load commands */
-uint32_t flags;      /* flags */
-uint32_t reserved;   /* reserved */
+u32 magic;      /* mach magic number identifier */
+u32 cputype;    /* cpu specifier */
+u32 cpusubtype; /* machine specifier */
+u32 filetype;   /* type of file */
+u32 ncmds;      /* number of load commands */
+u32 sizeofcmds; /* the size of all the load commands */
+u32 flags;      /* flags */
+u32 reserved;   /* reserved */
 };
 struct command_19
 {
-uint32_t cmd;
-uint32_t cmdsize;
+u32 cmd;
+u32 cmdsize;
 char segname[16];
-uint64_t vmaddr;
-uint64_t vmsize;
-uint64_t fileoff;
-uint64_t filesize;
-uint32_t maxprot;
-uint32_t initprot;
-uint32_t nsects;
-uint32_t flags;
+u64 vmaddr;
+u64 vmsize;
+u64 fileoff;
+u64 filesize;
+u32 maxprot;
+u32 initprot;
+u32 nsects;
+u32 flags;
 };
 struct section_64 { /* for 64-bit architectures */
 char sec_name[16];	/* name of this section */
 char seg_name[16];	/* segment this section goes in */
-uint64_t addr;		/* memory address of this section */
-uint64_t size;		/* size in bytes of this section */
-uint32_t offset;	/* file offset of this section */
-uint32_t align;		/* section alignment (power of 2) */
-uint32_t reloff;	/* file offset of relocation entries */
-uint32_t nreloc;	/* number of relocation entries */
-uint32_t flags;		/* flags (section type and attributes)*/
-uint32_t reserved1;	/* reserved (for offset or index) */
-uint32_t reserved2;	/* reserved (for count or sizeof) */
-uint32_t reserved3;	/* reserved */
+u64 addr;		/* memory address of this section */
+u64 size;		/* size in bytes of this section */
+u32 offset;	/* file offset of this section */
+u32 align;		/* section alignment (power of 2) */
+u32 reloff;	/* file offset of relocation entries */
+u32 nreloc;	/* number of relocation entries */
+u32 flags;		/* flags (section type and attributes)*/
+u32 reserved1;	/* reserved (for offset or index) */
+u32 reserved2;	/* reserved (for count or sizeof) */
+u32 reserved3;	/* reserved */
 };
  
 
