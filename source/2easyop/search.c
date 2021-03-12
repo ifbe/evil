@@ -792,21 +792,21 @@ byebye:
 
 void search_print(struct halfrel* self, struct halfrel* peer)
 {
+	sb += snprintf((void*)sb, sl,
+		"%.4s@%llx,%.4s@%llx -> %.4s@%llx,%.4s@%llx",
+		(void*)&self->chiptype, self->chip,
+		(void*)&self->foottype, self->foot,
+		(void*)&peer->chiptype, peer->chip,
+		(void*)&peer->foottype, peer->foot
+	);
+
 	if(_hash_ == peer->chiptype){
-		sb += snprintf((void*)sb, sl,
-			"%llx,%llx,%.4s,%.4s -> %llx,%llx,%.4s,%.4s(",
-			self->chip, self->foot, (void*)&self->chiptype, (void*)&self->foottype,
-			peer->chip, peer->foot, (void*)&peer->chiptype, (void*)&peer->foottype
-		);
+		sb += snprintf((void*)sb, sl, "(");
 		sb += strhash_export(peer->chip, sb, 99);
 		sb += snprintf((void*)sb, sl, ")\n");
 	}
 	else{
-		sb += snprintf((void*)sb, sl,
-			"%llx,%llx,%.4s,%.4s -> %llx,%llx,%.4s,%.4s\n",
-			self->chip, self->foot, (void*)&self->chiptype, (void*)&self->foottype,
-			peer->chip, peer->foot, (void*)&peer->chiptype, (void*)&peer->foottype
-		);
+		sb += snprintf((void*)sb, sl, "\n");
 	}
 }
 int search_item(struct hash* item)
