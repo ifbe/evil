@@ -581,7 +581,7 @@ void callback_display()
 
 
 
-void graph_hack(struct context* ctxbuf, int ctxlen)
+void render_hack(struct context* ctxbuf, int ctxlen)
 {
 	int j,k;
 	u32 c;
@@ -630,7 +630,7 @@ void graph_hack(struct context* ctxbuf, int ctxlen)
 void callback_idle()
 {
 	if(enqueue != dequeue)dequeue = (dequeue+1)%0x10000;
-	else graph_hack(ctxbuf, ctxlen);
+	else render_hack(ctxbuf, ctxlen);
 
 	glBindBuffer(GL_ARRAY_BUFFER, obj[1].vbo);
 	glBufferSubData(GL_ARRAY_BUFFER, 0, 24*obj[1].len, obj[1].buf);
@@ -751,7 +751,7 @@ void callback_mouse(int button, int state, int x, int y)
 		}
 	}
 }
-void* graph_thread(void* arg)
+void* render_thread(void* arg)
 {
 	int err;
 	int argc = 1;
@@ -786,39 +786,7 @@ void* graph_thread(void* arg)
 	glUseProgram(0);
 	return 0;
 }
-void graph_init(void* cb, int cl, void* lb, int ll)
-{
-	ctxbuf = cb;
-	ctxlen = cl;
-
-	//point
-	obj[0].len = 0;
-	obj[0].buf = 0;
-	obj[1].len = 0;
-	obj[1].buf = malloc(0x200000);
-
-	//line
-	obj[2].len = 0;
-	obj[2].buf = lb;
-	obj[3].len = 0;
-	obj[3].buf = malloc(0x200000);
-
-	//trigon
-	obj[4].len = 0;
-	obj[4].buf = malloc(0x200000);
-	obj[5].len = 0;
-	obj[5].buf = malloc(0x200000);
-
-	//utf8
-	obj[6].len = 0;
-	obj[6].buf = malloc(0x200000);
-	obj[7].len = 0;
-	obj[7].buf = malloc(0x200000);
-
-	u64 id;
-	pthread_create((void*)&id, NULL, graph_thread, 0);
-}
-void graph_data(void* cb, int cl, void* lb, int ll)
+void render_data(void* cb, int cl, void* lb, int ll)
 {
 	int j;
 	float r,g,b;
@@ -858,4 +826,43 @@ void graph_data(void* cb, int cl, void* lb, int ll)
 		vv[10] = 0.1;
 		vv[11] = 0.1;
 	}
+}
+
+
+
+
+void render_init(void* cb, int cl, void* lb, int ll)
+{
+	ctxbuf = cb;
+	ctxlen = cl;
+
+	//point
+	obj[0].len = 0;
+	obj[0].buf = 0;
+	obj[1].len = 0;
+	obj[1].buf = malloc(0x200000);
+
+	//line
+	obj[2].len = 0;
+	obj[2].buf = lb;
+	obj[3].len = 0;
+	obj[3].buf = malloc(0x200000);
+
+	//trigon
+	obj[4].len = 0;
+	obj[4].buf = malloc(0x200000);
+	obj[5].len = 0;
+	obj[5].buf = malloc(0x200000);
+
+	//utf8
+	obj[6].len = 0;
+	obj[6].buf = malloc(0x200000);
+	obj[7].len = 0;
+	obj[7].buf = malloc(0x200000);
+
+	u64 id;
+	pthread_create((void*)&id, NULL, render_thread, 0);
+}
+void render_free()
+{
 }

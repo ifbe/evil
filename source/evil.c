@@ -44,7 +44,7 @@ int delete(int argc,char** argv);
 int search(int argc,char** argv);
 int modify(int argc,char** argv);
 //
-int graph(int argc,char** argv);
+int render(int argc,char** argv);
 int kirchhoff(int argc,char** argv);
 int route(int argc,char** argv);
 int serve(int argc,char** argv);
@@ -68,7 +68,7 @@ void help(char* buf)
 	printf("	a.exe change\n");
 	printf("	a.exe search str func@c0 file@20\n");
 	printf("me -> indite:\n");
-	printf("	a.exe graph\n");
+	printf("	a.exe render\n");
 	printf("	a.exe kirchhoff\n");
 	printf("	a.exe route\n");
 	printf("	a.exe serve\n");
@@ -85,8 +85,6 @@ int main(int argc, char** argv)
 	//---------------------------------------------------------
 
 
-
-
 	//--------------------------.42 dir check------------------
 	mkdir(".42", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
 	mkdir(".42/chip", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
@@ -99,8 +97,6 @@ int main(int argc, char** argv)
 	mkdir(".42/wav", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
 	mkdir(".42/wire", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
 	//---------------------------------------------------------
-
-
 
 
 	//-------------------------before--------------------------
@@ -116,8 +112,6 @@ int main(int argc, char** argv)
 	relation_create();
 	worker_create();
 	//----------------------------------------------------------
-
-
 
 
 	//me <- machine code
@@ -166,8 +160,8 @@ int main(int argc, char** argv)
 	}
 
 	//me -> indite
-	else if(strcmp(argv[1], "graph") == 0){
-		graph(argc-1, argv+1);
+	else if(strcmp(argv[1], "render") == 0){
+		render(argc-1, argv+1);
 	}
 	else if(strcmp(argv[1], "kirchhoff") == 0){
 		kirchhoff(argc-1, argv+1);
@@ -188,8 +182,6 @@ int main(int argc, char** argv)
 		help(argv[1]);
 		return 0;
 	}
-
-
 
 
 	//-------------------------after---------------------------

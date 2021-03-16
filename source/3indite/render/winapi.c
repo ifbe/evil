@@ -338,7 +338,7 @@ void createmywindow()
 	hProc(WM_DROPFILES, 1);
 	hProc(0x0049, 1);
 }
-void* graph_thread(void* arg)
+void* render_thread(void* arg)
 {
 	MSG msg;
 
@@ -375,36 +375,9 @@ void* graph_thread(void* arg)
 		DispatchMessage(&msg);
 	}
 
-	exit(-1);
 	return 0;
 }
-
-
-
-
-void graph_init(void* cb, int cl, void* lb, int ll)
-{
-	u64 id;
-	ctxbuf = cb;
-	ctxlen = cl;
-
-	lbuf = lb;
-	vbuf = malloc(0x200000);
-	obuf = malloc(0x200000);
-
-	//createevent
-	hStartEvent = CreateEvent(0,FALSE,FALSE,0);
-
-	//uievent
-	pthread_create((void*)&id, NULL, graph_thread, 0);
-
-	//waitevent
-	WaitForSingleObject(hStartEvent,INFINITE);
-
-	//deleteevent
-    CloseHandle(hStartEvent);
-}
-void graph_data(void* cb, int cl, void* lb, int ll)
+void render_data(void* cb, int cl, void* lb, int ll)
 {
 	int j;
 	float r,g,b;
@@ -429,4 +402,33 @@ void graph_data(void* cb, int cl, void* lb, int ll)
 		vv[4] = 0.0;
 		vv[5] = 0.0;
 	}
+}
+
+
+
+
+void render_init(void* cb, int cl, void* lb, int ll)
+{
+	u64 id;
+	ctxbuf = cb;
+	ctxlen = cl;
+
+	lbuf = lb;
+	vbuf = malloc(0x200000);
+	obuf = malloc(0x200000);
+
+	//createevent
+	hStartEvent = CreateEvent(0,FALSE,FALSE,0);
+
+	//uievent
+	pthread_create((void*)&id, NULL, render_thread, 0);
+
+	//waitevent
+	WaitForSingleObject(hStartEvent,INFINITE);
+
+	//deleteevent
+	CloseHandle(hStartEvent);
+}
+void render_free()
+{
 }

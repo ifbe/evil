@@ -13,10 +13,10 @@
 #define _line_ hex32('l','i','n','e')
 #define _tri_ hex32('t','r','i',0)
 #define _rect_ hex32('r','e','c','t')
-void trianglenormal(void* n, void* a, void* b, void* c);
 //
-void graph_init(void*, int, void*, int);
-void graph_data(void*, int, void*, int);
+void render_init();
+void render_free();
+void render_data(void*, int, void*, int);
 //
 int strhash_export(u64 hash, u8* dst, int len);
 u64 strhash_generate(void*, int);
@@ -46,7 +46,7 @@ static int linelen = 0;
 
 
 
-int graph_add(u64 type, u64 addr)
+int render_add(u64 type, u64 addr)
 {
 	int j,k;
 
@@ -68,14 +68,14 @@ int graph_add(u64 type, u64 addr)
 	ctxlen++;
 	return k;
 }
-int graph_pair(int j, int k)
+int render_pair(int j, int k)
 {
 	int i;
 	u32 data;
 
 	if(j==k)return 0;
-	j = 2*j;
-	k = 2*k+1;
+	//j = 2*j;
+	//k = 2*k+1;
 	data = (k<<16)+j;
 
 	for(i=0;i<linelen;i++)
@@ -89,7 +89,7 @@ int graph_pair(int j, int k)
 	linelen += 1;
 	return 1;
 }
-void graph_bfs(int cur, int len)
+void render_bfs(int cur, int len)
 {
 	int j,k;
 	struct hash* h;
@@ -130,8 +130,8 @@ printf("%x:%llx,%llx\n",j,ctxbuf[j].type, ctxbuf[j].addr);
 		while(1)
 		{
 			if(w == 0)break;
-			k = graph_add(w->srcchiptype, w->srcchip);
-			if(j != k)graph_pair(j,k);
+			k = render_add(w->srcchiptype, w->srcchip);
+			if(j != k)render_pair(j,k);
 
 			w = samedstnextsrc(w);
 		}
@@ -140,15 +140,15 @@ printf("%x:%llx,%llx\n",j,ctxbuf[j].type, ctxbuf[j].addr);
 		while(1)
 		{
 			if(w == 0)break;
-			k = graph_add(w->dstchiptype, w->dstchip);
-			if(j != k)graph_pair(k, j);
+			k = render_add(w->dstchiptype, w->dstchip);
+			if(j != k)render_pair(k, j);
 
 			w = samesrcnextdst(w);
 		}
 	}
 
 }
-void graph_one(char* buf, int len)
+void render_one(char* buf, int len)
 {
 	int i,j,m,n;
 	u64 temp;
@@ -158,7 +158,7 @@ void graph_one(char* buf, int len)
 	temp = strhash_generate(buf, len);
 
 	ctxlen = 0;
-	graph_add(_hash_, temp);
+	render_add(_hash_, temp);
 
 	j = 0;
 	for(i=0;i<20;i++)
@@ -167,7 +167,7 @@ void graph_one(char* buf, int len)
 		n = linelen;
 
 //printf("before=%d\n", linelen);
-		graph_bfs(j, ctxlen);
+		render_bfs(j, ctxlen);
 //printf("after=%d\n", linelen);
 
 		if(linelen >= 0x1000)
@@ -182,20 +182,20 @@ void graph_one(char* buf, int len)
 		j = m;
 	}
 
-	graph_data(ctxbuf, ctxlen, linebuf, linelen);
+	render_data(ctxbuf, ctxlen, linebuf, linelen);
 }
-void graph(int argc, char** argv)
+void render(int argc, char** argv)
 {
 	char buf[0x1000];
 	char* p;
 	int j;
 
 	readthemall(1);
+	render_init();
 
-	graph_init(ctxbuf, ctxlen, linebuf, linelen);
 	for(j=1;j<argc;j++)
 	{
-		graph_one(argv[j], strlen(argv[j]));
+		render_one(argv[j], strlen(argv[j]));
 	}
 	while(1)
 	{
@@ -212,6 +212,8 @@ void graph(int argc, char** argv)
 		if((buf[0] == 'q')&&(buf[1] == 0))break;
 
 		j = strlen(buf);
-		if(j != 0)graph_one(buf, j);
+		if(j != 0)render_one(buf, j);
 	}
+
+	render_free();
 }

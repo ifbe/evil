@@ -588,7 +588,7 @@ void* bplus_leafsplit(struct bplusroot* head,
 	left->len = (leafstep+1) / 2;
 	left->right = bplus_memory2offset(head, right);
 
-	temp = bplus_getright(head, right);
+	temp = bplus_getright(head, (void*)right);
 	if(temp == 0)head->right = bplus_memory2offset(head, right);
 	else temp->left = bplus_memory2offset(head, right);
 
@@ -676,7 +676,7 @@ void* bplus_leafsplit(struct bplusroot* head,
 */
 
 	//step3: parent
-	temp = bplus_getparent(head, left);
+	temp = bplus_getparent(head, (void*)left);
 	if(temp == 0)
 	{
 		temp = bplus_grow(head);

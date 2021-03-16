@@ -58,7 +58,7 @@ source/2easyop/create.c \
 source/2easyop/delete.c \
 source/2easyop/search.c \
 source/2easyop/modify.c \
-source/3indite/graph/graph.c \
+source/3indite/render/render.c \
 source/3indite/kirchhoff/kirchhoff.c \
 source/3indite/route/route.c \
 source/3indite/serve/serve.c \
@@ -67,39 +67,58 @@ source/evil.c
 
 cli:
 	gcc -o a.exe $(SRC) \
-	source/3indite/graph/cli.c \
+	source/3indite/render/cli.c \
 	source/3indite/serve/none.c \
 	-Ilibrary -Isource -lm
-
 win:
 	gcc -o a.exe $(SRC) \
-	source/3indite/graph/cli.c \
+	source/3indite/render/cli.c \
 	source/3indite/serve/iocp.c \
 	-Ilibrary -Isource -lgdi32 -lws2_32 -lpthread -lm
 mac:
 	gcc -o a.exe $(SRC) \
-	source/3indite/graph/cli.c \
+	source/3indite/render/cli.c \
 	source/3indite/serve/kqueue.c \
 	-Ilibrary -Isource -lm
 linux:
 	gcc -o a.exe $(SRC) \
-	source/3indite/graph/cli.c \
+	source/3indite/render/cli.c \
 	source/3indite/serve/epoll.c \
 	-Ilibrary -Isource -lm
 
+winqt:
+	clang++ -std=c++11 -I/usr/local/opt/qt@5/include -c source/3indite/render/qt.cpp -o qt.o
+	gcc -o a.exe $(SRC) \
+	qt.o \
+	source/3indite/serve/none.c \
+	-Ilibrary -Isource -lm
+macqt:
+	clang++ -std=c++11 -I/usr/local/opt/qt@5/include -c source/3indite/render/qt.cpp -o qt.o
+	gcc -o a.exe $(SRC) \
+	qt.o \
+	source/3indite/serve/none.c \
+	-Ilibrary -Isource -lm -lc++ -F/usr/local/opt/qt@5/lib -framework QtCore -framework QtGui -framework QtWidgets -framework QtWebEngineWidgets
+linuxqt:
+	clang++ -std=c++11 -I/usr/local/opt/qt@5/include -c source/3indite/render/qt.cpp -o qt.o
+	gcc -o a.exe $(SRC) \
+	qt.o \
+	source/3indite/serve/none.c \
+	-Ilibrary -Isource -lm
+
+
 wingl:
 	gcc -o a.exe $(SRC) \
-	source/3indite/graph/glut.c \
+	source/3indite/render/glut.c \
 	source/3indite/serve/none.c \
 	-Ilibrary -Isource -lgdi32 -lws2_32 -lpthread -lfreeglut -lglu32 -lglew32 -lopengl32 -lm
 macgl:
 	gcc -o a.exe $(SRC) \
-	source/3indite/graph/glut.c \
+	source/3indite/render/glut.c \
 	source/3indite/serve/none.c \
 	-Ilibrary -Isource -lglut -lm -lGLEW -framework OpenGL
 linuxgl:
 	gcc -o a.exe $(SRC) \
-	source/3indite/graph/glut.c \
+	source/3indite/render/glut.c \
 	source/3indite/serve/none.c \
 	-Ilibrary -Isource -lm
 
