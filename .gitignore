@@ -1,5 +1,7 @@
 .42
+.qmake.stash
 *.o
 *.out
 *.exe
 *.dll
+*.moc.cpp

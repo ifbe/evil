@@ -66,7 +66,8 @@ void forcedirected_2d(
 			//F = (vec/r)*(k*q1*q2)/(r^2)
 			//  = vec * (k*q1*q2*)/(r^3)
 			t = x*x + y*y;
-			t = 100000 / t / sqrt(t);
+			t = 1000000 / t / sqrt(t);
+			t /= vlen;
 			x *= t;
 			y *= t;
 
@@ -88,7 +89,7 @@ void forcedirected_2d(
 
 		//F = (vec/x)*(k*x)
 		//  = vec * k
-		t = 0.1;
+		t = 1.0/vlen;
 		x *= t;
 		y *= t;
 
@@ -102,11 +103,11 @@ void forcedirected_2d(
 	//move point
 	for(j=0;j<vlen;j++)
 	{
-		printf("%f,%f -> %f,%f\n",
+/*		printf("%f,%f -> %f,%f\n",
 			vbuf[j].x, vbuf[j].y,
 			obuf[j].x, obuf[j].y
 		);
-
+*/
 		vbuf[j].x += obuf[j].x;
 		vbuf[j].y += obuf[j].y;
 	}

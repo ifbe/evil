@@ -87,19 +87,20 @@ linux:
 	-Ilibrary -Isource -lm
 
 winqt:
-	clang++ -std=c++11 -I/usr/local/opt/qt@5/include -c source/3indite/render/qt.cpp -o qt.o
+	clang++ -std=c++17 -I/usr/local/opt/qt@6/include -c source/3indite/render/qt.cpp -o qt.o
 	gcc -o a.exe $(SRC) \
 	qt.o \
 	source/3indite/serve/none.c \
 	-Ilibrary -Isource -lm
 macqt:
-	clang++ -std=c++11 -I/usr/local/opt/qt@5/include -c source/3indite/render/qt.cpp -o qt.o
+	moc -i source/3indite/render/qt.cpp -o source/3indite/render/qt.moc.cpp
+	clang++ -std=c++17 -I/usr/local/opt/qt@6/include -c source/3indite/render/qt.cpp -o qt.o
 	gcc -o a.exe $(SRC) \
 	qt.o \
 	source/3indite/serve/none.c \
-	-Ilibrary -Isource -lm -lc++ -F/usr/local/opt/qt@5/lib -framework QtCore -framework QtGui -framework QtWidgets -framework QtWebEngineWidgets
+	-Ilibrary -Isource -lm -lc++ -F/usr/local/opt/qt@6/lib -framework QtCore -framework QtGui -framework QtWidgets
 linuxqt:
-	clang++ -std=c++11 -I/usr/local/opt/qt@5/include -c source/3indite/render/qt.cpp -o qt.o
+	clang++ -std=c++17 -I/usr/local/opt/qt@6/include -c source/3indite/render/qt.cpp -o qt.o
 	gcc -o a.exe $(SRC) \
 	qt.o \
 	source/3indite/serve/none.c \
