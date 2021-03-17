@@ -1,4 +1,5 @@
-#include<math.h>
+#include <stdio.h>
+#include <math.h>
 #define u8 unsigned char
 #define u16 unsigned short
 #define u32 unsigned int
@@ -26,11 +27,10 @@ struct pair
 	u16 parent;
 	u16 child;
 };
-struct vvvvvv
+struct vert2d
 {
 	float x;
 	float y;
-	float z;
 };
 struct vertex
 {
@@ -46,27 +46,27 @@ struct vertex
 
 
 void forcedirected_2d(
-	struct vvvvvv* obuf, int olen,
-	struct vvvvvv* vbuf, int vlen,
+	struct vert2d* obuf, int olen,
+	struct vert2d* vbuf, int vlen,
 	struct pair* lbuf, int llen)
 {
 	int j,k,m,n;
 	float x,y,t;
 
 	//coulomb force
-	for(j=0;j<vlen;j+=2)
+	for(j=0;j<vlen;j++)
 	{
-		obuf[j].x = obuf[j].y = obuf[j].z = 0.0;
-		for(k=0;k<vlen;k+=2)
+		obuf[j].x = obuf[j].y = 0.0;
+		for(k=0;k<vlen;k++)
 		{
 			if(j == k)continue;
 			x = vbuf[j].x - vbuf[k].x;
 			y = vbuf[j].y - vbuf[k].y;
 
 			//F = (vec/r)*(k*q1*q2)/(r^2)
-			//F = vec*(k*q1*q2*)/(r^3)
+			//  = vec * (k*q1*q2*)/(r^3)
 			t = x*x + y*y;
-			t = 0.020 / t / sqrt(t);
+			t = 100000 / t / sqrt(t);
 			x *= t;
 			y *= t;
 
@@ -78,16 +78,19 @@ void forcedirected_2d(
 	//spring force
 	for(j=0;j<llen;j++)
 	{
-		m = (lbuf[j].parent)&0xfffe;
-		n = (lbuf[j].child)&0xfffe;
+		m = lbuf[j].parent;
+		if(m >= vlen)continue;
+		n = lbuf[j].child;
+		if(n >= vlen)continue;
 
 		x = vbuf[m].x - vbuf[n].x;
 		y = vbuf[m].y - vbuf[n].y;
 
-		//F = vec*k*r
-		t = sqrt(x*x + y*y);
-		x /= t;
-		y /= t;
+		//F = (vec/x)*(k*x)
+		//  = vec * k
+		t = 0.1;
+		x *= t;
+		y *= t;
 
 		obuf[n].x += x;
 		obuf[n].y += y;
@@ -97,18 +100,15 @@ void forcedirected_2d(
 	}
 
 	//move point
-	for(j=0;j<vlen;j+=2)
+	for(j=0;j<vlen;j++)
 	{
-/*
-		say("%f,%f,%f -> %f,%f,%f\n",
-			vbuf[j].x, vbuf[j].y, vbuf[j].z,
-			obuf[j].x, obuf[j].y, obuf[j].z
+		printf("%f,%f -> %f,%f\n",
+			vbuf[j].x, vbuf[j].y,
+			obuf[j].x, obuf[j].y
 		);
-*/
-		vbuf[j].x += obuf[j].x / 100.0;
-		vbuf[j].y += obuf[j].y / 100.0;
-		vbuf[j+1].x = vbuf[j].x;
-		vbuf[j+1].y = vbuf[j].y;
+
+		vbuf[j].x += obuf[j].x;
+		vbuf[j].y += obuf[j].y;
 	}
 	//say("\n");
 }

@@ -10,7 +10,7 @@
 #define _pin_ hex32('p','i','n',0)
 #define _shape_ hex32('s','h','a','p')
 #define _point_ hex32('p','o','i','n')
-#define _line_ hex32('l','i','n','e')
+#define _wire_ hex32('l','i','n','e')
 #define _tri_ hex32('t','r','i',0)
 #define _rect_ hex32('r','e','c','t')
 //
@@ -38,90 +38,86 @@ struct context
 	u64 addr;
 	u8 str[16];
 };
-static struct context ctxbuf[0x100000/0x20];
-static int ctxlen = 0;
-static u32 linebuf[0x100000/4];
-static int linelen = 0;
+static struct context nodebuf[0x100000/0x20];
+static int nodelen = 0;
+static u32 wirebuf[0x100000/4];
+static int wirelen = 0;
 
 
 
 
-int render_add(u64 type, u64 addr)
+int render_addnode(u64 type, u64 addr)
 {
 	int j,k;
 
-	k = ctxlen;
+	k = nodelen;
 	for(j=0;j<k;j++)
 	{
-		if(ctxbuf[j].type != type)continue;
-		if(ctxbuf[j].addr != addr)continue;
+		if(nodebuf[j].type != type)continue;
+		if(nodebuf[j].addr != addr)continue;
 		return j;
 	}
 
-	ctxbuf[k].type = type;
-	ctxbuf[k].addr = addr;
-	if(type == _hash_)
-	{
-		strhash_export(addr, ctxbuf[k].str, 16);
-	}
+	nodebuf[k].type = type;
+	nodebuf[k].addr = addr;
+	if(type == _hash_)strhash_export(addr, nodebuf[k].str, 16);
 
-	ctxlen++;
+	nodelen++;
 	return k;
 }
-int render_pair(int j, int k)
+int render_addpair(int j, int k)
 {
 	int i;
 	u32 data;
 
-	if(j==k)return 0;
+	if(j==k)return 0;	//self to self
 	//j = 2*j;
 	//k = 2*k+1;
-	data = (k<<16)+j;
+	if(j < k)data = (j<<16)+k;
+	else data = (k<<16)+j;
 
-	for(i=0;i<linelen;i++)
-	{
-		if(linebuf[i] == data)return 0;
+	for(i=0;i<wirelen;i++){
+		if(wirebuf[i] == data)return 0;
 	}
+	printf("wire_%x:%x,%x\n", wirelen, j, k);
 
-	linebuf[linelen] = data;
-	printf("%x)%x,%x\n", linelen, j, k);
-
-	linelen += 1;
+	wirebuf[wirelen] = data;
+	wirelen += 1;
 	return 1;
 }
-void render_bfs(int cur, int len)
+void render_bfs(int cur, int end)
 {
 	int j,k;
 	struct hash* h;
 	struct relation* w;
-printf("[%d,%d)\n",cur,len);
+printf("[%d,%d)\n",cur,end);
 
-	for(j=cur;j<len;j++)
+	for(j=cur;j<end;j++)
 	{
-printf("%x:%llx,%llx\n",j,ctxbuf[j].type, ctxbuf[j].addr);
-		if(_hash_ == ctxbuf[j].type)
+printf("node_%x:%llx,%llx\n",j,nodebuf[j].type, nodebuf[j].addr);
+		if(_hash_ == nodebuf[j].type)
 		{
-			h = strhash_read(ctxbuf[j].addr);
+			h = strhash_read(nodebuf[j].addr);
 			if(h == 0)continue;
 		}
-		else if(_file_ == ctxbuf[j].type)
+		else if(_file_ == nodebuf[j].type)
 		{
-			h = filemd5_read(ctxbuf[j].addr);
+			h = filemd5_read(nodebuf[j].addr);
 			if(h == 0)continue;
 		}
-		else if(_func_ == ctxbuf[j].type)
+		else if(_func_ == nodebuf[j].type)
 		{
-			h = funcindex_read(ctxbuf[j].addr);
+			h = funcindex_read(nodebuf[j].addr);
 			if(h == 0)continue;
 		}
-		else if(_chip_ == ctxbuf[j].type)
+		else if(_chip_ == nodebuf[j].type)
 		{
-			h = chip_read(ctxbuf[j].addr);
+			h = chip_read(nodebuf[j].addr);
 			if(h == 0)continue;
 		}
-		else if(_pin_ == ctxbuf[j].type)
+		else if(_pin_ == nodebuf[j].type)
 		{
-			h = pin_read(ctxbuf[j].addr);
+			h = pin_read(nodebuf[j].addr);
 			if(h == 0)continue;
 		}
 		else continue;
@@ -130,8 +126,8 @@ printf("%x:%llx,%llx\n",j,ctxbuf[j].type, ctxbuf[j].addr);
 		while(1)
 		{
 			if(w == 0)break;
-			k = render_add(w->srcchiptype, w->srcchip);
-			if(j != k)render_pair(j,k);
+			k = render_addnode(w->srcchiptype, w->srcchip);
+			if(j != k)render_addpair(j,k);
 
 			w = samedstnextsrc(w);
 		}
@@ -140,8 +136,8 @@ printf("%x:%llx,%llx\n",j,ctxbuf[j].type, ctxbuf[j].addr);
 		while(1)
 		{
 			if(w == 0)break;
-			k = render_add(w->dstchiptype, w->dstchip);
-			if(j != k)render_pair(k, j);
+			k = render_addnode(w->dstchiptype, w->dstchip);
+			if(j != k)render_addpair(k, j);
 
 			w = samesrcnextdst(w);
 		}
@@ -150,39 +146,39 @@ printf("%x:%llx,%llx\n",j,ctxbuf[j].type, ctxbuf[j].addr);
 }
 void render_one(char* buf, int len)
 {
-	int i,j,m,n;
+	int i,cur;
+	int m,n;
 	u64 temp;
-	u32* p;
 
-	linelen = 0;
+	nodelen = 0;
+	wirelen = 0;
+
 	temp = strhash_generate(buf, len);
+	render_addnode(_hash_, temp);
 
-	ctxlen = 0;
-	render_add(_hash_, temp);
-
-	j = 0;
-	for(i=0;i<20;i++)
+	cur = 0;
+	for(i=0;i<2;i++)	//2 layer
 	{
-		m = ctxlen;
-		n = linelen;
+		m = nodelen;
+		n = wirelen;
 
-//printf("before=%d\n", linelen);
-		render_bfs(j, ctxlen);
-//printf("after=%d\n", linelen);
+//printf("before=%d\n", wirelen);
+		render_bfs(cur, nodelen);
+//printf("after=%d\n", wirelen);
 
-		if(linelen >= 0x1000)
+		if(wirelen >= 0x1000)
 		{
-			ctxlen = m;
-			linelen = n;
+			nodelen = m;
+			wirelen = n;
 			break;
 		}
-		if(ctxlen <= m)break;
-		if(ctxlen >= 1000)break;
+		if(nodelen <= m)break;
+		if(nodelen >= 1000)break;
 
-		j = m;
+		cur = m;
 	}
 
-	render_data(ctxbuf, ctxlen, linebuf, linelen);
+	render_data(nodebuf, nodelen, wirebuf, wirelen);
 }
 void render(int argc, char** argv)
 {
