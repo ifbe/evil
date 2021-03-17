@@ -13,6 +13,7 @@
 #define _wire_ hex32('l','i','n','e')
 #define _tri_ hex32('t','r','i',0)
 #define _rect_ hex32('r','e','c','t')
+int hexstr2data(void*, void*);
 //
 void render_init();
 void render_free();
@@ -60,6 +61,7 @@ int render_addnode(u64 type, u64 addr)
 
 	nodebuf[k].type = type;
 	nodebuf[k].addr = addr;
+	bzero(nodebuf[k].str, 16);
 	if(type == _hash_)strhash_export(addr, nodebuf[k].str, 16);
 
 	nodelen++;
@@ -144,17 +146,31 @@ printf("node_%x:%llx,%llx\n",j,nodebuf[j].type, nodebuf[j].addr);
 	}
 
 }
-void render_one(char* buf, int len)
+void render_trav(char* buf, int len, int* nlen, int* wlen)
 {
 	int i,cur;
 	int m,n;
-	u64 temp;
+	u64 type;
+	u64 addr;
+	printf("@render_trav:%.*s\n", len,buf);
 
 	nodelen = 0;
 	wirelen = 0;
 
-	temp = strhash_generate(buf, len);
-	render_addnode(_hash_, temp);
+	if(strncmp((void*)buf, "file@", 5)==0){
+		hexstr2data(buf + 5, &addr);
+		type = _file_;
+	}
+	else if(strncmp((void*)buf, "func@", 5)==0){
+		hexstr2data(buf + 5, &addr);
+		type = _func_;
+	}
+	else{
+		addr = strhash_generate(buf, len);
+		type = _hash_;
+	}
+	printf("type=%llx,addr=%llx\n",type,addr);
+	render_addnode(type, addr);
 
 	cur = 0;
 	for(i=0;i<2;i++)	//2 layer
@@ -178,20 +194,23 @@ void render_one(char* buf, int len)
 		cur = m;
 	}
 
-	render_data(nodebuf, nodelen, wirebuf, wirelen);
+	*nlen = nodelen;
+	*wlen = wirelen;
 }
 void render(int argc, char** argv)
 {
 	char buf[0x1000];
 	char* p;
 	int j;
+	int nlen,wlen;
 
 	readthemall(1);
 	render_init();
 
 	for(j=1;j<argc;j++)
 	{
-		render_one(argv[j], strlen(argv[j]));
+		render_trav(argv[j], strlen(argv[j]), &nlen, &wlen);
+		render_data(nodebuf, nodelen, wirebuf, wirelen);
 	}
 	while(1)
 	{
@@ -208,7 +227,10 @@ void render(int argc, char** argv)
 		if((buf[0] == 'q')&&(buf[1] == 0))break;
 
 		j = strlen(buf);
-		if(j != 0)render_one(buf, j);
+		if(j != 0){
+			render_trav(buf, j, &nlen, &wlen);
+			render_data(nodebuf, nodelen, wirebuf, wirelen);
+		}
 	}
 
 	render_free();

@@ -12,6 +12,8 @@
 #define u64 unsigned long long
 #define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
 #define _hash_ hex32('h','a','s','h')
+#define _file_ hex32('f','i','l','e')
+#define _func_ hex32('f','u','n','c')
 
 
 
@@ -37,7 +39,19 @@ void forcedirected_2d(
         struct vert2d* obuf, int olen,
         struct vert2d* vbuf, int vlen,
         struct perwire* lbuf, int llen);
-}
+void render_trav(const char* buf, int len, int* ncnt, int* wcnt);
+}//extern "C"
+
+
+
+
+static int argc = 0;
+static char* argv[1] = {0};
+static QApplication* app = 0;;
+//
+static const char* style_hash = "QPushButton{background-color:#FF0000;color:#00FFFF}";
+static const char* style_func = "QPushButton{background-color:#00FF00;color:#FF00FF}";
+static const char* style_file = "QPushButton{background-color:#0000FF;color:#FFFF00}";
 
 
 
@@ -86,7 +100,7 @@ void prepnodeandwire(struct pernode* nb, int nc, struct perwire* wb, int wc)
 	ncnt = nc;
 	wbuf = wb;
 	wcnt = wc;
-	printf("ncnt=%d,wcnt=%d\n",ncnt,wcnt);
+	printf("nbuf=%p,ncnt=%d,wbuf=%p,wcnt=%d\n",nbuf,ncnt,wbuf,wcnt);
 
 	int x,y,j;
 	char str[64];
@@ -95,17 +109,18 @@ void prepnodeandwire(struct pernode* nb, int nc, struct perwire* wb, int wc)
 	btn = (QPushButton*)malloc(ncnt * sizeof(QPushButton));
 	v2d = (struct vert2d*)malloc(ncnt * sizeof(struct vert2d));
 	tmp = (struct vert2d*)malloc(ncnt * sizeof(struct vert2d));
+	printf("btn=%p,v2d=%p,tmp=%p\n",btn,v2d,tmp);
 
 	for(j=0;j<ncnt;j++){
 		if(_hash_ == nbuf[j].type){
-			snprintf(str, 64, "%.4s\n%llx\n%.16s", (void*)&nbuf[j].type, nbuf[j].addr, nbuf[j].str);
+			//snprintf(str, 64, "%.4s@%llx\n%.16s", (void*)&nbuf[j].type, nbuf[j].addr, nbuf[j].str);
+			snprintf(str, 64, "%.16s", nbuf[j].str);
 		}
 		else{
-			snprintf(str, 64, "%.4s\n%llx", (void*)&nbuf[j].type, nbuf[j].addr);
-		}
+			snprintf(str, 64, "%.4s@%llx", (void*)&nbuf[j].type, nbuf[j].addr);
+		}//else
 
 		new(&btn[j])QPushButton(str, this);
-		connect(&btn[j], SIGNAL(clicked()), this, SLOT(onclick()));
 
 		if(0 == j){
 			x = WIDTH / 2;
@@ -119,6 +134,21 @@ void prepnodeandwire(struct pernode* nb, int nc, struct perwire* wb, int wc)
 		v2d[j].x = x;
 		v2d[j].y = y;
 		btn[j].setGeometry(x-64,y-32, 128,64);
+
+		switch(nbuf[j].type){
+		case _hash_:
+			btn[j].setStyleSheet(style_hash);
+			break;
+		case _func_:
+			btn[j].setStyleSheet(style_func);
+			break;
+		case _file_:
+			btn[j].setStyleSheet(style_file);
+			break;
+		}
+
+		connect(&btn[j], SIGNAL(clicked()), this, SLOT(onclick()));
+		btn[j].show();
 	}
 
 	bcnt = vcnt = tcnt = ncnt;
@@ -212,16 +242,18 @@ void onclick()
 {
 	QPushButton* buttonSender = qobject_cast<QPushButton*>(sender()); // retrieve the button you have clicked
 	QString buttonText = buttonSender->text();
+	std::string str = buttonText.toStdString();
 	qDebug() << "click" << buttonText;
+
+	freenodeandwire();
+	render_trav(str.c_str(), str.length(), &ncnt, &wcnt);
+	prepnodeandwire(nbuf,ncnt, wbuf,wcnt);
+
+	//QPushButton* fuck = new QPushButton("test",this);
+	//fuck->setGeometry(256-64,256-32, 128,64);
+	//fuck->show();
 }
 };//class mywindow
-
-
-
-
-static int argc = 0;
-static char* argv[1] = {0};
-static QApplication* app = 0;;
 
 
 
@@ -236,10 +268,8 @@ void render_data(struct pernode* nbuf, int ncnt, struct perwire* wbuf, int wcnt)
 	MyMainWindow wnd;
 	wnd.prepnodeandwire(nbuf,ncnt, wbuf,wcnt);
 	wnd.show();
-	qDebug() << "111111\n";
 
 	app->exec();
-	qDebug() << "222222\n";
 }
 
 
