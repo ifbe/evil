@@ -144,7 +144,7 @@ macglfw:
 	source/3indite/render/glfw.c \
 	source/3indite/serve/none.c \
 	-Ilibrary -Isource \
-	-lgdi32 -lglu32 -lws2_32 -lglfw3 -lglew32 -lopengl32 -lpthread -lm
+	-lGLEW -lglfw -lm -framework OpenGL
 linuxglfw:
 	gcc -o a.exe $(SRC) \
 	source/3indite/render/glfw.c \

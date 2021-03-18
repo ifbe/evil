@@ -3,6 +3,68 @@
 #include <string.h>
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
+#include "evil.h"
+typedef unsigned char u8;
+typedef unsigned short u16;
+typedef unsigned int u32;
+typedef unsigned long long u64;
+void forcedirected_3d(void*, int, void*, int, void*, int);
+
+
+
+
+#define GLSL_VERSION "#version 410 core\n"
+#define GLSL_PRECISION "precision mediump float;\n"
+static char vs[] =
+GLSL_VERSION
+"layout(location = 0)in mediump vec3 v;\n"
+"layout(location = 1)in mediump vec3 c;\n"
+"uniform mat4 wvp;\n"
+"out mediump vec3 colour;\n"
+"void main(){\n"
+	"colour = c;\n"
+	"gl_Position = wvp * vec4(v, 1.0);\n"
+"}\n";
+static char fs[] =
+GLSL_VERSION
+"in mediump vec3 colour;\n"
+"out mediump vec4 FragColor;\n"
+"void main(){\n"
+	"FragColor = vec4(colour, 1.0);\n"
+"}\n";
+static GLuint shader = 0;
+static float wvp[4][4];
+//data-input
+struct pernode
+{
+        u64 type;
+        u64 addr;
+        u8 str[16];
+};
+struct perwire
+{
+        u16 src;
+        u16 dst;
+};
+//data-tmp
+struct vertex{
+float x;
+float y;
+float z;
+float r;
+float g;
+float b;
+};
+static struct vertex* tbuf;
+static int tcnt;	//how many point
+static struct vertex* vbuf;
+static int vcnt;	//how many point
+static u16* ibuf;
+static int icnt;	//how many wire
+//data-gpu
+static GLuint vao = 0;
+static GLuint vbo = 0;
+static GLuint ibo = 0;
 
 
 
@@ -128,7 +190,88 @@ static void callback_reshape(GLFWwindow* fw, int w, int h)
 	ogl->width = w;
 	ogl->height = h;*/
 }
-void glfw_drawsome(GLFWwindow* fw)
+
+
+
+
+
+
+GLuint compileShader(GLenum type, const char* source)
+{
+	GLuint shader = glCreateShader(type);
+	if(!shader)return 0;
+
+	glShaderSource(shader, 1, &source, NULL);
+	glCompileShader(shader);
+
+	GLint compileStatus;
+	glGetShaderiv(shader, GL_COMPILE_STATUS, &compileStatus);
+	if (GL_TRUE == compileStatus)return shader;
+
+	GLint infoLogLength = 0;
+	glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &infoLogLength);
+	if(infoLogLength){
+		char* infoLog = (char*)malloc(infoLogLength);
+		if (infoLog){
+			glGetShaderInfoLog(shader, infoLogLength, NULL, infoLog);
+			printf("Could not compile shader %d:\n%s", type, infoLog);
+			free(infoLog);
+		}
+		glDeleteShader(shader);
+	}
+	return 0;
+}
+GLuint compileprogram(void* v, void* f)
+{
+	GLuint vShader = compileShader(GL_VERTEX_SHADER, v);
+	if(!vShader){
+		printf("fail@compileShader: %s\n", v);
+		return 0;
+	}
+
+	GLuint fShader = compileShader(GL_FRAGMENT_SHADER, f);
+	if(!fShader){
+		printf("fail@compileShader: %s\n", f);
+		return 0;
+	}
+
+	GLuint prog = glCreateProgram();
+	if(0 == prog){
+		printf("ERROR : create program failed");
+		exit(1);
+	}
+
+	glAttachShader(prog, vShader);
+	glAttachShader(prog, fShader);
+	glLinkProgram(prog);
+	glDetachShader(prog, vShader);
+	glDetachShader(prog, fShader);
+	glDeleteShader(vShader);
+	glDeleteShader(fShader);
+
+	GLint linkStatus;
+	glGetProgramiv(prog, GL_LINK_STATUS, &linkStatus);
+	if(GL_TRUE == linkStatus)return prog;
+
+	printf("ERROR : link shader program failed");
+	GLint logLen;
+	glGetProgramiv(prog, GL_INFO_LOG_LENGTH, &logLen);
+	if(logLen > 0)
+	{
+		char *log = (char*)malloc(logLen);
+		GLsizei written;
+		glGetProgramInfoLog(prog, logLen, &written, log);
+		printf("Program log :%s\n", log);
+	}
+
+	glDeleteProgram(prog);
+	return 0;
+}
+
+
+
+
+void glfw_drawtest(GLFWwindow* fw)
 {
 	int w,h;
 	glfwGetWindowSize(fw, &w, &h);
@@ -157,14 +300,114 @@ void glfw_drawsome(GLFWwindow* fw)
 	glClearColor(r, g, b, a);
 	glClear(GL_COLOR_BUFFER_BIT);	//GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT
 }
-void glfw_openwindow(int x, int y)
+void glfw_drawsome(GLFWwindow* fw)
+{
+	int x0 = 0;
+	int y0 = 0;
+	int fbw;
+	int fbh;
+	glfwGetFramebufferSize(fw, &fbw, &fbh);
+
+	glViewport(x0, y0, fbw, fbh);
+	glScissor(x0, y0, fbw, fbh);
+	glClearColor(0.1, 0.1, 0.1, 1.0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	glEnable(GL_SCISSOR_TEST);
+	glEnable(GL_DEPTH_TEST);
+
+	//shader
+	glUseProgram(shader);
+
+	//arg
+	GLuint at = glGetUniformLocation(shader, "wvp");
+	if(at >= 0)glUniformMatrix4fv(at, 1, GL_FALSE, (void*)wvp);
+
+	//vao,vbo,ibo
+	glBindVertexArray(vao);
+
+	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(struct vertex)*vcnt, vbuf);
+
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+
+	glDrawElements(GL_LINES, 4*icnt, GL_UNSIGNED_SHORT, (void*)0);
+}
+
+
+
+void glfw_initdata(struct pernode* cb, int cl, struct perwire* wb, int wl)
+{
+	int vlen = cl * sizeof(struct vertex);
+	int ilen = wl * 4;
+	tcnt = cl;
+	tbuf = malloc(vlen);
+	vcnt = cl;
+	vbuf = malloc(vlen);
+	icnt = wl;
+	ibuf = (void*)wb;
+
+	int j;
+	for(j=0;j<cl;j++){
+		vbuf[j].x = (rand()%20000)/10000.0 - 1.0;
+		vbuf[j].y = (rand()%20000)/10000.0 - 1.0;
+		vbuf[j].z = 0.5;
+		switch(cb[j].type){
+		case _hash_:
+			vbuf[j].r = 1.0;
+			vbuf[j].g = 0.0;
+			vbuf[j].b = 0.0;
+			break;
+		case _file_:
+			vbuf[j].r = 0.0;
+			vbuf[j].g = 1.0;
+			vbuf[j].b = 0.0;
+			break;
+		case _func_:
+			vbuf[j].r = 0.0;
+			vbuf[j].g = 0.0;
+			vbuf[j].b = 1.0;
+			break;
+		default:
+			vbuf[j].r = 1.0;
+			vbuf[j].g = 1.0;
+			vbuf[j].b = 1.0;
+		}
+	}
+
+	shader = compileprogram(vs, fs);
+
+	glGenVertexArrays(1, &vao);
+	glBindVertexArray(vao);
+
+	glGenBuffers(1, &vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	glBufferData(GL_ARRAY_BUFFER, vlen, vbuf, GL_STATIC_DRAW);
+
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 24, (void*)0);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 24, (void*)12);
+	glEnableVertexAttribArray(1);
+
+	glGenBuffers(1, &ibo);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, ilen, ibuf, GL_STATIC_DRAW);
+}
+void glfw_freedata()
+{
+}
+
+
+
+
+GLFWwindow* glfw_initwindow(int x, int y)
 {
 	//1.glfw
 	GLFWwindow* fw = glfwCreateWindow(x, y, "42", NULL, NULL);
 	if(0 == fw)
 	{
 		printf("error@glfwCreateWindow\n");
-		return;
+		return 0;
 	}
 
 	//2.setup
@@ -186,28 +429,55 @@ void glfw_openwindow(int x, int y)
 	if(glewInit() != GLEW_OK)
 	{
 		printf("error@glewInit\n");
-		return;
+		return 0;
 	}
 
+	return fw;
+}
+void glfw_freewindow(GLFWwindow* fw)
+{
+	//close window
+	glfwDestroyWindow(fw);
+
+	//clear all events about this window, to ensure window closed
+	int j;
+	for(j=0;j<100000;j++)glfwPollEvents();
+}
+
+
+
+
+void render_data(struct pernode* cb, int cl, struct perwire* wb, int wl)
+{
+	printf("nodecnt=%d,wirecnt=%d\n", cl, wl);
+
+	GLFWwindow* fw = glfw_initwindow(1024, 768);
+	if(0 == fw)return;
+
+	glfw_initdata(cb,cl, wb,wl);
 
 	while(1){
 		glfwMakeContextCurrent(fw);
+
+		wvp[0][0] = 1.0;wvp[0][1] = 0.0;wvp[0][2] = 0.0;wvp[0][3] = 0.0;
+		wvp[1][0] = 0.0;wvp[1][1] = 1.0;wvp[1][2] = 0.0;wvp[1][3] = 0.0;
+		wvp[2][0] = 0.0;wvp[2][1] = 0.0;wvp[2][2] = 1.0;wvp[2][3] = 0.0;
+		wvp[3][0] = 0.0;wvp[3][1] = 0.0;wvp[3][2] = 0.0;wvp[3][3] = 1.0;
+
+		forcedirected_3d(tbuf,tcnt, vbuf,vcnt, ibuf,icnt);
+		vbuf[0].x = vbuf[0].y = vbuf[0].z = 0.0;
 
 		glfw_drawsome(fw);
 
 		glfwSwapBuffers(fw);
 
-		if(glfwWindowShouldClose(fw))break;
 		glfwPollEvents();
+		if(glfwWindowShouldClose(fw))break;
 	}
 
-	glfwDestroyWindow(fw);
-}
-void render_data(void* cb, int cl, void* lb, int ll)
-{
-	printf("nodecnt=%d,wirecnt=%d\n", cl, ll);
+	glfw_freedata();
 
-	glfw_openwindow(1024, 768);
+	glfw_freewindow(fw);
 }
 
 

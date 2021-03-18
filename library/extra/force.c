@@ -122,10 +122,10 @@ void forcedirected_3d(
 	float x,y,z,t;
 
 	//coulomb force
-	for(j=0;j<vlen;j+=2)
+	for(j=0;j<vlen;j++)
 	{
 		obuf[j].x = obuf[j].y = obuf[j].z = 0.0;
-		for(k=0;k<vlen;k+=2)
+		for(k=0;k<vlen;k++)
 		{
 			if(j == k)continue;
 			x = vbuf[j].x - vbuf[k].x;
@@ -135,7 +135,8 @@ void forcedirected_3d(
 			//F = (vec/r)*(k*q1*q2)/(r^2)
 			//F = vec*(k*q1*q2*)/(r^3)
 			t = x*x + y*y + z*z;
-			t = 0.020 / t / sqrt(t);
+			t = 0.001 / t / sqrt(t);
+			t /= vlen;
 			x *= t;
 			y *= t;
 			z *= t;
@@ -149,18 +150,20 @@ void forcedirected_3d(
 	//spring force
 	for(j=0;j<llen;j++)
 	{
-		m = (lbuf[j].parent)&0xfffe;
-		n = (lbuf[j].child)&0xfffe;
+		m = lbuf[j].parent;
+		if(m >= vlen)continue;
+		n = lbuf[j].child;
+		if(n >= vlen)continue;
 
 		x = vbuf[m].x - vbuf[n].x;
 		y = vbuf[m].y - vbuf[n].y;
 		z = vbuf[m].z - vbuf[n].z;
 
 		//F = vec*k*r
-		t = sqrt(x*x + y*y + z*z);
-		x /= t;
-		y /= t;
-		z /= t;
+		t = 1.0/vlen;
+		x *= t;
+		y *= t;
+		z *= t;
 
 		obuf[n].x += x;
 		obuf[n].y += y;
@@ -172,20 +175,16 @@ void forcedirected_3d(
 	}
 
 	//move point
-	for(j=0;j<vlen;j+=2)
+	for(j=0;j<vlen;j++)
 	{
-/*
-		printf("%f,%f,%f -> %f,%f,%f\n",
+/*		printf("%f,%f,%f -> %f,%f,%f\n",
 			vbuf[j].x, vbuf[j].y, vbuf[j].z,
 			obuf[j].x, obuf[j].y, obuf[j].z
 		);
 */
-		vbuf[j].x += obuf[j].x / 50.0;
-		vbuf[j].y += obuf[j].y / 50.0;
-		vbuf[j].z += obuf[j].z / 50.0;
-		vbuf[j+1].x = vbuf[j].x;
-		vbuf[j+1].y = vbuf[j].y;
-		vbuf[j+1].z = vbuf[j].z;
+		vbuf[j].x += obuf[j].x;
+		vbuf[j].y += obuf[j].y;
+		vbuf[j].z += obuf[j].z;
 	}
 	//say("\n");
 }

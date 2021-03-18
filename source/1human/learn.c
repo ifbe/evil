@@ -186,7 +186,7 @@ void connect_func_to_file(u8* buf, int len, u64 file, int line)
 	relationcreate(fileobj, line, _file_, _func_, funcobj, 0, _func_, _file_);
 
 	//hash <- func
-	relationcreate(thishash, 0, _hash_, _func_, funcobj, 0, _func_, _hash_);
+	relationcreate(thishash, 0, _hash_, _func_, funcobj, 0, _func_, _name_);
 }
 void connect_file_to_hash(char* buf, int len)
 {
@@ -207,7 +207,7 @@ void connect_file_to_hash(char* buf, int len)
 	}
 
 	//hash <- file (lchip, lfoot, ltype, rchip, rfoot, rtype)
-	relationcreate(thishash, 0, _hash_, _file_, fileobj, 0, _file_, _hash_);
+	relationcreate(thishash, 0, _hash_, _file_, fileobj, 0, _file_, _name_);
 }
 
 
