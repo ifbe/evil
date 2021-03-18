@@ -113,21 +113,44 @@ linuxqt:
 	-lm -lc++
 
 
-wingl:
+winglut:
 	gcc -o a.exe $(SRC) \
 	source/3indite/render/glut.c \
 	source/3indite/serve/none.c \
-	-Ilibrary -Isource -lgdi32 -lws2_32 -lpthread -lfreeglut -lglu32 -lglew32 -lopengl32 -lm
-macgl:
+	-Ilibrary -Isource \
+	-lgdi32 -lws2_32 -lpthread -lfreeglut -lglu32 -lglew32 -lopengl32 -lm
+macglut:
 	gcc -o a.exe $(SRC) \
 	source/3indite/render/glut.c \
 	source/3indite/serve/none.c \
-	-Ilibrary -Isource -lglut -lm -lGLEW -framework OpenGL
-linuxgl:
+	-Ilibrary -Isource \
+	-lglut -lm -lGLEW -framework OpenGL
+linuxglut:
 	gcc -o a.exe $(SRC) \
 	source/3indite/render/glut.c \
 	source/3indite/serve/none.c \
-	-Ilibrary -Isource -lm
+	-Ilibrary -Isource \
+	-lm
+
+winglfw:
+	gcc -o a.exe $(SRC) \
+	source/3indite/render/glfw.c \
+	source/3indite/serve/none.c \
+	-Ilibrary -Isource \
+	-lglfw3 -lglew32 -lglu32 -lopengl32 \
+	-lgdi32 -lws2_32 -lstrmiids -lpthread -lm
+macglfw:
+	gcc -o a.exe $(SRC) \
+	source/3indite/render/glfw.c \
+	source/3indite/serve/none.c \
+	-Ilibrary -Isource \
+	-lgdi32 -lglu32 -lws2_32 -lglfw3 -lglew32 -lopengl32 -lpthread -lm
+linuxglfw:
+	gcc -o a.exe $(SRC) \
+	source/3indite/render/glfw.c \
+	source/3indite/serve/none.c \
+	-Ilibrary -Isource \
+	-lgdi32 -lglu32 -lws2_32 -lglfw3 -lglew32 -lopengl32 -lpthread -lm
 
 clean:
 	rm -f *.exe *.out
