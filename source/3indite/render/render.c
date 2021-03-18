@@ -61,7 +61,7 @@ int render_addnode(u64 type, u64 addr)
 
 	nodebuf[k].type = type;
 	nodebuf[k].addr = addr;
-	bzero(nodebuf[k].str, 16);
+	memset(nodebuf[k].str, 0, 16);
 	if(type == _hash_)strhash_export(addr, nodebuf[k].str, 16);
 
 	nodelen++;
