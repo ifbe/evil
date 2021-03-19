@@ -135,7 +135,7 @@ void forcedirected_3d(
 			//F = (vec/r)*(k*q1*q2)/(r^2)
 			//F = vec*(k*q1*q2*)/(r^3)
 			t = x*x + y*y + z*z;
-			t = 0.001 / t / sqrt(t);
+			t = 10000 / t / sqrt(t);
 			t /= vlen;
 			x *= t;
 			y *= t;

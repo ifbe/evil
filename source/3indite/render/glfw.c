@@ -8,7 +8,51 @@ typedef unsigned char u8;
 typedef unsigned short u16;
 typedef unsigned int u32;
 typedef unsigned long long u64;
+typedef float vec1[1];
+typedef float vec2[2];
+typedef float vec3[3];
+typedef float vec4[4];
+typedef float mat1[1][1];
+typedef float mat2[2][2];
+typedef float mat3[3][3];
+typedef float mat4[4][4];
 void forcedirected_3d(void*, int, void*, int, void*, int);
+
+
+
+
+//data-input
+struct pernode
+{
+        u64 type;
+        u64 addr;
+        u8 str[16];
+};
+struct perwire
+{
+        u16 src;
+        u16 dst;
+};
+//data-tmp
+struct vertex{
+	float x;
+	float y;
+	float z;
+	float r;
+	float g;
+	float b;
+};
+//
+struct camera{
+	vec4 vl;	//[00,0f]: left
+	vec4 vr;	//[10,1f]: right
+	vec4 vn;	//[20,2f]: near
+	vec4 vf;	//[30,3f]: far
+	vec4 vb;	//[40,4f]: bottom
+	vec4 vt;	//[50,5f]: upper
+	vec4 vq;	//[60,6f]: info
+	vec4 vc;	//[70,7f]: center
+};
 
 
 
@@ -33,47 +77,47 @@ GLSL_VERSION
 	"FragColor = vec4(colour, 1.0);\n"
 "}\n";
 static GLuint shader = 0;
+//
+static struct camera cam;
 static float wvp[4][4];
-//data-input
-struct pernode
-{
-        u64 type;
-        u64 addr;
-        u8 str[16];
-};
-struct perwire
-{
-        u16 src;
-        u16 dst;
-};
-//data-tmp
-struct vertex{
-float x;
-float y;
-float z;
-float r;
-float g;
-float b;
-};
+//wire
 static struct vertex* tbuf;
 static int tcnt;	//how many point
 static struct vertex* vbuf;
 static int vcnt;	//how many point
 static u16* ibuf;
 static int icnt;	//how many wire
-//data-gpu
 static GLuint vao = 0;
 static GLuint vbo = 0;
 static GLuint ibo = 0;
+//node
+static struct vertex* node_vbuf;
+static int vcnt;	//how many point
+static GLuint nodevao = 0;
+static GLuint nodevbo = 0;
+static GLuint nodeibo = 0;
 
 
 
 
 static void callback_keyboard(GLFWwindow* fw, int key, int scan, int action, int mods)
 {
+	printf("key=%x,scan=%x,action=%x,mods=%x\n", key, scan, action, mods);
+	switch(key){
+	case 0x109://up
+		cam.vc[1] += 100.0;
+		break;
+	case 0x108://down
+		cam.vc[1] -= 100.0;
+		break;
+	case 0x107://left
+		break;
+	case 0x106://right
+		break;
+	}
+
 /*	struct event e;
 	struct supply* ogl = glfwGetWindowUserPointer(fw);
-	//printf("key=%x,scan=%x,action=%x,mods=%x\n", key, scan, action, mods);
 
 	if(0 == action)return;
 	if(0x118 == key)return;		//capslock
@@ -271,6 +315,200 @@ GLuint compileprogram(void* v, void* f)
 
 
 
+
+
+void world2view_rh2lh(mat4 m, struct camera* s)
+{
+	float x,y,z;
+	float cx = s->vc[0];
+	float cy = s->vc[1];
+	float cz = s->vc[2];
+
+	x = s->vr[0];
+	y = s->vr[1];
+	z = s->vr[2];
+	m[0][0] = x;
+	m[0][1] = y;
+	m[0][2] = z;
+	m[0][3] = - cx*x - cy*y - cz*z;
+
+	x = s->vt[0];
+	y = s->vt[1];
+	z = s->vt[2];
+	m[1][0] = x;
+	m[1][1] = y;
+	m[1][2] = z;
+	m[1][3] = - cx*x - cy*y - cz*z;
+
+	x = s->vf[0];
+	y = s->vf[1];
+	z = s->vf[2];
+	m[2][0] = x;
+	m[2][1] = y;
+	m[2][2] = z;
+	m[2][3] = - cx*x - cy*y - cz*z;
+
+	m[3][0] = 0.0;
+	m[3][1] = 0.0;
+	m[3][2] = 0.0;
+	m[3][3] = 1.0;
+}
+void view2clip_projznzp(mat4 proj, struct camera* sty)
+{
+	float l = sty->vl[3];
+	float r = sty->vr[3];
+	float b = sty->vb[3];
+	float t = sty->vt[3];
+	float n = sty->vn[3];
+	float f = sty->vf[3];
+	//say("%f,%f,%f,%f,%f,%f\n",l,r,b,t,n,f);
+
+	proj[0][0] = 2 * n / (r-l);
+	proj[0][1] = 0.0;
+	proj[0][2] = (r+l) / (l-r);
+	proj[0][3] = 0.0;
+
+	proj[1][0] = 0.0;
+	proj[1][1] = 2 * n / (t-b);
+	proj[1][2] = (t+b) / (b-t);
+	proj[1][3] = 0.0;
+
+	proj[2][0] = 0.0;
+	proj[2][1] = 0.0;
+	proj[2][2] = (n+f) / (f-n);
+	proj[2][3] = 2*f*n / (n-f);
+
+	proj[3][0] = 0.0;
+	proj[3][1] = 0.0;
+	proj[3][2] = 1.0;
+	proj[3][3] = 0.0;
+}
+
+void mat4_multiplyfrom(float* o, float* u, float* v)
+{
+	o[ 0] = u[ 0]*v[ 0] + u[ 1]*v[ 4] + u[ 2]*v[ 8] + u[ 3]*v[12];
+	o[ 1] = u[ 0]*v[ 1] + u[ 1]*v[ 5] + u[ 2]*v[ 9] + u[ 3]*v[13];
+	o[ 2] = u[ 0]*v[ 2] + u[ 1]*v[ 6] + u[ 2]*v[10] + u[ 3]*v[14];
+	o[ 3] = u[ 0]*v[ 3] + u[ 1]*v[ 7] + u[ 2]*v[11] + u[ 3]*v[15];
+
+	o[ 4] = u[ 4]*v[ 0] + u[ 5]*v[ 4] + u[ 6]*v[ 8] + u[ 7]*v[12];
+	o[ 5] = u[ 4]*v[ 1] + u[ 5]*v[ 5] + u[ 6]*v[ 9] + u[ 7]*v[13];
+	o[ 6] = u[ 4]*v[ 2] + u[ 5]*v[ 6] + u[ 6]*v[10] + u[ 7]*v[14];
+	o[ 7] = u[ 4]*v[ 3] + u[ 5]*v[ 7] + u[ 6]*v[11] + u[ 7]*v[15];
+
+	o[ 8] = u[ 8]*v[ 0] + u[ 9]*v[ 4] + u[10]*v[ 8] + u[11]*v[12];
+	o[ 9] = u[ 8]*v[ 1] + u[ 9]*v[ 5] + u[10]*v[ 9] + u[11]*v[13];
+	o[10] = u[ 8]*v[ 2] + u[ 9]*v[ 6] + u[10]*v[10] + u[11]*v[14];
+	o[11] = u[ 8]*v[ 3] + u[ 9]*v[ 7] + u[10]*v[11] + u[11]*v[15];
+
+	o[12] = u[12]*v[ 0] + u[13]*v[ 4] + u[14]*v[ 8] + u[15]*v[12];
+	o[13] = u[12]*v[ 1] + u[13]*v[ 5] + u[14]*v[ 9] + u[15]*v[13];
+	o[14] = u[12]*v[ 2] + u[13]*v[ 6] + u[14]*v[10] + u[15]*v[14];
+	o[15] = u[12]*v[ 3] + u[13]*v[ 7] + u[14]*v[11] + u[15]*v[15];
+}
+void mat4_multiply(float* l, float* r)
+{
+	int j;
+	float t[16];
+	for(j=0;j<16;j++)t[j] = l[j];
+	mat4_multiplyfrom(l, t, r);
+}
+void mat4_transposefrom(float* m, float* u)
+{
+	m[ 0] = u[ 0];
+	m[ 1] = u[ 4];
+	m[ 2] = u[ 8];
+	m[ 3] = u[12];
+
+	m[ 4] = u[ 1];
+	m[ 5] = u[ 5];
+	m[ 6] = u[ 9];
+	m[ 7] = u[13];
+
+	m[ 8] = u[ 2];
+	m[ 9] = u[ 6];
+	m[10] = u[10];
+	m[11] = u[14];
+
+	m[12] = u[ 3];
+	m[13] = u[ 7];
+	m[14] = u[11];
+	m[15] = u[15];
+}
+void mat4_transpose(float* u)
+{
+	float t;
+
+	t = u[1];
+	u[1] = u[4];
+	u[4] = t;
+
+	t = u[2];
+	u[2] = u[8];
+	u[8] = t;
+
+	t = u[3];
+	u[3] = u[12];
+	u[12] = t;
+
+	t = u[6];
+	u[6] = u[9];
+	u[9] = t;
+
+	t = u[7];
+	u[7] = u[13];
+	u[13] = t;
+
+	t = u[11];
+	u[11] = u[14];
+	u[14] = t;
+}
+void world2clip_projznzp_transpose(mat4 mat, struct camera* frus)
+{
+	mat4 t;
+	world2view_rh2lh(t, frus);
+	view2clip_projznzp(mat, frus);
+
+	mat4_multiply((void*)mat, (void*)t);
+	mat4_transpose((void*)mat);
+}
+
+
+
+
+void genrectfrompoint(struct vertex* dst, struct vertex* src)
+{
+	int j;
+	for(j=0;j<6;j++){
+		dst[j].r = src->r;
+		dst[j].g = src->g;
+		dst[j].b = src->b;
+	}
+	//l,b
+	dst[0].x = src->x - cam.vr[0]*64 - cam.vt[0]*8;
+	dst[0].y = src->y - cam.vr[1]*64 - cam.vt[1]*8;
+	dst[0].z = src->z - cam.vr[2]*64 - cam.vt[2]*8;
+	//r,b
+	dst[1].x = src->x + cam.vr[0]*64 - cam.vt[0]*8;
+	dst[1].y = src->y + cam.vr[1]*64 - cam.vt[1]*8;
+	dst[1].z = src->z + cam.vr[2]*64 - cam.vt[2]*8;
+	//r,t
+	dst[2].x = src->x + cam.vr[0]*64 + cam.vt[0]*8;
+	dst[2].y = src->y + cam.vr[1]*64 + cam.vt[1]*8;
+	dst[2].z = src->z + cam.vr[2]*64 + cam.vt[2]*8;
+	//r,t
+	dst[3].x = src->x + cam.vr[0]*64 + cam.vt[0]*8;
+	dst[3].y = src->y + cam.vr[1]*64 + cam.vt[1]*8;
+	dst[3].z = src->z + cam.vr[2]*64 + cam.vt[2]*8;
+	//l,t
+	dst[4].x = src->x - cam.vr[0]*64 + cam.vt[0]*8;
+	dst[4].y = src->y - cam.vr[1]*64 + cam.vt[1]*8;
+	dst[4].z = src->z - cam.vr[2]*64 + cam.vt[2]*8;
+	//l,b
+	dst[5].x = src->x - cam.vr[0]*64 - cam.vt[0]*8;
+	dst[5].y = src->y - cam.vr[1]*64 - cam.vt[1]*8;
+	dst[5].z = src->z - cam.vr[2]*64 - cam.vt[2]*8;
+}
 void glfw_drawtest(GLFWwindow* fw)
 {
 	int w,h;
@@ -302,11 +540,22 @@ void glfw_drawtest(GLFWwindow* fw)
 }
 void glfw_drawsome(GLFWwindow* fw)
 {
+	int j;
+	forcedirected_3d(tbuf,tcnt, vbuf,vcnt, ibuf,icnt);
+	vbuf[0].x = vbuf[0].y = vbuf[0].z = 0.0;
+
+	for(j=0;j<vcnt;j++)genrectfrompoint(&node_vbuf[j*6+0], &vbuf[j]);
+
+
 	int x0 = 0;
 	int y0 = 0;
 	int fbw;
 	int fbh;
 	glfwGetFramebufferSize(fw, &fbw, &fbh);
+
+	cam.vt[3] = (float)fbh / (float)fbw;
+	world2clip_projznzp_transpose(wvp, &cam);
+
 
 	glViewport(x0, y0, fbw, fbh);
 	glScissor(x0, y0, fbw, fbh);
@@ -323,7 +572,7 @@ void glfw_drawsome(GLFWwindow* fw)
 	GLuint at = glGetUniformLocation(shader, "wvp");
 	if(at >= 0)glUniformMatrix4fv(at, 1, GL_FALSE, (void*)wvp);
 
-	//vao,vbo,ibo
+	//wire's vao,vbo,ibo
 	glBindVertexArray(vao);
 
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
@@ -332,27 +581,36 @@ void glfw_drawsome(GLFWwindow* fw)
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
 
 	glDrawElements(GL_LINES, 4*icnt, GL_UNSIGNED_SHORT, (void*)0);
+
+	//node's vao,vbo
+	glBindVertexArray(nodevao);
+
+	glBindBuffer(GL_ARRAY_BUFFER, nodevbo);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, 6*sizeof(struct vertex)*vcnt, node_vbuf);
+
+	glDrawArrays(GL_TRIANGLES, 0, 6*vcnt);
 }
 
 
 
-void glfw_initdata(struct pernode* cb, int cl, struct perwire* wb, int wl)
+
+void glfw_initdata(struct pernode* nb, int nl, struct perwire* wb, int wl)
 {
-	int vlen = cl * sizeof(struct vertex);
+	int vlen = nl * sizeof(struct vertex);
 	int ilen = wl * 4;
-	tcnt = cl;
+	tcnt = nl;
 	tbuf = malloc(vlen);
-	vcnt = cl;
+	vcnt = nl;
 	vbuf = malloc(vlen);
 	icnt = wl;
 	ibuf = (void*)wb;
 
 	int j;
-	for(j=0;j<cl;j++){
+	for(j=0;j<nl;j++){
 		vbuf[j].x = (rand()%20000)/10000.0 - 1.0;
 		vbuf[j].y = (rand()%20000)/10000.0 - 1.0;
-		vbuf[j].z = 0.5;
-		switch(cb[j].type){
+		vbuf[j].z = (rand()%20000)/10000.0 - 1.0;
+		switch(nb[j].type){
 		case _hash_:
 			vbuf[j].r = 1.0;
 			vbuf[j].g = 0.0;
@@ -375,6 +633,7 @@ void glfw_initdata(struct pernode* cb, int cl, struct perwire* wb, int wl)
 		}
 	}
 
+	//wire data
 	shader = compileprogram(vs, fs);
 
 	glGenVertexArrays(1, &vao);
@@ -392,9 +651,69 @@ void glfw_initdata(struct pernode* cb, int cl, struct perwire* wb, int wl)
 	glGenBuffers(1, &ibo);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, ilen, ibuf, GL_STATIC_DRAW);
+
+
+	//node data
+	node_vbuf = malloc(vlen*6);
+
+	glGenVertexArrays(1, &nodevao);
+	glBindVertexArray(nodevao);
+
+	glGenBuffers(1, &nodevbo);
+	glBindBuffer(GL_ARRAY_BUFFER, nodevbo);
+	glBufferData(GL_ARRAY_BUFFER, vlen*6, node_vbuf, GL_STATIC_DRAW);
+
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 24, (void*)0);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 24, (void*)12);
+	glEnableVertexAttribArray(1);
+
+
+	//camera geometry
+	cam.vc[0] = 0.0;
+	cam.vc[1] =-1000.0;
+	cam.vc[2] = 0.0;
+	cam.vc[3] = 0.0;
+	cam.vr[0] = 1.0;
+	cam.vr[1] = 0.0;
+	cam.vr[2] = 0.0;
+	cam.vr[3] = 1.0;
+	cam.vl[0] = cam.vr[0];
+	cam.vl[1] = cam.vr[1];
+	cam.vl[2] = cam.vr[2];
+	cam.vl[3] =-cam.vr[3];
+	cam.vf[0] = 0.0;
+	cam.vf[1] = 1.0;
+	cam.vf[2] = 0.0;
+	cam.vf[3] = 10000000.0;
+	cam.vn[0] = cam.vf[0];
+	cam.vn[1] = cam.vf[1];
+	cam.vn[2] = cam.vf[2];
+	cam.vn[3] = 1.0;
+	cam.vt[0] = 0.0;
+	cam.vt[1] = 0.0;
+	cam.vt[2] = 1.0;
+	cam.vt[3] = 1.0;
+	cam.vb[0] = cam.vt[0];
+	cam.vb[1] = cam.vt[1];
+	cam.vb[2] = cam.vt[2];
+	cam.vb[3] =-cam.vt[3];
 }
 void glfw_freedata()
 {
+	glDeleteBuffers(1, &nodevbo);
+	glDeleteBuffers(1, &nodevao);
+	glDeleteVertexArrays(1, &nodevao);
+
+	glDeleteBuffers(1, &ibo);
+	glDeleteBuffers(1, &vbo);
+	glDeleteBuffers(1, &vao);
+	glDeleteVertexArrays(1, &vao);
+
+	glDeleteProgram(shader);
+
+	free(tbuf);
+	free(vbuf);
 }
 
 
@@ -447,14 +766,14 @@ void glfw_freewindow(GLFWwindow* fw)
 
 
 
-void render_data(struct pernode* cb, int cl, struct perwire* wb, int wl)
+void render_data(struct pernode* nb, int cl, struct perwire* wb, int wl)
 {
 	printf("nodecnt=%d,wirecnt=%d\n", cl, wl);
 
 	GLFWwindow* fw = glfw_initwindow(1024, 768);
 	if(0 == fw)return;
 
-	glfw_initdata(cb,cl, wb,wl);
+	glfw_initdata(nb,cl, wb,wl);
 
 	while(1){
 		glfwMakeContextCurrent(fw);
@@ -463,9 +782,6 @@ void render_data(struct pernode* cb, int cl, struct perwire* wb, int wl)
 		wvp[1][0] = 0.0;wvp[1][1] = 1.0;wvp[1][2] = 0.0;wvp[1][3] = 0.0;
 		wvp[2][0] = 0.0;wvp[2][1] = 0.0;wvp[2][2] = 1.0;wvp[2][3] = 0.0;
 		wvp[3][0] = 0.0;wvp[3][1] = 0.0;wvp[3][2] = 0.0;wvp[3][3] = 1.0;
-
-		forcedirected_3d(tbuf,tcnt, vbuf,vcnt, ibuf,icnt);
-		vbuf[0].x = vbuf[0].y = vbuf[0].z = 0.0;
 
 		glfw_drawsome(fw);
 
@@ -489,7 +805,7 @@ void render_free()
 
 	glfwTerminate();
 }
-void render_init(void* cb, int cl, void* lb, int ll)
+void render_init(void* nb, int nl, void* wb, int wl)
 {
 	printf("@render_init\n");
 
