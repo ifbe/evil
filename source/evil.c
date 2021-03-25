@@ -29,6 +29,8 @@ void worker_create();
 void worker_delete();
 //
 int conv(int argc,char** argv);
+int format(int argc,char** argv);
+//
 int disasm(int argc,char** argv);
 int disasm_arm64(int argc,char** argv);
 int disasm_x8664(int argc,char** argv);
@@ -38,6 +40,7 @@ int travel_arm64(int argc,char** argv);
 int travel_x8664(int argc,char** argv);
 //
 int learn(int argc,char** argv);
+int compile(int argc,char** argv);
 //
 int create(int argc,char** argv);
 int delete(int argc,char** argv);
@@ -56,18 +59,20 @@ int substr(int argc,char** argv);
 void help(char* buf)
 {
 	if(buf != 0)printf("wrong usage: %s\n", buf);
-	printf("me <- machine code\n");
+	printf("machine work\n");
 	printf("	a.exe conv ac2intel test.ac\n");
-	printf("	a.exe disasm_arm64 xxx.bin\n");
-	printf("	a.exe disasm_x8664 xxx.bin\n");
-	printf("me <- human text\n");
+	printf("	a.exe format test.c\n");
+	printf("analyze thing\n");
+	printf("	a.exe disasm xxx.exe\n");
+	printf("	a.exe follow xxx.bin\n");
+	printf("	a.exe compile test.c\n");
 	printf("	a.exe learn aaa.c /some/dir/bbb.cpp /my/folder/haha*\n");
-	printf("me -> database:\n");
+	printf("mydb operation\n");
 	printf("	a.exe insert\n");
 	printf("	a.exe delete\n");
 	printf("	a.exe change\n");
 	printf("	a.exe search str func@c0 file@20\n");
-	printf("me -> indite:\n");
+	printf("show off\n");
 	printf("	a.exe render\n");
 	printf("	a.exe kirchhoff\n");
 	printf("	a.exe route\n");
@@ -114,10 +119,15 @@ int main(int argc, char** argv)
 	//----------------------------------------------------------
 
 
-	//me <- machine code
+	//simple
 	if(strcmp(argv[1], "conv") == 0){
 		conv(argc-1, argv+1);
 	}
+	if(strcmp(argv[1], "format") == 0){
+		format(argc-1, argv+1);
+	}
+
+	//difficult
 	else if(strcmp(argv[1], "disasm_arm64") == 0){
 		disasm_arm64(argc-1, argv+1);
 	}
@@ -139,13 +149,14 @@ int main(int argc, char** argv)
 	else if(strcmp(argv[1], "travel_x8664") == 0){
 		travel_x8664(argc-1, argv+1);
 	}
-
-	//me <- human text
 	else if(strcmp(argv[1], "learn") == 0){
 		learn(argc-1, argv+1);
 	}
+	else if(strcmp(argv[1], "compile") == 0){
+		compile(argc-1, argv+1);
+	}
 
-	//me -> database
+	//database
 	else if(strcmp(argv[1], "create") == 0){
 		create(argc-1, argv+1);
 	}
@@ -159,7 +170,7 @@ int main(int argc, char** argv)
 		modify(argc-1, argv+1);
 	}
 
-	//me -> indite
+	//creative
 	else if(strcmp(argv[1], "render") == 0){
 		render(argc-1, argv+1);
 	}

@@ -92,10 +92,14 @@ static GLuint vbo = 0;
 static GLuint ibo = 0;
 //node
 static struct vertex* node_vbuf;
-static int vcnt;	//how many point
 static GLuint nodevao = 0;
 static GLuint nodevbo = 0;
 static GLuint nodeibo = 0;
+//str
+static struct vertex* str_vbuf;
+static GLuint strvao = 0;
+static GLuint strvbo = 0;
+static GLuint stribo = 0;
 
 
 
