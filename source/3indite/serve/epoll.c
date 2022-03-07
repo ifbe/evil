@@ -130,6 +130,8 @@ int listensocket()
 		//wait for completion
 		//usleep(100000);
 	}//while
+
+	printf("listensocket end\n");
 }
 int startsocket(int port)
 {

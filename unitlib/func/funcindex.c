@@ -9,7 +9,7 @@
 #ifndef O_BINARY
         #define O_BINARY 0x0
 #endif
-#define maxlen 0x1000000
+#define maxlen 0x4000000
 
 
 

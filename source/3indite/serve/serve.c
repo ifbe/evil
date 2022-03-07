@@ -8,6 +8,7 @@
 #define u32 unsigned int
 #define u64 unsigned long long
 #define MAXSIZE 4096
+#define DEFAULT_PORT 8000
 int readthemall(int);
 int startsocket(int);
 int search_one(void*, int, void*, int);
@@ -153,7 +154,7 @@ void serve(int argc, char** argv)
 	int j;
 	char* p;
 
-	port = 80;
+	port = DEFAULT_PORT;
 	coderoot = snprintf(codepath, 0x200, "");
 	htmlroot = snprintf(htmlpath, 0x200, "datafile/");
 	for(j=1;j<argc;j++)

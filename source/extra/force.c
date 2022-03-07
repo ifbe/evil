@@ -188,3 +188,151 @@ void forcedirected_3d(
 	}
 	//say("\n");
 }
+
+
+
+
+void electric_spring_wind_2d(
+	struct vert2d* obuf, int olen,
+	struct vert2d* vbuf, int vlen,
+	struct pair* lbuf, int llen)
+{
+	int j,k,m,n;
+	float x,y,t;
+
+	//coulomb force
+	for(j=0;j<vlen;j++)
+	{
+		obuf[j].x = 1.0;
+		obuf[j].y = 0.0;
+		for(k=0;k<vlen;k++)
+		{
+			if(j == k)continue;
+			x = vbuf[j].x - vbuf[k].x;
+			y = vbuf[j].y - vbuf[k].y;
+
+			//F = (vec/r)*(k*q1*q2)/(r^2)
+			//  = vec * (k*q1*q2*)/(r^3)
+			t = x*x + y*y;
+			t = 100000 / t / sqrt(t);
+			t /= vlen;
+			x *= t;
+			y *= t;
+
+			obuf[j].x += x;
+			obuf[j].y += y;
+		}
+	}
+
+	//spring force
+	for(j=0;j<llen;j++)
+	{
+		m = lbuf[j].parent;
+		if(m >= vlen)continue;
+		n = lbuf[j].child;
+		if(n >= vlen)continue;
+
+		x = vbuf[m].x - vbuf[n].x;
+		y = vbuf[m].y - vbuf[n].y;
+
+		//F = (vec/x)*(k*x)
+		//  = vec * k
+		t = 2.0/vlen;
+		x *= t;
+		y *= t;
+
+		obuf[n].x += x;
+		obuf[n].y += y;
+
+		obuf[m].x -= x;
+		obuf[m].y -= y;
+	}
+
+	//move point
+	for(j=0;j<vlen;j++)
+	{
+/*		printf("%f,%f -> %f,%f\n",
+			vbuf[j].x, vbuf[j].y,
+			obuf[j].x, obuf[j].y
+		);
+*/
+		vbuf[j].x += obuf[j].x;
+		vbuf[j].y += obuf[j].y;
+	}
+	//say("\n");
+}
+void electric_spring_wind_3d(
+	struct vertex* obuf, int olen,
+	struct vertex* vbuf, int vlen,
+	struct pair* lbuf, int llen)
+{
+	int j,k,m,n;
+	float x,y,z,t;
+
+	//coulomb force
+	for(j=0;j<vlen;j++)
+	{
+		obuf[j].x = obuf[j].y = obuf[j].z = 0.0;
+		for(k=0;k<vlen;k++)
+		{
+			if(j == k)continue;
+			x = vbuf[j].x - vbuf[k].x;
+			y = vbuf[j].y - vbuf[k].y;
+			z = vbuf[j].z - vbuf[k].z;
+
+			//F = (vec/r)*(k*q1*q2)/(r^2)
+			//F = vec*(k*q1*q2*)/(r^3)
+			t = x*x + y*y + z*z;
+			t = 10000 / t / sqrt(t);
+			t /= vlen;
+			x *= t;
+			y *= t;
+			z *= t;
+
+			obuf[j].x += x;
+			obuf[j].y += y;
+			obuf[j].z += z;
+		}
+	}
+
+	//spring force
+	for(j=0;j<llen;j++)
+	{
+		m = lbuf[j].parent;
+		if(m >= vlen)continue;
+		n = lbuf[j].child;
+		if(n >= vlen)continue;
+
+		x = vbuf[m].x - vbuf[n].x;
+		y = vbuf[m].y - vbuf[n].y;
+		z = vbuf[m].z - vbuf[n].z;
+
+		//F = vec*k*r
+		t = 1.0/vlen;
+		x *= t;
+		y *= t;
+		z *= t;
+
+		obuf[n].x += x;
+		obuf[n].y += y;
+		obuf[n].z += z;
+
+		obuf[m].x -= x;
+		obuf[m].y -= y;
+		obuf[m].z -= z;
+	}
+
+	//move point
+	for(j=0;j<vlen;j++)
+	{
+/*		printf("%f,%f,%f -> %f,%f,%f\n",
+			vbuf[j].x, vbuf[j].y, vbuf[j].z,
+			obuf[j].x, obuf[j].y, obuf[j].z
+		);
+*/
+		vbuf[j].x += obuf[j].x;
+		vbuf[j].y += obuf[j].y;
+		vbuf[j].z += obuf[j].z;
+	}
+	//say("\n");
+}

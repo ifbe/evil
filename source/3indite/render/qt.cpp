@@ -39,6 +39,10 @@ void forcedirected_2d(
         struct vert2d* obuf, int olen,
         struct vert2d* vbuf, int vlen,
         struct perwire* lbuf, int llen);
+void electric_spring_wind_2d(
+        struct vert2d* obuf, int olen,
+        struct vert2d* vbuf, int vlen,
+        struct perwire* lbuf, int llen);
 void render_trav(const char* buf, int len, int* ncnt, int* wcnt);
 }//extern "C"
 
@@ -189,7 +193,7 @@ void paintEvent(QPaintEvent*)
 	if(0 == tmp)return;
 	if(0 == tcnt)return;
 
-	forcedirected_2d(tmp,bcnt, v2d,bcnt, wbuf,wcnt);
+	electric_spring_wind_2d(tmp,bcnt, v2d,bcnt, wbuf,wcnt);
 	v2d[0].x = WIDTH/2;
 	v2d[0].y = HEIGHT/2;
 

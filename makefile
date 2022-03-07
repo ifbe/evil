@@ -1,31 +1,31 @@
 SRC = \
-library/load.c \
-library/rel/rel.c \
-library/chip/chipdata.c \
-library/chip/chipid.c \
-library/chip/chiplib.c \
-library/file/filedata.c \
-library/file/filemd5.c \
-library/file/filelib.c \
-library/func/funcdata.c \
-library/func/funcindex.c \
-library/func/funclib.c \
-library/pin/pindata.c \
-library/pin/pinid.c \
-library/pin/pinlib.c \
-library/point/pointdata.c \
-library/point/pointindex.c \
-library/point/pointlib.c \
-library/shape/shapedata.c \
-library/shape/shapeindex.c \
-library/shape/shapelib.c \
-library/str/strdata.c \
-library/str/strhash.c \
-library/str/strlib.c \
-library/extra/2d.c \
-library/extra/3d.c \
-library/extra/force.c \
-library/extra/inout.c \
+unitlib/load.c \
+unitlib/rel/rel.c \
+unitlib/chip/chipdata.c \
+unitlib/chip/chipid.c \
+unitlib/chip/chiplib.c \
+unitlib/file/filedata.c \
+unitlib/file/filemd5.c \
+unitlib/file/filelib.c \
+unitlib/func/funcdata.c \
+unitlib/func/funcindex.c \
+unitlib/func/funclib.c \
+unitlib/pin/pindata.c \
+unitlib/pin/pinid.c \
+unitlib/pin/pinlib.c \
+unitlib/point/pointdata.c \
+unitlib/point/pointindex.c \
+unitlib/point/pointlib.c \
+unitlib/shape/shapedata.c \
+unitlib/shape/shapeindex.c \
+unitlib/shape/shapelib.c \
+unitlib/str/strdata.c \
+unitlib/str/strhash.c \
+unitlib/str/strlib.c \
+source/extra/2d.c \
+source/extra/3d.c \
+source/extra/force.c \
+source/extra/inout.c \
 source/0robot/conv.c \
 source/0robot/format.c \
 source/1human/disasm/disasm.c \
@@ -74,22 +74,22 @@ cli:
 	gcc -o a.exe $(SRC) \
 	source/3indite/render/cli.c \
 	source/3indite/serve/none.c \
-	-Ilibrary -Isource -lm
+	-Iunitlib -Isource -lm
 win:
 	gcc -o a.exe $(SRC) \
 	source/3indite/render/cli.c \
 	source/3indite/serve/iocp.c \
-	-Ilibrary -Isource -lgdi32 -lws2_32 -lpthread -lm
+	-Iunitlib -Isource -lgdi32 -lws2_32 -lpthread -lm
 mac:
 	gcc -o a.exe $(SRC) \
 	source/3indite/render/cli.c \
 	source/3indite/serve/kqueue.c \
-	-Ilibrary -Isource -lm
+	-Iunitlib -Isource -lm
 linux:
 	gcc -o a.exe $(SRC) \
 	source/3indite/render/cli.c \
 	source/3indite/serve/epoll.c \
-	-Ilibrary -Isource -lm
+	-Iunitlib -Isource -lm
 
 winqt:
 	moc -i source/3indite/render/qt.cpp -o source/3indite/render/qt.moc.cpp
@@ -97,7 +97,7 @@ winqt:
 	gcc -o a.exe $(SRC) \
 	qt.o \
 	source/3indite/serve/none.c \
-	-Ilibrary -Isource \
+	-Iunitlib -Isource \
 	-LC:\Qt\6.0.2\mingw81_64\lib -lQt6Core -lQt6Gui -lQt6Widgets \
 	-lm -lstdc++
 macqt:
@@ -106,7 +106,7 @@ macqt:
 	gcc -o a.exe $(SRC) \
 	qt.o \
 	source/3indite/serve/none.c \
-	-Ilibrary -Isource \
+	-Iunitlib -Isource \
 	-F/usr/local/opt/qt@6/lib -framework QtCore -framework QtGui -framework QtWidgets \
 	-lm -lc++
 linuxqt:
@@ -114,7 +114,7 @@ linuxqt:
 	gcc -o a.exe $(SRC) \
 	qt.o \
 	source/3indite/serve/none.c \
-	-Ilibrary -Isource \
+	-Iunitlib -Isource \
 	-lm -lc++
 
 
@@ -122,39 +122,39 @@ winglut:
 	gcc -o a.exe $(SRC) \
 	source/3indite/render/glut.c \
 	source/3indite/serve/none.c \
-	-Ilibrary -Isource \
+	-Iunitlib -Isource \
 	-lgdi32 -lws2_32 -lpthread -lfreeglut -lglu32 -lglew32 -lopengl32 -lm
 macglut:
 	gcc -o a.exe $(SRC) \
 	source/3indite/render/glut.c \
 	source/3indite/serve/none.c \
-	-Ilibrary -Isource \
+	-Iunitlib -Isource \
 	-lglut -lm -lGLEW -framework OpenGL
 linuxglut:
 	gcc -o a.exe $(SRC) \
 	source/3indite/render/glut.c \
 	source/3indite/serve/none.c \
-	-Ilibrary -Isource \
+	-Iunitlib -Isource \
 	-lm
 
 winglfw:
 	gcc -o a.exe $(SRC) \
 	source/3indite/render/glfw.c \
 	source/3indite/serve/none.c \
-	-Ilibrary -Isource \
+	-Iunitlib -Isource \
 	-lglfw3 -lglew32 -lglu32 -lopengl32 \
 	-lgdi32 -lws2_32 -lstrmiids -lpthread -lm
 macglfw:
 	gcc -o a.exe $(SRC) \
 	source/3indite/render/glfw.c \
 	source/3indite/serve/none.c \
-	-Ilibrary -Isource \
+	-Iunitlib -Isource \
 	-lGLEW -lglfw -lm -framework OpenGL
 linuxglfw:
 	gcc -o a.exe $(SRC) \
 	source/3indite/render/glfw.c \
 	source/3indite/serve/none.c \
-	-Ilibrary -Isource \
+	-Iunitlib -Isource \
 	-lgdi32 -lglu32 -lws2_32 -lglfw3 -lglew32 -lopengl32 -lpthread -lm
 
 clean:
