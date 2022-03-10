@@ -79,7 +79,7 @@ int myaccept(int fd)
 		}
 
 		epoll_add(cc);
-		//printf("++++ %d\n",cc);
+		printf("++++ %d\n",cc);
 	}//while
 	return 0;
 }
@@ -88,10 +88,24 @@ int myread(int fd)
 	int ret = read(fd, rbuf, 0x100000);
 	if(ret <= 0)return 0;
 
-	ret = servesocket(wbuf, 0x100000, rbuf, ret);
+	int len = servesocket(wbuf, 0x100000, rbuf, ret);
 	if(ret <= 0)return 0;
 
-	ret = write(fd, wbuf, ret);
+	int cnt = 0;
+	while(1){
+		ret = write(fd, wbuf+cnt, len-cnt);
+		if(ret < 0){
+			printf("@writesocket: ret=%d,errno=%d\n", ret, errno);
+			if(EAGAIN != errno)return -1;
+
+			usleep(1000);
+			continue;
+		}
+
+		cnt += ret;
+		if(cnt == len)break;
+		printf("@writesocket: %x/%x\n", cnt, len);
+	}
 	return ret;
 }
 int listensocket()
@@ -122,6 +136,7 @@ int listensocket()
 				else
 				{
 					myread(fd);
+		printf("---- %d\n",fd);
 					close(fd);
 				}
 			}//EPOLLIN
