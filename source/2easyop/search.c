@@ -22,8 +22,9 @@ int hexstr2data(void*, void*);
 
 
 
-static u8* sb = 0;
-static int sl = 0;
+static u8* outbuf = 0;
+static int outlen = 0;
+static int outnow = 0;
 
 
 
@@ -44,7 +45,7 @@ void chipname(u64 addr)
 		if(_hash_ == irel->srcchiptype)
 		{
 			//strhash_print(irel->srcchip);
-			sb += strhash_export(irel->srcchip, sb, 99);
+			outnow += strhash_export(irel->srcchip, outbuf+outnow, outlen-outnow);
 			break;
 		}
 
@@ -54,7 +55,7 @@ void chipname(u64 addr)
 normal:
 	return;
 error:
-	sb += snprintf((void*)sb, sl, "?chipname?");
+	outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "?chipname?");
 }
 void filename(u64 addr)
 {
@@ -72,7 +73,7 @@ void filename(u64 addr)
 		if(_hash_ == irel->srcchiptype)
 		{
 			//strhash_print(irel->srcchip);
-			sb += strhash_export(irel->srcchip, sb, 99);
+			outnow += strhash_export(irel->srcchip, outbuf+outnow, outlen-outnow);
 			break;
 		}
 
@@ -82,7 +83,7 @@ void filename(u64 addr)
 normal:
 	return;
 error:
-	sb += snprintf((void*)sb, sl, "?filename?");
+	outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "?filename?");
 }
 void funcname(u64 addr)
 {
@@ -100,7 +101,7 @@ void funcname(u64 addr)
 		if(_hash_ == irel->srcchiptype)
 		{
 			//strhash_print(irel->srcchip);
-			sb += strhash_export(irel->srcchip, sb, 99);
+			outnow += strhash_export(irel->srcchip, outbuf+outnow, outlen-outnow);
 			break;
 		}
 
@@ -110,7 +111,7 @@ void funcname(u64 addr)
 normal:
 	return;
 error:
-	sb += snprintf((void*)sb, sl, "?funcname?");
+	outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "?funcname?");
 }
 void funcpath(u64 addr)
 {
@@ -128,7 +129,7 @@ void funcpath(u64 addr)
 		if(_file_ == irel->srcchiptype)
 		{
 			filename(irel->srcchip);
-			sb += snprintf((void*)sb, sl, ":%lld", irel->srcfoot);
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow, ":%lld", irel->srcfoot);
 		}
 
 		irel = samedstnextsrc(irel);
@@ -137,7 +138,7 @@ void funcpath(u64 addr)
 normal:
 	return;
 error:
-	sb += snprintf((void*)sb, sl, "?funcpath?");
+	outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "?funcpath?");
 }
 
 
@@ -150,12 +151,12 @@ void searchpin(int offset)
 	struct relation* orel;
 	if(offset%0x20 != 0)
 	{
-		sb += snprintf((void*)sb, sl, "notfound: pin@%x", offset);
+		outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "notfound: pin@%x", offset);
 		return;
 	}
 
 	pin = pin_read(offset);
-	sb += snprintf((void*)sb, sl, "pin@%08x	@%llx\n", offset, (u64)pin);
+	outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "pin@%08x	@%llx\n", offset, (u64)pin);
 
 pinirel:
 	irel = relationread(pin->irel0);
@@ -166,23 +167,23 @@ pinirel:
 	{
 		if(_hash_ == irel->srcchiptype)
 		{
-			sb += snprintf((void*)sb, sl, "i:	");
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "i:	");
 			//strhash_print(irel->srcchip);
-			sb += strhash_export(irel->srcchip, sb, 99);
-			sb += snprintf((void*)sb, sl, "\n");
+			outnow += strhash_export(irel->srcchip, outbuf+outnow, outlen-outnow);
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "\n");
 		}
 		else if(_chip_ == irel->srcchiptype)
 		{
-			sb += snprintf((void*)sb, sl, "i:	");
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "i:	");
 			chipname(irel->srcchip);
-			sb += snprintf((void*)sb, sl,
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow,
 				":%c\n",
 				(u32)(irel->srcfoot)
 			);
 		}
 		else
 		{
-			sb += snprintf((void*)sb, sl,
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow,
 				"i:	%-s@%08llx	%08llx	(@%lld)\n",
 				(char*)&(irel->srcchiptype),
 				irel->srcchip,
@@ -204,14 +205,14 @@ pinorel:
 	{
 		if(_hash_ == orel->dstchiptype)
 		{
-			sb += snprintf((void*)sb, sl, "o:	");
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "o:	");
 			//strhash_print(orel->dstchip);
-			sb += strhash_export(orel->dstchip, sb, 99);
-			sb += snprintf((void*)sb, sl, "\n");
+			outnow += strhash_export(orel->dstchip, outbuf+outnow, outlen-outnow);
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "\n");
 		}
 		else if(_pin_ == orel->dstchiptype)
 		{
-			sb += snprintf((void*)sb, sl,
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow,
 				"o:	%c@pin%llx\n",
 				(u32)(orel->srcfoot),
 				(orel->dstchip)/0x20
@@ -219,7 +220,7 @@ pinorel:
 		}
 		else
 		{
-			sb += snprintf((void*)sb, sl,
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow,
 				"o:	%-s@%08llx	%08llx\n",
 				(char*)&(orel->dstchiptype),
 				orel->dstchip,
@@ -242,12 +243,12 @@ void searchchip(int offset)
 	struct chipindex* chip;
 	if(offset%0x20 != 0)
 	{
-		sb += snprintf((void*)sb, sl, "notfound: chip@%x", offset);
+		outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "notfound: chip@%x", offset);
 		return;
 	}
 
 	chip = chip_read(offset);
-	sb += snprintf((void*)sb, sl,
+	outnow += snprintf((void*)outbuf+outnow, outlen-outnow,
 		"chip@%08x	@%llx\n",
 		offset,
 		(u64)chip
@@ -261,14 +262,14 @@ chipirel:
 	{
 		if(_hash_ == irel->srcchiptype)
 		{
-			sb += snprintf((void*)sb, sl, "i:	");
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "i:	");
 			//strhash_print(irel->srcchip);
-			sb += strhash_export(irel->srcchip, sb, 99);
-			sb += snprintf((void*)sb, sl, "\n");
+			outnow += strhash_export(irel->srcchip, outbuf+outnow, outlen-outnow);
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "\n");
 		}
 		else
 		{
-			sb += snprintf((void*)sb, sl,
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow,
 				"i:	%-s@%08llx	%08llx	(@%lld)\n",
 				(char*)&(irel->srcchiptype),
 				irel->srcchip,
@@ -289,14 +290,14 @@ chiporel:
 	{
 		if(_hash_ == orel->dstchiptype)
 		{
-			sb += snprintf((void*)sb, sl, "o:	");
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "o:	");
 			//strhash_print(orel->dstchip);
-			sb += strhash_export(orel->dstchip, sb, 99);
-			sb += snprintf((void*)sb, sl, "\n");
+			outnow += strhash_export(orel->dstchip, outbuf+outnow, outlen-outnow);
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "\n");
 		}
 		else if(_pin_ == orel->dstchiptype)
 		{
-			sb += snprintf((void*)sb, sl,
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow,
 				"o:	%c@pin%llx\n",
 				(u32)(orel->srcfoot),
 				(orel->dstchip)/0x20
@@ -304,7 +305,7 @@ chiporel:
 		}
 		else
 		{
-			sb += snprintf((void*)sb, sl,
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow,
 				"o:	%-s@%08llx	%08llx\n",
 				(char*)&(orel->dstchiptype),
 				orel->dstchip,
@@ -329,12 +330,12 @@ void searchshape(int offset)
 	struct relation* orel;
 	if(offset%0x20 != 0)
 	{
-		sb += snprintf((void*)sb, sl, "notfound: shape@%x", offset);
+		outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "notfound: shape@%x", offset);
 		return;
 	}
 
 	shape = shapeindex_read(offset);
-	sb += snprintf((void*)sb, sl,
+	outnow += snprintf((void*)outbuf+outnow, outlen-outnow,
 		"shape@%08x	@%llx\n",
 		offset,
 		(u64)shape
@@ -348,15 +349,15 @@ shapeirel:
 	{
 		if(_hash_ == irel->srcchiptype)
 		{
-			sb += snprintf((void*)sb, sl, "i:	");
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "i:	");
 			//strhash_print(irel->srcchip);
-			sb += strhash_export(irel->srcchip, sb, 99);
-			sb += snprintf((void*)sb, sl, "\n");
+			outnow += strhash_export(irel->srcchip, outbuf+outnow, outlen-outnow);
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "\n");
 		}
 		else if(_shap_ == irel->srcchiptype)
 		{
 			ss = shapeindex_read(irel->srcchip);
-			sb += snprintf((void*)sb, sl,
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow,
 				"i:	shap@%08llx	%.8s\n",
 				irel->srcchip,
 				(char*)&(ss->type)
@@ -365,7 +366,7 @@ shapeirel:
 		else if(_poin_ == irel->srcchiptype)
 		{
 			pp = pointindex_read(irel->srcchip);
-			sb += snprintf((void*)sb, sl,
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow,
 				"i:	poin@%08llx	%llx\n",
 				irel->srcchip,
 				pp->pppp
@@ -373,7 +374,7 @@ shapeirel:
 		}
 		else
 		{
-			sb += snprintf((void*)sb, sl,
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow,
 				"i:	%-s@%08llx	%08llx\n",
 				(char*)&(irel->srcchiptype),
 				irel->srcchip,
@@ -393,15 +394,15 @@ shapeorel:
 	{
 		if(_hash_ == orel->dstchiptype)
 		{
-			sb += snprintf((void*)sb, sl, "o:	");
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "o:	");
 			//strhash_print(orel->dstchip);
-			sb += strhash_export(orel->dstchip, sb, 99);
-			sb += snprintf((void*)sb, sl, "\n");
+			outnow += strhash_export(orel->dstchip, outbuf+outnow, outlen-outnow);
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "\n");
 		}
 		else if(_shap_ == orel->dstchiptype)
 		{
 			ss = shapeindex_read(orel->dstchip);
-			sb += snprintf((void*)sb, sl,
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow,
 				"o:	shap@%08llx	%.8s\n",
 				orel->dstchip,
 				(char*)&(ss->type)
@@ -409,7 +410,7 @@ shapeorel:
 		}
 		else
 		{
-			sb += snprintf((void*)sb, sl,
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow,
 				"o:	%-s@%08llx	%08llx\n",
 				(char*)&(orel->dstchiptype),
 				orel->dstchip,
@@ -432,12 +433,12 @@ void searchfile(int offset)
 	struct relation* orel;
 	if(offset%0x20 != 0)
 	{
-		sb += snprintf((void*)sb, sl, "notfound: file@%x",offset);
+		outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "notfound: file@%x",offset);
 		return;
 	}
 
 	file = filemd5_read(offset);
-	sb += snprintf((void*)sb, sl,
+	outnow += snprintf((void*)outbuf+outnow, outlen-outnow,
 		"file@%08x	@%llx\n",
 		offset,
 		(u64)file
@@ -451,27 +452,27 @@ fileirel:
 	{
 		if(_hash_ == irel->srcchiptype)
 		{
-			sb += snprintf((void*)sb, sl,
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow,
 				"i:	str	:%lld	",
 				irel->dstfoot
 			);
 			//strhash_print(irel->srcchip);
-			sb += strhash_export(irel->srcchip, sb, 99);
-			sb += snprintf((void*)sb, sl, "\n");
+			outnow += strhash_export(irel->srcchip, outbuf+outnow, outlen-outnow);
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "\n");
 		}
 		else if(_func_ == irel->srcchiptype)
 		{
-			sb += snprintf((void*)sb, sl,
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow,
 				"i:	func@%08llx	:%lld	",
 				irel->srcchip,
 				irel->dstfoot
 			);
 			funcname(irel->srcchip);
-			sb += snprintf((void*)sb, sl, "\n");
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "\n");
 		}
 		else
 		{
-			sb += snprintf((void*)sb, sl,
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow,
 				"i:	%-s@%08llx	%08llx	(@%lld)\n",
 				(char*)&(irel->srcchiptype),
 				irel->srcchip,
@@ -493,14 +494,14 @@ fileorel:
 	{
 		if(_hash_ == orel->dstchiptype)
 		{
-			sb += snprintf((void*)sb, sl, "o:	");
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "o:	");
 			//strhash_print(orel->dstchip);
-			sb += strhash_export(orel->dstchip, sb, 99);
-			sb += snprintf((void*)sb, sl, "\n");
+			outnow += strhash_export(orel->dstchip, outbuf+outnow, outlen-outnow);
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "\n");
 		}
 		else
 		{
-			sb += snprintf((void*)sb, sl,
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow,
 				"o:	%-s@%08llx	%08llx\n",
 				(char*)&(orel->dstchiptype),
 				orel->dstchip,
@@ -523,12 +524,12 @@ void searchfunc(int offset)
 	struct relation* orel;
 	if(offset%0x20 != 0)
 	{
-		sb += snprintf((void*)sb, sl, "notfound: func@%x", offset);
+		outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "notfound: func@%x", offset);
 		return;
 	}
 
 	f = funcindex_read(offset);
-	sb += snprintf((void*)sb, sl,
+	outnow += snprintf((void*)outbuf+outnow, outlen-outnow,
 		"func@%08x	@%llx\n",
 		offset,
 		(u64)f
@@ -542,20 +543,20 @@ funcirel:
 	{
 		if(_hash_ == irel->srcchiptype)
 		{
-			sb += snprintf((void*)sb, sl, "i:	name	");
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "i:	name	");
 			//strhash_print(irel->srcchip);
 
-			sb += strhash_export(irel->srcchip, sb, 99);
-			sb += snprintf((void*)sb, sl, "\n");
+			outnow += strhash_export(irel->srcchip, outbuf+outnow, outlen-outnow);
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "\n");
 		}
 		else if(_file_ == irel->srcchiptype)
 		{
-			sb += snprintf((void*)sb, sl,
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow,
 				"i:	file@%08llx	",
 				irel->srcchip
 			);
 			filename(irel->srcchip);
-			sb += snprintf((void*)sb, sl,
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow,
 				":%lld\n",
 				irel->srcfoot
 			);
@@ -575,27 +576,27 @@ funcorel:
 		{
 			if(hex32('s','t','r',0) == orel->dstfoottype)
 			{
-				sb += snprintf((void*)sb, sl, "o:	str	");
+				outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "o:	str	");
 			}
 			else
 			{
-				sb += snprintf((void*)sb, sl, "o:	func	");
+				outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "o:	func	");
 			}
 			//strhash_print(orel->dstchip);
 
-			sb += strhash_export(orel->dstchip, sb, 99);
-			sb += snprintf((void*)sb, sl, "\n");
+			outnow += strhash_export(orel->dstchip, outbuf+outnow, outlen-outnow);
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "\n");
 		}
 		else if(_file_ == orel->dstchiptype)
 		{
-			sb += snprintf((void*)sb, sl,
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow,
 				"o:	file@%08llx	",
 				orel->dstchip
 			);
 		}
 		else
 		{
-			sb += snprintf((void*)sb, sl,
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow,
 				"o:	func@%08llx	%08llx\n",
 				orel->dstchip,
 				orel->dstfoot
@@ -622,10 +623,10 @@ void searchhash(char* buf, int len)
 	h = strhash_read(temp);
 	if(h == 0)
 	{
-		sb += snprintf((void*)sb, sl, "notfound: %.*s\n", len, buf);
+		outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "notfound: %.*s\n", len, buf);
 		return;
 	}
-	sb += snprintf((void*)sb, sl,
+	outnow += snprintf((void*)outbuf+outnow, outlen-outnow,
 		"hash: %08x%08x(%.*s)\n",
 		h->hash1, h->hash0,
 		len, buf
@@ -639,43 +640,43 @@ hashirel:
 	{
 		if(_hash_ == irel->srcchiptype)
 		{
-			sb += snprintf((void*)sb, sl, "i:	");
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "i:	");
 			//strhash_print(irel->srcchip);
-			sb += strhash_export(irel->srcchip, sb, 99);
-			sb += snprintf((void*)sb, sl, "\n");
+			outnow += strhash_export(irel->srcchip, outbuf+outnow, outlen-outnow);
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "\n");
 		}
 		else if(_func_ == irel->srcchiptype)
 		{
-			sb += snprintf((void*)sb, sl,
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow,
 				"i:	func@%08llx	",
 				irel->srcchip
 			);
 			funcpath(irel->srcchip);
-			sb += snprintf((void*)sb, sl, "	");
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "	");
 
 			funcname(irel->srcchip);
-			sb += snprintf((void*)sb, sl,
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow,
 				":%lld	\n",
 				irel->srcfoot
 			);
 		}
 		else if(_file_ == irel->srcchiptype)
 		{
-			sb += snprintf((void*)sb, sl,
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow,
 				"i:	file@%08llx\n",
 				irel->srcchip
 			);
 		}
 		else if(_chip_ == irel->srcchiptype)
 		{
-			sb += snprintf((void*)sb, sl,
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow,
 				"i:	chip@%08llx\n",
 				irel->srcchip
 			);
 		}
 		else
 		{
-			sb += snprintf((void*)sb, sl,
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow,
 				"i:	%.8s@%llx\n",
 				(char*)&irel->srcchiptype,
 				irel->srcchip
@@ -694,37 +695,37 @@ hashorel:
 	{
 		if(_hash_ == orel->dstchiptype)
 		{
-			sb += snprintf((void*)sb, sl, "o:	");
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "o:	");
 			//strhash_print(orel->dstchip);
-			sb += strhash_export(orel->dstchip, sb, 99);
-			sb += snprintf((void*)sb, sl, "\n");
+			outnow += strhash_export(orel->dstchip, outbuf+outnow, outlen-outnow);
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "\n");
 		}
 		else if(_func_ == orel->dstchiptype)
 		{
-			sb += snprintf((void*)sb, sl,
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow,
 				"o:	func@%08llx	",
 				orel->dstchip
 			);
 
 			funcpath(orel->dstchip);
-			sb += snprintf((void*)sb, sl, "\n");
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "\n");
 		}
 		else if(_file_ == orel->dstchiptype)
 		{
 			special = orel->dstchip;
-			sb += snprintf((void*)sb, sl,
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow,
 				"o:	file@%08llx	",
 				orel->dstchip
 			);
 			filename(orel->dstchip);
-			sb += snprintf((void*)sb, sl,
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow,
 				":%lld\n",
 				orel->dstfoot
 			);
 		}
 		else
 		{
-			sb += snprintf((void*)sb, sl,
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow,
 				"o:	%.8s@%llx\n",
 				(char*)&orel->dstchiptype,
 				orel->dstchip
@@ -746,8 +747,9 @@ theend:
 int search_one_origin(u8* dbuf, int dlen, u8* sbuf, int slen)
 {
 	u64 temp;
-	sb = dbuf;
-	sl = dlen;
+	outbuf = dbuf;
+	outlen = dlen;
+	outnow = 0;
 
 	if(slen > 5)
 	{
@@ -784,7 +786,7 @@ int search_one_origin(u8* dbuf, int dlen, u8* sbuf, int slen)
 	}
 	searchhash((void*)sbuf, slen);
 byebye:
-	return sb-dbuf;
+	return outnow;
 }
 
 
@@ -792,21 +794,21 @@ byebye:
 
 void search_print(struct halfrel* self, struct halfrel* peer)
 {
-	sb += snprintf((void*)sb, sl,
+	outnow += snprintf((void*)outbuf+outnow, outlen-outnow,
 		"%.4s@%llx,%.4s@%llx -> %.4s@%llx,%.4s@%llx",
-		(void*)&self->chiptype, self->chip,
-		(void*)&self->foottype, self->foot,
-		(void*)&peer->chiptype, peer->chip,
-		(void*)&peer->foottype, peer->foot
+		(char*)&self->chiptype, self->chip,
+		(char*)&self->foottype, self->foot,
+		(char*)&peer->chiptype, peer->chip,
+		(char*)&peer->foottype, peer->foot
 	);
 
 	if(_hash_ == peer->chiptype){
-		sb += snprintf((void*)sb, sl, "(");
-		sb += strhash_export(peer->chip, sb, 99);
-		sb += snprintf((void*)sb, sl, ")\n");
+		outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "(");
+		outnow += strhash_export(peer->chip, outbuf+outnow, outlen-outnow);
+		outnow += snprintf((void*)outbuf+outnow, outlen-outnow, ")\n");
 	}
 	else{
-		sb += snprintf((void*)sb, sl, "\n");
+		outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "\n");
 	}
 }
 int search_item(struct hash* item)
@@ -842,8 +844,9 @@ int search_one(u8* dbuf, int dlen, u8* sbuf, int slen)
 	u64 temp;
 	struct hash* item = 0;
 
-	sb = dbuf;
-	sl = dlen;
+	outbuf = dbuf;
+	outlen = dlen;
+	outnow = 0;
 
 	if(strncmp((void*)sbuf, "pin@", 4)==0){
 		hexstr2data(sbuf + 4, &temp);
@@ -865,23 +868,34 @@ int search_one(u8* dbuf, int dlen, u8* sbuf, int slen)
 		hexstr2data(sbuf + 5, &temp);
 		item = shapeindex_read(temp);
 	}
+	else if(strncmp((void*)sbuf, "hash@", 5)==0){
+		hexstr2data(sbuf + 5, &temp);
+		item = strhash_read(temp);
+		if(item){
+			//printf("@@@@1111\n");
+			outnow += strhash_export(temp, outbuf+outnow, outlen-outnow);
+			//printf("@@@@2222\n");
+			outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "\n");
+			//printf("@@@@3333\n");
+		}
+	}
 	else{	//hash
 		temp = strhash_generate(sbuf, slen);
-		sb += snprintf((void*)sb, sl, "hash=%016llx\n", temp);
+		outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "hash=%016llx\n", temp);
 		item = strhash_read(temp);
 	}
 
 	if(0 == item){
-		sb += snprintf((void*)sb, sl, "notfound\n");
-		return sb-dbuf;
+		outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "notfound\n");
+		return outnow;
 	}
 
 	ret = search_item(item);
 	if(0 == ret){
-		sb += snprintf((void*)sb, sl, "lonely@%llx\n", (u64)item);
-		return sb-dbuf;
+		outnow += snprintf((void*)outbuf+outnow, outlen-outnow, "lonely@%llx\n", (u64)item);
+		return outnow;
 	}
-	return sb-dbuf;
+	return outnow;
 }
 void search(int argc, char** argv)
 {
@@ -900,14 +914,14 @@ void search(int argc, char** argv)
 		{
 			fixarg(ibuf, argv[j]);
 			search_one(obuf, 0x100000, ibuf, strlen(ibuf));
-			output(obuf, sb-obuf);
+			output(obuf, outnow);
 		}
 #else
 		for(j=1;j<argc;j++)
 		{
 			len = strlen(argv[j]);
 			search_one(obuf, 0x100000, (void*)argv[j], len);
-			output(obuf, sb-obuf);
+			output(obuf, outnow);
 		}
 #endif
 		return;

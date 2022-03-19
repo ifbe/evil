@@ -876,14 +876,16 @@ int strhash_export(u64 hash, u8* buf, int len)
 
 	if(h->ishere){
 		str = (void*)&h->off;
-		for(j=0;j<7;j++){
+		if(len>7)len=7;
+		for(j=0;j<len;j++){
 			if(0 == str[j])break;
 			buf[j] = str[j];
 		}
 	}
 	else{
 		str = strdata_read(h->off);
-		for(j=0;j<h->len;j++)buf[j] = str[j];
+		if(len > h->len)len = h->len;
+		for(j=0;j<len;j++)buf[j] = str[j];
 	}
 
 	return j;

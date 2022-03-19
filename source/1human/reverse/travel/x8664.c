@@ -148,7 +148,7 @@ void printstack(struct haha* stack, int sp)
 	int j;
 	for(j=0;j<sp;j++)printf("%x:	%8x,%8x,%8x,%.4s\n", j,
 		stack[j].head, stack[j].tail,
-		stack[j].save, (void*)&stack[j].type);
+		stack[j].save, (char*)&stack[j].type);
 }
 
 

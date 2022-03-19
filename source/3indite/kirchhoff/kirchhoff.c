@@ -121,7 +121,7 @@ printf("[%d,%d)\n",cur,len);
 	for(j=cur;j<len;j++)
 	{
 		printf("%d:%.4s,%llx\n", j,
-			(void*)&ctxbuf[j].type, ctxbuf[j].addr);
+			(char*)&ctxbuf[j].type, ctxbuf[j].addr);
 
 		if(ctxbuf[j].type == _chip_)
 		{
@@ -209,9 +209,9 @@ printf("\nname:\n");
 			detail[j].type = chip->type;
 			detail[j].data = chip->data;
 
-			printf("%2d)%8.8s:	%.8s=%f\n",
-				j, (void*)&ctxbuf[j].name,
-				(void*)&detail[j].type, detail[j].data
+			printf("%2d)%8.8s:	%.8s=%f\n", j,
+				(char*)&ctxbuf[j].name,
+				(char*)&detail[j].type, detail[j].data
 			);
 		}
 		else if(ctxbuf[j].type == _pin_)
@@ -222,9 +222,9 @@ printf("\nname:\n");
 			detail[j].type = '?';
 			detail[j].V = 0.0;
 
-			printf("%2d)%8.8s:	%.8s\n",
-				j, (void*)&ctxbuf[j].name,
-				(void*)&detail[j].type
+			printf("%2d)%8.8s:	%.8s\n", j,
+				(char*)&ctxbuf[j].name,
+				(char*)&detail[j].type
 			);
 		}
 	}
@@ -264,8 +264,8 @@ printf("\nsort:\n");
 
 		printf("%2d)%8.8s,%.8s,%c\n",
 			j,
-			(void*)&ctxbuf[pin].name,
-			(void*)&ctxbuf[chip].name,
+			(char*)&ctxbuf[pin].name,
+			(char*)&ctxbuf[chip].name,
 			(u32)temp
 		);
 	}
@@ -280,16 +280,16 @@ void kirchhoff_info()
 		if(_pin_ == ctxbuf[j].type)
 		{
 			printf("%2d)%8.8s:	%d\n",
-				j, (void*)&ctxbuf[j].name,
+				j, (char*)&ctxbuf[j].name,
 				detail[j].P
 			);
 		}
 		else
 		{
 			printf("%2d)%8.8s:	P@%d,N@%d	%.8s=%f\n",
-				j, (void*)&ctxbuf[j].name,
+				j, (char*)&ctxbuf[j].name,
 				detail[j].P, detail[j].N,
-				(void*)&detail[j].type, detail[j].data
+				(char*)&detail[j].type, detail[j].data
 			);
 		}
 	}
@@ -330,7 +330,7 @@ void kirchhoff_iter()
 			{
 				printf(
 					"%.8s:	C=%f,I=%f,V=%f\n",
-					(void*)&ctxbuf[pin].name,
+					(char*)&ctxbuf[pin].name,
 					sc, di, di/sc
 				);
 			}

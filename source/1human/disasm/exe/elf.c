@@ -173,7 +173,7 @@ void disasm_elf64_section(void* buf)
 	int j;
 	struct elf64_hdr* h = buf;
 	struct elf64_shdr* sh = buf + h->e_shoff;
-	void* str = buf+sh[h->e_shstrndx].sh_offset;
+	char* str = buf+sh[h->e_shstrndx].sh_offset;
 
 	printf("sh@[%llx,?),str@[%llx,?):\n", h->e_shoff, sh[h->e_shstrndx].sh_offset);
 	printf("name    type    flag    addr    offs    size    link    info    align   entsz\n");

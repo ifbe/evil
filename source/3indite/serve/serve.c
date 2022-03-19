@@ -155,7 +155,7 @@ void serve(int argc, char** argv)
 	char* p;
 
 	port = DEFAULT_PORT;
-	coderoot = snprintf(codepath, 0x200, "");
+	coderoot = snprintf(codepath, 0x200, "./");
 	htmlroot = snprintf(htmlpath, 0x200, "datafile/");
 	for(j=1;j<argc;j++)
 	{

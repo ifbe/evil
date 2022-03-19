@@ -59,7 +59,7 @@ first:
 		if((type == irel->srcchiptype)&&(addr == irel->srcchip))
 		{
 			printf("%.4s.%llx.i\n",
-				(void*)&irel->dstchiptype,
+				(char*)&irel->dstchiptype,
 				irel->dstchip
 			);
 			return;
@@ -74,7 +74,7 @@ second:
 		if((type == orel->dstchiptype)&&(addr == orel->dstchip))
 		{
 			printf("%.4s.%llx.i\n",
-				(void*)&orel->srcchiptype,
+				(char*)&orel->srcchiptype,
 				orel->srcchip
 			);
 			return;
@@ -174,7 +174,7 @@ printf("%d.o) %llx,%llx\n",rsp,type,data);
 		}
 		else
 		{
-			printf("%.4s@%llx -> ", (void*)&st[j].type, st[j].data);
+			printf("%.4s@%llx -> ", (char*)&st[j].type, st[j].data);
 		}
 	}
 }
@@ -312,7 +312,7 @@ void route_bibfs(u64 t0, u64 t1)
 		else
 		{
 			printf("%.4s@%llx",
-				(void*)&q0[ret0].type, q0[ret0].addr);
+				(char*)&q0[ret0].type, q0[ret0].addr);
 		}
 		printf(" <- ");
 
@@ -333,7 +333,7 @@ void route_bibfs(u64 t0, u64 t1)
 		else
 		{
 			printf("%.4s@%llx",
-				(void*)&q1[ret1].type, q1[ret1].addr);
+				(char*)&q1[ret1].type, q1[ret1].addr);
 		}
 		printf(" -> ");
 
