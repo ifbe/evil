@@ -53,28 +53,46 @@ function searchright()
 		//else document.getElementById("precode2").innerHTML = "";
 	}
 }
+function getParenthesesStr(text) {
+	var ret = text.split("(");
+	if(null==ret)return null;
+	if(null==ret[1])return null;
+
+	ret = ret[1].split(")");
+	return ret[0];
+}
 function myclick(obj)
 {
-	var txt = obj.innerText;
-	console.log(txt);
+	var origin = obj.innerText;
+	console.log("origin="+origin);
+
+	//i: "asdfasdf(jjj/kkk.c)"
+	//o: "jjj/kkk.c"
+	var kuohao = getParenthesesStr(origin);
+	console.log("kuohao="+kuohao);
 
 	//i: "aaa,bbb -> xxx,yyy"
 	//o: {"aaa,bbb ", " xxx,yyy"}
-	var s1 = txt.split("->");
-	console.log(s1);
+	var st = origin.split("->");
+	console.log("split="+st);
 
 	//i: " xxx,yyy"
 	//o: {" xxx", "yyy"}
-	var s2 = s1[1].split(",");
-	console.log(s2);
+	var s1 = st[1].split(",");
+	console.log("reldst="+s1);
 
 	//i: " xxx "
 	//o: "xxx"
-	var str = s2[0].replace(/\s+/g,"");
-	console.log(str);
+	var str = s1[0].replace(/\s+/g,"");
+	console.log("node="+str);
 
 	document.getElementById("searchright").value = str;
 	searchright();
+
+	if( (null != kuohao)&&(st[1].indexOf("file@") != -1) ){
+		document.getElementById("searchleft").value = kuohao;
+		searchleft();
+	}
 }
 function enterleft()
 {
