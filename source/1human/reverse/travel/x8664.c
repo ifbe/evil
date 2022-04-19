@@ -14,6 +14,9 @@
 #define s16 signed short
 #define s32 signed int
 #define s64 signed long long
+#ifndef O_BINARY
+	#define O_BINARY 0x0
+#endif
 #define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
 #define _call_ hex32('c','a','l','l')
 #define _cond_ hex32('c','o','n','d')
@@ -418,7 +421,7 @@ void travel_x8664(int argc, char** argv)
 	if(argc > 3)hexstr2u32(argv[3], &sz);
 	if(0 == sz)sz = 0x1000000;
 
-	int fd = open(argv[1] , O_RDONLY);
+	int fd = open(argv[1] , O_RDONLY|O_BINARY);
 	if(fd <= 0){
 		printf("errno=%d@open\n", errno);
 		return;

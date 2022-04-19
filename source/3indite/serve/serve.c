@@ -7,6 +7,9 @@
 #define u16 unsigned short
 #define u32 unsigned int
 #define u64 unsigned long long
+#ifndef O_BINARY
+	#define O_BINARY 0x0
+#endif
 #define MAXSIZE 4096
 #define DEFAULT_PORT 8000
 int readthemall(int);
@@ -36,7 +39,7 @@ int servesocket_html(char* wbuf, int wlen, char* buf, int len)
 	if(len == 0)snprintf(path+ret, 0x1000, "index.html");
 	else snprintf(path+ret, 0x1000, "%.*s", len, buf);
 
-	fd = open(path, O_RDONLY);
+	fd = open(path, O_RDONLY|O_BINARY);
 	if(fd <= 0)return 0;
 
 	ret = read(fd, wbuf, wlen);
@@ -58,7 +61,7 @@ int servesocket_code(char* wbuf, int wlen, char* buf, int len)
 	ret = snprintf(path, 0x1000, "%.*s", coderoot, codepath);
 	snprintf(path+ret, 0x1000, "%.*s", len, buf);
 
-	fd = open(path, O_RDONLY);
+	fd = open(path, O_RDONLY|O_BINARY);
 	if(fd <= 0)return 0;
 
 	ret = read(fd, wbuf, wlen);

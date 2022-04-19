@@ -14,6 +14,9 @@
 #define s16 signed short
 #define s32 signed int
 #define s64 signed long long
+#ifndef O_BINARY
+	#define O_BINARY 0x0
+#endif
 int hexstr2u32(void* str, void* dat);
 int disasm_arm64_one(u32 code, int rip);
 
@@ -190,7 +193,7 @@ void travel_arm64(int argc, char** argv)
 	if(argc > 3)hexstr2u32(argv[3], &sz);
 	if(0 == sz)sz = 0x1000000;
 
-	int fd = open(argv[1] , O_RDONLY);
+	int fd = open(argv[1] , O_RDONLY|O_BINARY);
 	if(fd <= 0){
 		printf("errno=%d@open\n", errno);
 		return;
