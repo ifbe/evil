@@ -115,7 +115,6 @@ int main(int argc, char** argv)
 	strdata_create();
 
 	relation_create();
-	worker_create();
 	//----------------------------------------------------------
 
 
@@ -196,7 +195,6 @@ int main(int argc, char** argv)
 
 
 	//-------------------------after---------------------------
-	worker_delete();
 	relation_delete();
 
 	strhash_delete();

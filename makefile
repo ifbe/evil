@@ -53,9 +53,10 @@ source/1human/learn/model/3d.c \
 source/1human/learn/model/stl.c \
 source/1human/learn/prog/asm.c \
 source/1human/learn/prog/c.c \
-source/1human/learn/prog/cpp.c \
 source/1human/learn/prog/h.c \
+source/1human/learn/prog/cpp.c \
 source/1human/learn/prog/hpp.c \
+source/1human/learn/prog/java.c \
 source/1human/learn/test/none.c \
 source/1human/learn/test/count.c \
 source/1human/learn/test/include.c \

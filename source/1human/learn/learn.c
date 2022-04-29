@@ -356,6 +356,9 @@ void worker_create()
 	//cpp_create(w, j);
 	//j += 0x100;
 
+	java_create(w, j);
+	j += 0x100;
+
 	cir_create(w, j);
 	j += 0x100;
 
@@ -387,6 +390,7 @@ int learn(int argc,char** argv)
 	int j,k;
 	char* p;
 	readthemall(0);
+	worker_create();
 
 	//example:	./a.out 1.c *.c /src/*.c */*.c
 	for(j=1;j<argc;j++)
@@ -415,6 +419,7 @@ int learn(int argc,char** argv)
 		traverse_stop();
 	}//for
 
+	worker_delete();
 	writethemall();
 	return 0;
 }

@@ -183,26 +183,6 @@ void* WINAPI iocpthread(void* arg)
 
 int startsocket(int port)
 {
-	int ret;
-	int addrlen = sizeof(SOCKADDR_IN);
-	SOCKADDR_IN servaddr;
-
-	u64 temp;
-	iocpfd = CreateIoCompletionPort(
-		INVALID_HANDLE_VALUE,
-		NULL,
-		0,
-		4
-	);
-
-	int j;
-	SYSTEM_INFO info;
-	GetSystemInfo(&info);
-	for(j=0;j<info.dwNumberOfProcessors*2;j++)
-	{
-		pthread_create((void*)&temp, NULL, iocpthread, 0);
-	}
-
 	//socket
 	WSADATA data; 
 	WORD sockVersion = MAKEWORD(2,2);
@@ -224,12 +204,14 @@ int startsocket(int port)
 	}
 
 	//server.2
+	SOCKADDR_IN servaddr;
 	servaddr.sin_family = AF_INET;
 	servaddr.sin_port = htons(port);
 	servaddr.sin_addr.s_addr = INADDR_ANY;
 
 	//server.3
-	ret = bind(listenfd, (SOCKADDR*)&servaddr, addrlen);
+	int addrlen = sizeof(SOCKADDR_IN);
+	int ret = bind(listenfd, (SOCKADDR*)&servaddr, addrlen);
 	if(ret == SOCKET_ERROR)
 	{
 		printf("error@bind\n");
@@ -244,6 +226,23 @@ int startsocket(int port)
 		printf("error@listen\n");
 		closesocket(listenfd);
 		return 0;
+	}
+
+	//iocp
+	iocpfd = CreateIoCompletionPort(
+		INVALID_HANDLE_VALUE,
+		NULL,
+		0,
+		4
+	);
+
+	int j;
+	u64 temp;
+	SYSTEM_INFO info;
+	GetSystemInfo(&info);
+	for(j=0;j<info.dwNumberOfProcessors*2;j++)
+	{
+		pthread_create((void*)&temp, NULL, iocpthread, 0);
 	}
 
 	//server.5

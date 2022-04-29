@@ -113,6 +113,11 @@ int listensocket()
 	int j, fd, ret;
 	struct epoll_event ev[16];
 
+	//epoll
+	epollfd = epoll_create(MAXSIZE);
+	if(epollfd <= 0)printf("%d,%d@epoll_create\n", epollfd, errno);
+	epoll_add(tcpfd);
+
 	while(1)
 	{
 		ret = epoll_wait(epollfd, ev, 16, -1);
@@ -147,6 +152,7 @@ int listensocket()
 	}//while
 
 	printf("listensocket end\n");
+	return 0;
 }
 int startsocket(int port)
 {
@@ -191,12 +197,10 @@ int startsocket(int port)
 		return 0;
 	}
 
-	//epoll
-	epollfd = epoll_create(MAXSIZE);
-	if(epollfd <= 0)printf("%d,%d@epoll_create\n", epollfd, errno);
-	epoll_add(tcpfd);
-
 	//listen
 	listen(tcpfd, 5);
+
+	//epoll
 	listensocket();
+	return 0;
 }
