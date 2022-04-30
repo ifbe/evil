@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
 #define u8 unsigned char
 #define u16 unsigned short
 #define u32 unsigned int
@@ -39,26 +40,22 @@ void utf8_read(u8* buf, int len)
 void utf8_write()
 {
 }
-void utf8_list()
-{
-}
-void utf8_choose()
-{
-}
 void utf8_start()
 {
 }
 void utf8_stop()
 {
 }
+
+
+
+
 void utf8_create(u64* that, u64* this)
 {
 	this[0] = 0x6573726170;
-	this[1] = 0x38667475;
-	this[2] = (u64)utf8_start;
-	this[3] = (u64)utf8_stop;
-	this[4] = (u64)utf8_list;
-	this[5] = (u64)utf8_choose;
+	this[1] = hex32('u','t','f','8');
+	this[4] = (u64)utf8_start;
+	this[5] = (u64)utf8_stop;
 	this[6] = (u64)utf8_read;
 	this[7] = (u64)utf8_write;
 }

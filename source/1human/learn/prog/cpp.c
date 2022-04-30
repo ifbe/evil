@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
 #define u8 unsigned char
 #define u16 unsigned short
 #define u32 unsigned int
@@ -656,17 +657,19 @@ static void cpp_start(char* thisfile,int size)
 	prophet=prophetinsist=0;
 	infunc = inmarco = innote = instr = 0;
 }
+
+
+
+
 void cpp_delete()
 {
 }
 void cpp_create(u64* that, u64* this)
 {
 	this[0] = 0x6573726170;
-	this[1] = 0x707063;
-	this[2] = (u64)cpp_start;
-	this[3] = (u64)cpp_stop;
-	this[4] = (u64)cpp_list;
-	this[5] = (u64)cpp_choose;
+	this[1] = hex32('c','p','p',0);
+	this[4] = (u64)cpp_start;
+	this[5] = (u64)cpp_stop;
 	this[6] = (u64)cpp_read;
 	this[7] = (u64)cpp_write;
 }

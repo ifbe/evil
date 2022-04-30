@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "evil.h"
+#define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
 void* chip_write();
 void* pin_write(void*, int);
 //
@@ -257,12 +258,6 @@ void cir_read(u8* buf, int len)
 void cir_write()
 {
 }
-void cir_list()
-{
-}
-void cir_choose()
-{
-}
 void cir_stop()
 {
 }
@@ -280,11 +275,9 @@ void cir_delete()
 void cir_create(u64* that, u64* this)
 {
 	this[0] = 0x6573726170;
-	this[1] = 0x726963;
-	this[2] = (u64)cir_start;
-	this[3] = (u64)cir_stop;
-	this[4] = (u64)cir_list;
-	this[5] = (u64)cir_choose;
+	this[1] = hex32('c','i','r',0);
+	this[4] = (u64)cir_start;
+	this[5] = (u64)cir_stop;
 	this[6] = (u64)cir_read;
 	this[7] = (u64)cir_write;
 }

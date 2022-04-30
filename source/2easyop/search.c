@@ -930,10 +930,18 @@ void search(int argc, char** argv)
 	while(1)
 	{
 		printf("->");
-		len = input(ibuf, 0x1000);
-		if((ibuf[0] == 'q')&&(ibuf[1] == 0))break;
 
-		j = search_one(obuf, 0x100000, ibuf, len);
+		len = input(ibuf, 0x1000);
+		if(0 == len)break;
+
+		//printf("len=%d,dat=%x\n",len,ibuf[0]);
+		if(ibuf[0] <= 0xd)continue;
+		if(ibuf[0] == 0x1b){
+			printf("ctrl+d(EOF) to exit\n");
+			continue;
+		}
+
+		j = search_one(obuf, 0x100000, ibuf, len-1);
 		output(obuf, j);
 	}
 }

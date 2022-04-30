@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
 #define u8 unsigned char
 #define u16 unsigned short
 #define u32 unsigned int
@@ -144,12 +145,6 @@ static int count_read(char* datahome, int len)
 static void count_write()
 {
 }
-static void count_list()
-{
-}
-static void count_choose()
-{
-}
 static void count_stop()
 {
 	printf("@%x@%d -> %d,%d,%d,%d\n",
@@ -167,17 +162,19 @@ static void count_start()
 	countbyte=countline=0;
 	infunc = inmarco = innote = instr = 0;
 }
+
+
+
+
 void count_delete()
 {
 }
 void count_create(u64* file, u64* this)
 {
 	this[0] = 0x6573726170;
-	this[1] = 0x746e756f63;
-	this[2] = (u64)count_start;
-	this[3] = (u64)count_stop;
-	this[4] = (u64)count_list;
-	this[5] = (u64)count_choose;
+	this[1] = hex32('c','n','t',0);
+	this[4] = (u64)count_start;
+	this[5] = (u64)count_stop;
 	this[6] = (u64)count_read;
 	this[7] = (u64)count_write;
 }

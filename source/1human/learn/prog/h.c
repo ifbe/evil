@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
 #define u8 unsigned char
 #define u16 unsigned short
 #define u32 unsigned int
@@ -585,11 +586,9 @@ void struct_delete()
 void struct_create(u64* that, u64* this)
 {
 	this[0] = 0x6573726170;
-	this[1] = 0x746e756f63;
-	this[2] = (u64)struct_start;
-	this[3] = (u64)struct_stop;
-	this[4] = (u64)struct_list;
-	this[5] = (u64)struct_choose;
+	this[1] = 'h';
+	this[4] = (u64)struct_start;
+	this[5] = (u64)struct_stop;
 	this[6] = (u64)struct_read;
 	this[7] = (u64)struct_write;
 }

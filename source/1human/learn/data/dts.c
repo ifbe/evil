@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
 #define u8 unsigned char
 #define u16 unsigned short
 #define u32 unsigned int
@@ -347,12 +348,6 @@ static int dts_read(int start,int end)
 static void dts_write()
 {
 }
-static void dts_list()
-{
-}
-static void dts_choose()
-{
-}
 static void dts_stop(int where)
 {
 /*
@@ -392,11 +387,9 @@ void dts_delete()
 void dts_create(u64* file,u64* this)
 {
 	this[0] = 0x6573726170;
-	this[1] = 0x737464;
-	this[2] = (u64)dts_start;
-	this[3] = (u64)dts_stop;
-	this[4] = (u64)dts_list;
-	this[5] = (u64)dts_choose;
+	this[1] = hex32('d','t','s',0);
+	this[4] = (u64)dts_start;
+	this[5] = (u64)dts_stop;
 	this[6] = (u64)dts_read;
 	this[7] = (u64)dts_write;
 }

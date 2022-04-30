@@ -88,19 +88,17 @@ struct worker
 	u64 name;
 
 	//[10,17]
-	int (*start)();
-	char pad2[8-sizeof(char*)];
+	u64 pad2;
 
 	//[18,1f]
-	int (*stop)();
-	char pad3[8-sizeof(char*)];
+	u64 pad3;
 
 	//[20,27]
-	int (*list)();
+	int (*start)();
 	char pad4[8-sizeof(char*)];
 
 	//[28,2f]
-	int (*choose)();
+	int (*stop)();
 	char pad5[8-sizeof(char*)];
 
 	//[30,37]
@@ -114,7 +112,7 @@ struct worker
 	//[40,ff]
 	u8 data[0xc0];
 };
-static struct worker w[20];
+static struct worker wk[20];
 static int chosen;
 //
 static int infile = -1;
@@ -230,13 +228,13 @@ int worker_read()
 	connect_file_to_hash(inbuf, ret);
 
 	//start
-	w[chosen].start();
+	wk[chosen].start();
 
 	//explain
-	ret = w[chosen].read(inbuf, ret, outbuf, 0x100000);
+	ret = wk[chosen].read(inbuf, ret, outbuf, 0x100000);
 
 	//stop
-	w[chosen].stop();
+	wk[chosen].stop();
 	return ret;
 }
 int worker_list()
@@ -244,17 +242,15 @@ int worker_list()
 	int j;
 	for(j=0;j<20;j++)
 	{
-		if(w[j].type == 0)break;
+		if(wk[j].type == 0)break;
 
-		printf("%-8s %-8s %llx,%llx,%llx,%llx,%llx,%llx\n",
-			(char*)&w[j].type,
-			(char*)&w[j].name,
-			(u64)w[j].start,
-			(u64)w[j].stop,
-			(u64)w[j].list,
-			(u64)w[j].choose,
-			(u64)w[j].read,
-			(u64)w[j].write
+		printf("%-8s %-8s %p,%p,%p,%p\n",
+			(char*)&wk[j].type,
+			(char*)&wk[j].name,
+			(u64)wk[j].start,
+			(u64)wk[j].stop,
+			(u64)wk[j].read,
+			(u64)wk[j].write
 		);
 	}
 	return 0;
@@ -269,7 +265,7 @@ int worker_choose(char* name)
 
 	for(j=0;j<20;j++)
 	{
-		if(w[j].name == x)
+		if(wk[j].name == x)
 		{
 			chosen = j;
 			break;
@@ -338,43 +334,43 @@ int worker_stop()
 void worker_create()
 {
 	int t;
-	char* j = (char*)w;
+	char* j = (char*)wk;
 	for(t=0;t<0x100*20;t++)j[t] = 0;
 
-	//none_create(w, j);	//how many file has been ignored
+	//none_create(wk, j);	//how many file has been ignored
 	//j += 0x100;
 
-	//count_create(w, j);	//how many bytes and lines in this file
+	//count_create(wk, j);	//how many bytes and lines in this file
 	//j += 0x100;
 
-	asm_create(w, j);
+	asm_create(wk, j);
 	j += 0x100;
 
-	c_create(w, j);
+	c_create(wk, j);
 	j += 0x100;
 
-	//cpp_create(w, j);
+	//cpp_create(wk, j);
 	//j += 0x100;
 
-	java_create(w, j);
+	java_create(wk, j);
 	j += 0x100;
 
-	cir_create(w, j);
+	cir_create(wk, j);
 	j += 0x100;
 
-	//dts_create(w, j);
+	//dts_create(wk, j);
 	//j += 0x100;
 
-	//struct_create(w, j);
+	//struct_create(wk, j);
 	//j += 0x100;
 
-	three_create(w, j);
+	three_create(wk, j);
 	j += 0x100;
 
-	utf8_create(w,j);
+	utf8_create(wk,j);
 	j += 0x100;
 
-	map_create(w,j);
+	map_create(wk,j);
 	j += 0x100;
 	//worker_list();
 }
@@ -391,6 +387,7 @@ int learn(int argc,char** argv)
 	char* p;
 	readthemall(0);
 	worker_create();
+	worker_list();
 
 	//example:	./a.out 1.c *.c /src/*.c */*.c
 	for(j=1;j<argc;j++)

@@ -5,6 +5,7 @@
 #include<unistd.h>
 #include<sys/stat.h>
 #include<sys/types.h>
+#define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
 #define u64 unsigned long long
 #define u32 unsigned int
 #define u16 unsigned short
@@ -694,12 +695,6 @@ static void asm_read(char* buf, int len)
 static void asm_write()
 {
 }
-static void asm_list()
-{
-}
-static void asm_choose()
-{
-}
 static void asm_stop()
 {
 }
@@ -707,17 +702,18 @@ static void asm_start()
 {
 	line = 1;
 }
+
+
+
 void asm_delete()
 {
 }
 void asm_create(u64* that, u64* this)
 {
 	this[0] = 0x6573726170;
-	this[1] = 0x53;
-	this[2] = (u64)asm_start;
-	this[3] = (u64)asm_stop;
-	this[4] = (u64)asm_list;
-	this[5] = (u64)asm_choose;
+	this[1] = 's';
+	this[4] = (u64)asm_start;
+	this[5] = (u64)asm_stop;
 	this[6] = (u64)asm_read;
 	this[7] = (u64)asm_write;
 }

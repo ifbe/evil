@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "evil.h"
+#define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
 u64 strhash_generate(void*, int);
 void* strhash_read(u64);
 void* strhash_write(void*, int);
@@ -242,12 +243,6 @@ void three_read(u8* buf, int len)
 void three_write()
 {
 }
-void three_list()
-{
-}
-void three_choose()
-{
-}
 void three_start()
 {
 }
@@ -257,11 +252,9 @@ void three_stop()
 void three_create(u64* that, u64* this)
 {
 	this[0] = 0x6573726170;
-	this[1] = 0x6433;
-	this[2] = (u64)three_start;
-	this[3] = (u64)three_stop;
-	this[4] = (u64)three_list;
-	this[5] = (u64)three_choose;
+	this[1] = hex32('3','d',0,0);
+	this[4] = (u64)three_start;
+	this[5] = (u64)three_stop;
 	this[6] = (u64)three_read;
 	this[7] = (u64)three_write;
 }

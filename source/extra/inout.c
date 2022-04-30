@@ -156,30 +156,31 @@ int input(u8* buf, int len)
 	while(1)
 	{
 		ret = lowlevel_input();
-		if(0x8 == ret)
-		{
-			if(0 != j)
-			{
-				if(buf[j-1] < 0x80)
-				{
-					printf("\b \b");
-					j--;
-				}
-				else
-				{
-					printf("\b\b  \b\b");
-					j -= 3;
-				}
-				buf[j] = 0;
+		if(0 == ret)break;
+		else if(0x8 == ret){
+			if(0 == j)continue;
+
+			if(buf[j-1] < 0x80){
+				printf("\b \b");
+				j--;
 			}
+			else{
+				printf("\b\b  \b\b");
+				j -= 3;
+			}
+			buf[j] = 0;
 		}
-		else if(0xd >= ret)break;
-		else if(0x80 > ret)
-		{
+		else if(0xd >= ret){
+			buf[j] = 0;
+			j++;
+			break;
+		}
+		else if(0x80 > ret){
+			buf[j] = ret;
+			j++;
 			printf("%c", ret);
 		}
-		else
-		{
+		else{
 			printf("%s", (void*)&ret);
 
 			tmp = 0;
@@ -198,15 +199,17 @@ int input(u8* buf, int len)
 				NULL, NULL
 			);
 			//printf("%x\n", ret);
-		}
 
-		*(u32*)(buf+j) = ret;
-		for(ret=0;ret<4;ret++)
-		{
-			if(buf[j] >= 0xd)j++;
+			*(u32*)(buf+j) = ret;
+			for(ret=0;ret<4;ret++){
+				if(buf[j] >= 0xd)j++;
+			}
 		}
 	}
-	buf[j] = 0;
+
+	//cond 0: EOF
+	//cond 1: 0xa
+	//cond 2: 1 2 0xa
 	return j;
 }
 
@@ -220,17 +223,18 @@ void output(char* buf, int len)
 }
 int input(u8* buf, int len)
 {
+	char* ret = fgets((void*)buf, 0x1000, stdin);
+	if(0 == ret)return 0;
+
 	int j;
-	fgets((void*)buf, 0x1000, stdin);
-	for(j=0;j<0x1000;j++)
-	{
-		if(buf[j] <= 0xa)
-		{
+	for(j=0;j<0x1000;j++){
+		if(buf[j] <= 0xd){
 			buf[j] = 0;
+			j++;
 			break;
 		}
 	}
-	return strlen((void*)buf);
+	return j;
 }
 
 

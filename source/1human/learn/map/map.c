@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "evil.h"
+#define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
 void* chip_write();
 void* pin_write();
 void* strhash_read(u64);
@@ -69,12 +70,6 @@ static void map_read(u8* buf, int len)
 static void map_write()
 {
 }
-static void map_list()
-{
-}
-static void map_choose()
-{
-}
 static void map_stop()
 {
 }
@@ -82,17 +77,19 @@ static void map_start()
 {
 	infunc = 0;
 }
+
+
+
+
 void map_delete()
 {
 }
 void map_create(u64* that, u64* this)
 {
 	this[0] = 0x6573726170;
-	this[1] = 0x70616d;
-	this[2] = (u64)map_start;
-	this[3] = (u64)map_stop;
-	this[4] = (u64)map_list;
-	this[5] = (u64)map_choose;
+	this[1] = hex32('m','a','p',0);
+	this[4] = (u64)map_start;
+	this[5] = (u64)map_stop;
 	this[6] = (u64)map_read;
 	this[7] = (u64)map_write;
 }
