@@ -247,10 +247,10 @@ int worker_list()
 		printf("%-8s %-8s %p,%p,%p,%p\n",
 			(char*)&wk[j].type,
 			(char*)&wk[j].name,
-			(u64)wk[j].start,
-			(u64)wk[j].stop,
-			(u64)wk[j].read,
-			(u64)wk[j].write
+			wk[j].start,
+			wk[j].stop,
+			wk[j].read,
+			wk[j].write
 		);
 	}
 	return 0;

@@ -6,7 +6,7 @@
 void output(void*, int);
 void readthemall(int);
 void writethemall(int);
-void fixarg(void*, void*);
+void gbk2utf(void*, void*);
 void strhash_print(u64 hash);
 int strhash_export(u64 hash, u8* dst, int len);
 u64 strhash_generate(void*, int);
@@ -363,8 +363,8 @@ void route(int argc, char** argv)
 #if (defined(_WIN32) || defined(__WIN32__))
 	u8 arg1[0x100];
 	u8 arg2[0x100];
-	fixarg(arg1, argv[1]);
-	fixarg(arg2, argv[2]);
+	gbk2utf(arg1, argv[1]);
+	gbk2utf(arg2, argv[2]);
 #else
 	u8* arg1 = (void*)argv[1];
 	u8* arg2 = (void*)argv[2];

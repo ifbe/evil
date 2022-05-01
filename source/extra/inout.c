@@ -15,7 +15,7 @@
 #include<windows.h>
 
 
-void fixarg(u8* dst, u8* src)
+void gbk2utf(u8* dst, u8* src)
 {
 	u32 ret,tmp;
 	while(1)
@@ -38,7 +38,7 @@ void fixarg(u8* dst, u8* src)
 			(void*)&ret, -1,
 			(void*)&tmp, 2
 		);
-		//printf("%x\n", tmp);
+		//printf("uni=%x\n", tmp);
 
 		ret = 0;
 		WideCharToMultiByte(
@@ -47,7 +47,7 @@ void fixarg(u8* dst, u8* src)
 			(void*)&ret, 4,
 			NULL, NULL
 		);
-		//printf("%x\n", ret);
+		//printf("utf=%x\n", ret);
 
 		*(u32*)dst = ret;
 		for(ret=0;ret<4;ret++)
@@ -93,8 +93,8 @@ int lowlevel_input()
 {
 	DWORD num;
 	int ret,tmp;
-	INPUT_RECORD irInBuf[2];
-	KEY_EVENT_RECORD k0, k1;
+	INPUT_RECORD irInBuf[3];
+	KEY_EVENT_RECORD k0, k1, k2;
 	HANDLE hStdin, hStdout;
 
 	hStdin = GetStdHandle(STD_INPUT_HANDLE);
@@ -113,7 +113,7 @@ int lowlevel_input()
 
 	while(1)
 	{
-		if(!ReadConsoleInput(hStdin, irInBuf, 2, &num))
+		if(!ReadConsoleInput(hStdin, irInBuf, 3, &num))
 		{
 			printf("ReadConsoleInput");
 			return 0;
@@ -122,7 +122,13 @@ int lowlevel_input()
 
 		k0 = irInBuf[0].Event.KeyEvent;
 		if(0 == k0.bKeyDown)continue;
-
+/*
+printf("bKeyDown=%x,wRepeatCount=%x,wVirtualKeyCode=%x,wVirtualScanCode=%x,UnicodeChar=%x,dwControlKeyState=%x\n",
+k0.bKeyDown, k0.wRepeatCount,
+k0.wVirtualKeyCode, k0.wVirtualScanCode,
+k0.uChar.UnicodeChar, k0.dwControlKeyState
+);
+*/
 		if(k0.uChar.AsciiChar == 0)
 		{
 			ret = k0.wVirtualKeyCode;
@@ -140,10 +146,15 @@ int lowlevel_input()
 		else
 		{
 			ret = k0.uChar.UnicodeChar;
-			if(ret < 0x80)return ret;
+			if(ret < 0x80){
+				if( (4 == ret) && (k0.dwControlKeyState&8) )return 0;
+				return ret;
+			}
 
 			k1 = irInBuf[1].Event.KeyEvent;
-			return ret | (k1.uChar.UnicodeChar << 8);
+			k2 = irInBuf[2].Event.KeyEvent;
+			//printf("k0=%x,k1=%x,k2=%x\n",k0.uChar.UnicodeChar,k1.uChar.UnicodeChar,k2.uChar.UnicodeChar);
+			return (ret&0xff) | ((k1.uChar.UnicodeChar&0xff) << 8);
 		}
 	}
 	return 0;
@@ -156,6 +167,7 @@ int input(u8* buf, int len)
 	while(1)
 	{
 		ret = lowlevel_input();
+		//printf("%x\n",ret);
 		if(0 == ret)break;
 		else if(0x8 == ret){
 			if(0 == j)continue;
@@ -173,6 +185,7 @@ int input(u8* buf, int len)
 		else if(0xd >= ret){
 			buf[j] = 0;
 			j++;
+			printf("\n");
 			break;
 		}
 		else if(0x80 > ret){
@@ -180,8 +193,12 @@ int input(u8* buf, int len)
 			j++;
 			printf("%c", ret);
 		}
+		else if(0x1b == (ret&0xff)){
+			printf("%x\n",ret);
+		}
 		else{
-			printf("%s", (void*)&ret);
+			printf("%s", &ret);
+			//printf("gbk=%x\n", ret);
 
 			tmp = 0;
 			MultiByteToWideChar(
@@ -189,7 +206,7 @@ int input(u8* buf, int len)
 				(void*)&ret, -1,
 				(void*)&tmp, 2
 			);
-			//printf("%x\n", tmp);
+			//printf("unicode=%x\n", tmp);
 
 			ret = 0;
 			WideCharToMultiByte(
@@ -198,7 +215,7 @@ int input(u8* buf, int len)
 				(void*)&ret, 4,
 				NULL, NULL
 			);
-			//printf("%x\n", ret);
+			//printf("utf8=%x\n", ret);
 
 			*(u32*)(buf+j) = ret;
 			for(ret=0;ret<4;ret++){

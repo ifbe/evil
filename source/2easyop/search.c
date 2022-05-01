@@ -16,7 +16,7 @@ void* shapeindex_read(int);
 //
 int input(void*, int);
 int output(void*, int);
-int fixarg(void*, void*);
+int gbk2utf(void*, void*);
 int hexstr2data(void*, void*);
 
 
@@ -912,7 +912,7 @@ void search(int argc, char** argv)
 #if (defined(_WIN32) || defined(__WIN32__))
 		for(j=1;j<argc;j++)
 		{
-			fixarg(ibuf, argv[j]);
+			gbk2utf(ibuf, argv[j]);
 			search_one(obuf, 0x100000, ibuf, strlen(ibuf));
 			output(obuf, outnow);
 		}
