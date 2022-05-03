@@ -91,10 +91,6 @@ void output(u8* buf, int len)
 }
 int lowlevel_input()
 {
-	DWORD num;
-	int ret,tmp;
-	INPUT_RECORD irInBuf[3];
-	KEY_EVENT_RECORD k0, k1, k2;
 	HANDLE hStdin, hStdout;
 
 	hStdin = GetStdHandle(STD_INPUT_HANDLE);
@@ -111,9 +107,13 @@ int lowlevel_input()
 		exit(-1);
 	}
 
+	int ret;
+	DWORD num;
+	INPUT_RECORD irInBuf[2];
+	KEY_EVENT_RECORD k0, k1;
 	while(1)
 	{
-		if(!ReadConsoleInput(hStdin, irInBuf, 3, &num))
+		if(!ReadConsoleInput(hStdin, irInBuf, 2, &num))
 		{
 			printf("ReadConsoleInput");
 			return 0;
@@ -123,7 +123,8 @@ int lowlevel_input()
 		k0 = irInBuf[0].Event.KeyEvent;
 		if(0 == k0.bKeyDown)continue;
 /*
-printf("bKeyDown=%x,wRepeatCount=%x,wVirtualKeyCode=%x,wVirtualScanCode=%x,UnicodeChar=%x,dwControlKeyState=%x\n",
+printf("num=%x,bKeyDown=%x,wRepeatCount=%x,wVirtualKeyCode=%x,wVirtualScanCode=%x,UnicodeChar=%x,dwControlKeyState=%x\n",
+num,
 k0.bKeyDown, k0.wRepeatCount,
 k0.wVirtualKeyCode, k0.wVirtualScanCode,
 k0.uChar.UnicodeChar, k0.dwControlKeyState
@@ -152,7 +153,7 @@ k0.uChar.UnicodeChar, k0.dwControlKeyState
 			}
 
 			k1 = irInBuf[1].Event.KeyEvent;
-			k2 = irInBuf[2].Event.KeyEvent;
+			//k2 = irInBuf[2].Event.KeyEvent;
 			//printf("k0=%x,k1=%x,k2=%x\n",k0.uChar.UnicodeChar,k1.uChar.UnicodeChar,k2.uChar.UnicodeChar);
 			return (ret&0xff) | ((k1.uChar.UnicodeChar&0xff) << 8);
 		}
