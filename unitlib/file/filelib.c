@@ -14,6 +14,10 @@
 #define u16 unsigned short
 #define u32 unsigned int
 #define u64 unsigned long long
+#define hex32(a,b,c,d) (a | (b<<8) | (c<<16) | (d<<24))
+#define hex64(a,b,c,d,e,f,g,h) (hex32(a,b,c,d) | (((u64)hex32(e,f,g,h))<<32))
+#define _dir_ hex32('d','i','r', 0)
+#define _file_ hex32('f','i','l','e')
 
 
 
@@ -33,56 +37,61 @@ static int len = 0;
 
 
 
-char* traverse_read()
+char* traverse_read(int* offs, int* type)
 {
 	int j;
 	struct dirent* ent;
 
-	while(1)
-	{
+	while(1){
 		//no name, go back
-		if(stack[rsp].namelen == 0)
-		{
+		if(stack[rsp].namelen == 0){
 			//empty name
 			if(rsp == 0)return 0;
 
 			//pop
-			else
-			{
+			else{
 				rsp--;
 				continue;
 			}
 		}
-//printf("1:%s\n", path);
+
 		//have name, not opened
-		if(stack[rsp].folder == 0)
-		{
+		if(stack[rsp].folder == 0){
 			//try to open dir
 			stack[rsp].folder = opendir(path);
 
-			//opened successfully
-			if(stack[rsp].folder != 0)continue;
-
-			//can not open, it is leaf !!!
-			else
-			{
+			//open fail, is leaf
+			if(0 == stack[rsp].folder){
+				*type = _file_;
 				stack[rsp].namelen = 0;
-//printf("%s\n",path);
-				if((rsp != 0)&&(len == 1)&&(path[0] == '.'))
-				{
-					return path+2;
-				}
-				else return path;
 			}
+			else{
+				*type = _dir_;
+			}
+
+			if(0 == rsp){
+				*offs = 0;
+			}
+			else{
+				*offs = stack[rsp-1].namelen;
+			}
+/*
+			if((rsp != 0)&&(stack[0].namelen == 1)&&(path[0] == '.')){
+				return path+2;
+			}
+			else{
+				*offs = stack[rsp].namelen;
+				return path;
+			}
+*/
+			return path;
 		}
-//printf("2:%s\n", path);
 
 		//folder opened, take one
 		ent = readdir(stack[rsp].folder);
 
 		//failed to get
-		if(ent == 0)
-		{
+		if(ent == 0){
 			closedir(stack[rsp].folder);
 			stack[rsp].namelen = 0;
 
@@ -92,15 +101,13 @@ char* traverse_read()
 
 #ifdef DT_LNK
 		//ignore nondir
-		if(ent->d_type == DT_LNK)
-		{
+		if(ent->d_type == DT_LNK){
 			continue;
 		}
 #endif
 
 		//ignore . .. .*
-		if(ent->d_name[0] == '.')
-		{
+		if(ent->d_name[0] == '.'){
 			continue;
 		}
 

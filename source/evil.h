@@ -16,6 +16,7 @@ typedef double f64;
 #define _shap_ hex32('s','h','a','p')
 #define _poin_ hex32('p','o','i','n')
 //foottype
+#define _path_    hex32('p','a','t','h')
 #define _name_    hex32('n','a','m','e')
 #define _subfunc_ hex32('s','u','b','f')
 #define _caller_  hex32('c','a','e','r')

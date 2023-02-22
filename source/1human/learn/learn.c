@@ -68,7 +68,7 @@ int map_delete();
 //
 int traverse_start(char* p);
 int traverse_stop();
-char* traverse_read();
+char* traverse_read(int*, int*);
 u64 suffix_value(char*);
 //
 void* filemd5_write(void*, u64);
@@ -206,6 +206,24 @@ void connect_file_to_hash(char* buf, int len)
 
 	//hash <- file (lchip, lfoot, ltype, rchip, rfoot, rtype)
 	relationcreate(thishash, 0, _hash_, _file_, fileobj, 0, _file_, _name_);
+}
+void connect_path_to_name(char* path,int plen, char* name,int nlen)
+{
+	void* pathhash = strhash_write(path, plen);
+	if(0 == pathhash)
+	{
+		printf("error@0000\n");
+		return;
+	}
+
+	void* namehash = strhash_write(name, nlen);
+	if(0 == namehash)
+	{
+		printf("error@0000\n");
+		return;
+	}
+
+	relationcreate(pathhash, 0, _hash_, _name_, namehash, 0, _hash_, _path_);
 }
 
 
@@ -381,9 +399,34 @@ void worker_delete()
 
 
 
+int learn_one(char* p, int offs, int type)
+{
+	int k;
+	if(offs){
+	if('/' == p[offs]){
+		//printf("path=%s\n", p);
+		//printf("name=%s\n", p+offs+1);
+		connect_path_to_name(p, offs, p+offs+1, strlen(p+offs+1));
+	}
+	}
+
+	//check
+	k = worker_start(p);
+	if(k <= 0)return 0;;
+	//printf("worker=%d\n",k);
+
+	//parse
+	k = worker_read();
+	//worker_write(k);
+
+	//close
+	worker_stop();
+	return 0;
+}
 int learn(int argc,char** argv)
 {
-	int j,k;
+	int j;
+	int offs,type;
 	char* p;
 	readthemall(0);
 	worker_create();
@@ -397,21 +440,10 @@ int learn(int argc,char** argv)
 		while(1)
 		{
 			//get one(traverse.c)
-			p = traverse_read();
+			p = traverse_read(&offs, &type);
 			if(p == 0)break;
-			//printf("file=%s\n",p);
 
-			//check
-			k = worker_start(p);
-			if(k <= 0)continue;
-			//printf("worker=%d\n",k);
-
-			//parse
-			k = worker_read();
-			//worker_write(k);
-
-			//close
-			worker_stop();
+			learn_one(p, offs, type);
 		}
 		traverse_stop();
 	}//for
