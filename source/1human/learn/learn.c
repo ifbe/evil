@@ -406,7 +406,8 @@ int learn_one(char* p, int offs, int type)
 	if('/' == p[offs]){
 		//printf("path=%s\n", p);
 		//printf("name=%s\n", p+offs+1);
-		connect_path_to_name(p, offs, p+offs+1, strlen(p+offs+1));
+		k = strlen(p+offs+1);
+		connect_path_to_name(p, offs+1+k, p+offs+1, k);
 	}
 	}
 
@@ -449,6 +450,6 @@ int learn(int argc,char** argv)
 	}//for
 
 	worker_delete();
-	writethemall();
+	writethemall(0);
 	return 0;
 }

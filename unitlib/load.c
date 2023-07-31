@@ -57,7 +57,7 @@ void readthemall(int j)
 
 	relation_start(j);
 }
-void writethemall()
+void writethemall(int unused)
 {
 	//chipdata_stop();
 	chipindex_stop();

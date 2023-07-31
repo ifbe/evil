@@ -24,6 +24,8 @@ int check_mach(void*);
 int disasm_macho64(void*, int);
 int check_pe(void*);
 int disasm_pe64(void*, int);
+int check_object(void*);
+int disasm_object(void*, int);
 
 
 
@@ -71,6 +73,10 @@ void disasm(int argc, char** argv)
 	}
 	if(check_pe(buf)){
 		disasm_pe64(buf, ret);
+		goto release;
+	}
+	if(check_object(buf)){
+		disasm_object(buf, ret);
 		goto release;
 	}
 

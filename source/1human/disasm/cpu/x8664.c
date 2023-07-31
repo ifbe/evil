@@ -92,6 +92,26 @@ void disasm_x8664_print(u8* p, int k)
 	buf[30] = 0;
 	printf("%s	",buf);
 }
+void disasm_x8664_prefixprint(u8* pre, u8* p, int k)
+{
+	if(0 == pre){
+		disasm_x8664_print(p, k);
+		return;
+	}
+
+	int sz = p-pre;
+	if(sz <= 3){
+		disasm_x8664_print(pre, k+sz);
+		return;
+	}
+
+	//error
+	disasm_x8664_print(p, k);
+}
+
+
+
+
 int disasm_x8664_1b(u8* p, u64 rip)
 {
 	char buf[16];
@@ -2079,6 +2099,24 @@ int disasm_x8664_0f(u8* pre, u8* p, u64 rip)
 	//	f8: sfence
 
 	//af: imul reg, r/m
+	if(0xaf == p[1]){
+		u8 bit0 = p[2]&7;
+		u8 bit3 = (p[2]>>3)&7;
+		u8 bit6 = (p[2]>>6)&7;
+		if(3 == (p[2]>>6)){
+			disasm_x8664_prefixprint(pre, p, 3);
+			if(pre)printf("imul	%s *= %s\n", reg64[bit3+(pre[0]&4)*2], reg64[bit0+(pre[0]&1)*8]);
+			else printf("imul	%s *= %s\n", reg64[bit3], reg64[bit0]);
+			return 3;
+		}
+
+		char tmp[64];
+		int ret = disasm_x8664_sib(rip, p+1, tmp, 0, 0, 0);
+		disasm_x8664_prefixprint(pre, p, ret+1);
+		if(pre)printf("imul	%s *= qword@[%s]\n", reg64[bit3+(pre[0]&4)*2], tmp);
+		else printf("imul	%s *= qword@[%s]\n", reg64[bit3], tmp);
+		return ret+1;
+	}
 
 	//b0: cmpxchg r/m, reg08
 	//b1: cmpxchg r/m, reg32
@@ -2266,7 +2304,7 @@ int disasm_x8664_0f(u8* pre, u8* p, u64 rip)
 		return 2;
 	}
 
-	disasm_x8664_print(p,1);
+	disasm_x8664_prefixprint(pre, p, 1);
 	printf("0f	error\n");
 	return 1;
 }
@@ -2289,7 +2327,12 @@ int disasm_x8664_4x(u8* pre, u8* p, u64 rip)
 		}
 	}
 
-	if(0x0f == p[1]){
+	if(0x98 == p[1]){
+		disasm_x8664_print(p,2);
+		printf("cwde\n");
+		return 2;
+	}
+	else if(0x0f == p[1]){
 		k = disasm_x8664_0f(p, p+1, rip+1);
 		if(k > 0)return k+1;
 	}

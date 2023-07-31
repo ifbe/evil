@@ -32,6 +32,7 @@ source/1human/disasm/disasm.c \
 source/1human/disasm/exe/elf.c \
 source/1human/disasm/exe/mac.c \
 source/1human/disasm/exe/pe.c \
+source/1human/disasm/obj/obj.c \
 source/1human/disasm/cpu/arm64.c \
 source/1human/disasm/cpu/x8664.c \
 source/1human/reverse/follow/arm64.c \

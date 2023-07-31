@@ -145,7 +145,7 @@ struct shapeindex
 
 //
 void readthemall(int);
-void writethemall();
+void writethemall(int);
 //
 void* relationread(u32);
 void* relationcreate(void* sc, u64 sf, u32 sct, u32 sft, void* dc, u64 df, u32 dct, u32 dft);
