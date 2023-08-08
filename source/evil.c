@@ -52,6 +52,8 @@ int kirchhoff(int argc,char** argv);
 int route(int argc,char** argv);
 int serve(int argc,char** argv);
 int substr(int argc,char** argv);
+//
+int llama(int argc,char** argv);
 
 
 
@@ -184,6 +186,10 @@ int main(int argc, char** argv)
 	}
 	else if(strcmp(argv[1], "substr") == 0){
 		substr(argc-1, argv+1);
+	}
+
+	else if(strncmp(argv[1], "llama", 5) == 0){
+		llama(argc-1, argv+1);
 	}
 
 	//

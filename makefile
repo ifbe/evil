@@ -1,162 +1,163 @@
 SRC = \
-unitlib/load.c \
-unitlib/rel/rel.c \
-unitlib/chip/chipdata.c \
-unitlib/chip/chipid.c \
-unitlib/chip/chiplib.c \
-unitlib/file/filedata.c \
-unitlib/file/filemd5.c \
-unitlib/file/filelib.c \
-unitlib/func/funcdata.c \
-unitlib/func/funcindex.c \
-unitlib/func/funclib.c \
-unitlib/pin/pindata.c \
-unitlib/pin/pinid.c \
-unitlib/pin/pinlib.c \
-unitlib/point/pointdata.c \
-unitlib/point/pointindex.c \
-unitlib/point/pointlib.c \
-unitlib/shape/shapedata.c \
-unitlib/shape/shapeindex.c \
-unitlib/shape/shapelib.c \
-unitlib/str/strdata.c \
-unitlib/str/strhash.c \
-unitlib/str/strlib.c \
-source/extra/2d.c \
-source/extra/3d.c \
-source/extra/force.c \
-source/extra/inout.c \
-source/0robot/conv.c \
-source/0robot/format.c \
-source/1human/disasm/disasm.c \
-source/1human/disasm/exe/elf.c \
-source/1human/disasm/exe/mac.c \
-source/1human/disasm/exe/pe.c \
-source/1human/disasm/obj/obj.c \
-source/1human/disasm/cpu/arm64.c \
-source/1human/disasm/cpu/x8664.c \
-source/1human/reverse/follow/arm64.c \
-source/1human/reverse/follow/x8664.c \
-source/1human/reverse/travel/arm64.c \
-source/1human/reverse/travel/x8664.c \
-source/1human/compile/compile.c \
-source/1human/compile/asm/nasm.c \
-source/1human/compile/asm/gas.c \
-source/1human/compile/c/c.c \
-source/1human/learn/learn.c \
-source/1human/learn/circuit/cir.c \
-source/1human/learn/circuit/dsn.c \
-source/1human/learn/circuit/brd.c \
-source/1human/learn/data/dts.c \
-source/1human/learn/data/utf8.c \
-source/1human/learn/map/map.c \
-source/1human/learn/model/3d.c \
-source/1human/learn/model/stl.c \
-source/1human/learn/prog/asm.c \
-source/1human/learn/prog/c.c \
-source/1human/learn/prog/h.c \
-source/1human/learn/prog/cpp.c \
-source/1human/learn/prog/hpp.c \
-source/1human/learn/prog/java.c \
-source/1human/learn/test/none.c \
-source/1human/learn/test/count.c \
-source/1human/learn/test/include.c \
-source/2easyop/create.c \
-source/2easyop/delete.c \
-source/2easyop/search.c \
-source/2easyop/modify.c \
-source/3indite/render/render.c \
-source/3indite/kirchhoff/kirchhoff.c \
-source/3indite/route/route.c \
-source/3indite/serve/serve.c \
-source/3indite/substr/substr.c \
+source/libunit/load.c \
+source/libunit/rel/rel.c \
+source/libunit/chip/chipdata.c \
+source/libunit/chip/chipid.c \
+source/libunit/chip/chiplib.c \
+source/libunit/file/filedata.c \
+source/libunit/file/filemd5.c \
+source/libunit/file/filelib.c \
+source/libunit/func/funcdata.c \
+source/libunit/func/funcindex.c \
+source/libunit/func/funclib.c \
+source/libunit/pin/pindata.c \
+source/libunit/pin/pinid.c \
+source/libunit/pin/pinlib.c \
+source/libunit/point/pointdata.c \
+source/libunit/point/pointindex.c \
+source/libunit/point/pointlib.c \
+source/libunit/shape/shapedata.c \
+source/libunit/shape/shapeindex.c \
+source/libunit/shape/shapelib.c \
+source/libunit/str/strdata.c \
+source/libunit/str/strhash.c \
+source/libunit/str/strlib.c \
+source/libextra/2d.c \
+source/libextra/3d.c \
+source/libextra/force.c \
+source/libextra/inout.c \
+source/parser/1assembly/disasm/disasm.c \
+source/parser/1assembly/disasm/exe/elf.c \
+source/parser/1assembly/disasm/exe/mac.c \
+source/parser/1assembly/disasm/exe/pe.c \
+source/parser/1assembly/disasm/obj/obj.c \
+source/parser/1assembly/disasm/cpu/arm64.c \
+source/parser/1assembly/disasm/cpu/x8664.c \
+source/parser/1assembly/reverse/follow/arm64.c \
+source/parser/1assembly/reverse/follow/x8664.c \
+source/parser/1assembly/reverse/travel/arm64.c \
+source/parser/1assembly/reverse/travel/x8664.c \
+source/parser/2cfamily/compile/compile.c \
+source/parser/2cfamily/compile/asm/nasm.c \
+source/parser/2cfamily/compile/asm/gas.c \
+source/parser/2cfamily/compile/c/c.c \
+source/parser/2cfamily/learn/learn.c \
+source/parser/2cfamily/learn/circuit/cir.c \
+source/parser/2cfamily/learn/circuit/dsn.c \
+source/parser/2cfamily/learn/circuit/brd.c \
+source/parser/2cfamily/learn/data/dts.c \
+source/parser/2cfamily/learn/data/utf8.c \
+source/parser/2cfamily/learn/map/map.c \
+source/parser/2cfamily/learn/model/3d.c \
+source/parser/2cfamily/learn/model/stl.c \
+source/parser/2cfamily/learn/prog/asm.c \
+source/parser/2cfamily/learn/prog/c.c \
+source/parser/2cfamily/learn/prog/h.c \
+source/parser/2cfamily/learn/prog/cpp.c \
+source/parser/2cfamily/learn/prog/hpp.c \
+source/parser/2cfamily/learn/prog/java.c \
+source/parser/2cfamily/learn/test/none.c \
+source/parser/2cfamily/learn/test/count.c \
+source/parser/2cfamily/learn/test/include.c \
+source/operator/0format/conv.c \
+source/operator/0format/format.c \
+source/operator/1easyop/create.c \
+source/operator/1easyop/delete.c \
+source/operator/1easyop/search.c \
+source/operator/1easyop/modify.c \
+source/operator/2indite/render/render.c \
+source/operator/2indite/kirchhoff/kirchhoff.c \
+source/operator/2indite/route/route.c \
+source/operator/2indite/serve/serve.c \
+source/operator/2indite/substr/substr.c \
+source/operator/3highlevel/llama/llama2.c \
 source/evil.c
 
 cli:
 	gcc -o a.exe $(SRC) \
-	source/3indite/render/cli.c \
-	source/3indite/serve/none.c \
-	-Iunitlib -Isource -lm
+	source/operator/2indite/render/cli.c \
+	source/operator/2indite/serve/none.c \
+	-Isource/libunit -Isource -lm
 win:
 	gcc -o a.exe $(SRC) \
-	source/3indite/render/cli.c \
-	source/3indite/serve/iocp.c \
-	-Iunitlib -Isource -lgdi32 -lws2_32 -lpthread -lm
+	source/operator/2indite/render/cli.c \
+	source/operator/2indite/serve/iocp.c \
+	-Isource/libunit -Isource -lgdi32 -lws2_32 -lpthread -lm
 mac:
 	gcc -o a.exe $(SRC) \
-	source/3indite/render/cli.c \
-	source/3indite/serve/kqueue.c \
-	-Iunitlib -Isource -lm
+	source/operator/2indite/render/cli.c \
+	source/operator/2indite/serve/kqueue.c \
+	-Isource/libunit -Isource -lm
 linux:
 	gcc -o a.exe $(SRC) \
-	source/3indite/render/cli.c \
-	source/3indite/serve/epoll.c \
-	-Iunitlib -Isource -lm
+	source/operator/2indite/render/cli.c \
+	source/operator/2indite/serve/epoll.c \
+	-Isource/libunit -Isource -lm
 
 winqt:
-	moc -i source/3indite/render/qt.cpp -o source/3indite/render/qt.moc.cpp
-	g++ -std=c++17 -IC:\Qt\6.0.2\mingw81_64\include -c source/3indite/render/qt.cpp -o qt.o
+	moc -i source/operator/2indite/render/qt.cpp -o source/operator/2indite/render/qt.moc.cpp
+	g++ -std=c++17 -IC:\Qt\6.0.2\mingw81_64\include -c source/operator/2indite/render/qt.cpp -o qt.o
 	gcc -o a.exe $(SRC) \
 	qt.o \
-	source/3indite/serve/none.c \
-	-Iunitlib -Isource \
+	source/operator/2indite/serve/none.c \
+	-Isource/libunit -Isource \
 	-LC:\Qt\6.0.2\mingw81_64\lib -lQt6Core -lQt6Gui -lQt6Widgets \
 	-lm -lstdc++
 macqt:
-	moc -i source/3indite/render/qt.cpp -o source/3indite/render/qt.moc.cpp
-	clang++ -std=c++17 -I/usr/local/opt/qt@6/include -c source/3indite/render/qt.cpp -o qt.o
+	moc -i source/operator/2indite/render/qt.cpp -o source/operator/2indite/render/qt.moc.cpp
+	clang++ -std=c++17 -I/usr/local/opt/qt@6/include -c source/operator/2indite/render/qt.cpp -o qt.o
 	gcc -o a.exe $(SRC) \
 	qt.o \
-	source/3indite/serve/none.c \
-	-Iunitlib -Isource \
+	source/operator/2indite/serve/none.c \
+	-Isource/libunit -Isource \
 	-F/usr/local/opt/qt@6/lib -framework QtCore -framework QtGui -framework QtWidgets \
 	-lm -lc++
 linuxqt:
-	clang++ -std=c++17 -I/usr/local/opt/qt@6/include -c source/3indite/render/qt.cpp -o qt.o
+	clang++ -std=c++17 -I/usr/local/opt/qt@6/include -c source/operator/2indite/render/qt.cpp -o qt.o
 	gcc -o a.exe $(SRC) \
 	qt.o \
-	source/3indite/serve/none.c \
-	-Iunitlib -Isource \
+	source/operator/2indite/serve/none.c \
+	-Isource/libunit -Isource \
 	-lm -lc++
 
 
 winglut:
 	gcc -o a.exe $(SRC) \
-	source/3indite/render/glut.c \
-	source/3indite/serve/none.c \
-	-Iunitlib -Isource \
+	source/operator/2indite/render/glut.c \
+	source/operator/2indite/serve/none.c \
+	-Isource/libunit -Isource \
 	-lgdi32 -lws2_32 -lpthread -lfreeglut -lglu32 -lglew32 -lopengl32 -lm
 macglut:
 	gcc -o a.exe $(SRC) \
-	source/3indite/render/glut.c \
-	source/3indite/serve/none.c \
-	-Iunitlib -Isource \
+	source/operator/2indite/render/glut.c \
+	source/operator/2indite/serve/none.c \
+	-Isource/libunit -Isource \
 	-lglut -lm -lGLEW -framework OpenGL
 linuxglut:
 	gcc -o a.exe $(SRC) \
-	source/3indite/render/glut.c \
-	source/3indite/serve/none.c \
-	-Iunitlib -Isource \
+	source/operator/2indite/render/glut.c \
+	source/operator/2indite/serve/none.c \
+	-Isource/libunit -Isource \
 	-lm
 
 winglfw:
 	gcc -o a.exe $(SRC) \
-	source/3indite/render/glfw.c \
-	source/3indite/serve/none.c \
-	-Iunitlib -Isource \
+	source/operator/2indite/render/glfw.c \
+	source/operator/2indite/serve/none.c \
+	-Isource/libunit -Isource \
 	-lglfw3 -lglew32 -lglu32 -lopengl32 \
 	-lgdi32 -lws2_32 -lstrmiids -lpthread -lm
 macglfw:
 	gcc -o a.exe $(SRC) \
-	source/3indite/render/glfw.c \
-	source/3indite/serve/none.c \
-	-Iunitlib -Isource \
+	source/operator/2indite/render/glfw.c \
+	source/operator/2indite/serve/none.c \
+	-Isource/libunit -Isource \
 	-lGLEW -lglfw -lm -framework OpenGL
 linuxglfw:
 	gcc -o a.exe $(SRC) \
-	source/3indite/render/glfw.c \
-	source/3indite/serve/none.c \
-	-Iunitlib -Isource \
+	source/operator/2indite/render/glfw.c \
+	source/operator/2indite/serve/none.c \
+	-Isource/libunit -Isource \
 	-lgdi32 -lglu32 -lws2_32 -lglfw3 -lglew32 -lopengl32 -lpthread -lm
 
 clean:
