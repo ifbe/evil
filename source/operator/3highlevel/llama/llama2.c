@@ -16,15 +16,35 @@
 #define s16 signed short
 #define s32 signed int
 #define s64 signed long long
-#ifndef O_BINARY
-	#define O_BINARY 0x0
-#endif
 #define DEBUG_WEIGHT 0
 #define DEBUG_TOKEN 0
 #define DEBUG_PROMPT 1
 
+#ifndef O_BINARY
+	#define O_BINARY 0x0
+#endif
+int input(void*, int);
 
-typedef struct {
+#ifdef _WIN32
+#include <windows.h>
+int clock_gettime(int clk_id, struct timespec *tp) {
+	u32 ticks = GetTickCount();
+	tp->tv_sec = ticks / 1000;
+	tp->tv_nsec = (ticks % 1000) * 1000000;
+	return 0;
+}
+#elif __APPLE__
+#define lseek64 lseek
+#endif
+long time_in_ms() {
+	// return time in milliseconds, for benchmarking the model speed
+	struct timespec time;
+	clock_gettime(CLOCK_REALTIME, &time);
+	return time.tv_sec * 1000 + time.tv_nsec / 1000000;
+}
+
+
+typedef struct{
 	int dim; // transformer dimension
 	int hidden_dim; // for ffn layers
 	int n_layers; // number of layers
@@ -32,36 +52,65 @@ typedef struct {
 	int n_kv_heads; // number of key/value heads (can be < query heads because of multiquery)
 	int vocab_size; // vocabulary size, usually 256 (byte-level)
 	int seq_len; // max sequence length
-} Config;
-typedef struct {
+
 	// token embedding table
-	unsigned long long token_embedding_table;    // (vocab_size, dim)
+	unsigned long long token_embedding_table_size;    // (vocab_size, dim)
 	// weights for rmsnorms
-	unsigned long long rms_att_weight; // (layer, dim) rmsnorm weights
-	unsigned long long rms_ffn_weight; // (layer, dim)
+	unsigned long long rms_att_weight_size; // (layer, dim) rmsnorm weights
 	// weights for matmuls
-	unsigned long long wq; // (layer, dim, dim)
-	unsigned long long wk; // (layer, dim, dim)
-	unsigned long long wv; // (layer, dim, dim)
-	unsigned long long wo; // (layer, dim, dim)
+	unsigned long long wq_size; // (layer, dim, dim)
+	unsigned long long wk_size; // (layer, dim, dim)
+	unsigned long long wv_size; // (layer, dim, dim)
+	unsigned long long wo_size; // (layer, dim, dim)
+	//
+	unsigned long long rms_ffn_weight_size; // (layer, dim)
 	// weights for ffn
-	unsigned long long w1; // (layer, hidden_dim, dim)
-	unsigned long long w2; // (layer, dim, hidden_dim)
-	unsigned long long w3; // (layer, hidden_dim, dim)
+	unsigned long long w1_size; // (layer, hidden_dim, dim)
+	unsigned long long w2_size; // (layer, dim, hidden_dim)
+	unsigned long long w3_size; // (layer, hidden_dim, dim)
 	// final rmsnorm
-	unsigned long long rms_final_weight; // (dim,)
+	unsigned long long rms_final_weight_size; // (dim,)
 	// freq_cis for RoPE relatively positional embeddings
-	unsigned long long freq_cis_real; // (seq_len, dim/2)
-	unsigned long long freq_cis_imag; // (seq_len, dim/2)
+	unsigned long long freq_cis_real_size; // (seq_len, dim/2)
+	unsigned long long freq_cis_imag_size; // (seq_len, dim/2)
 	// (optional) classifier weights for the logits, on the last layer
-	unsigned long long wcls;
-} TransformerWeights;
-typedef struct{
-	Config cfg;
-	TransformerWeights weight;
-	void* wholefile;
+	unsigned long long wcls_size;
+
+	float* token_embedding_table_data;
+	float* rms_att_weight_data;
+	float* wq_data;
+	float* wk_data;
+	float* wv_data;
+	float* wo_data;
+	float* rms_ffn_weight_data;
+	float* w1_data;
+	float* w2_data;
+	float* w3_data;
+	float* rms_final_weight_data;
+	float* freq_cis_real_data;
+	float* freq_cis_imag_data;
+	float* wcls_data;
 }modelinfo;
-void llama_initmodel(char* modelpath, modelinfo* modelinfo)
+s64 fullread(int fd, void* buf, u64 len)
+{
+#define eachread 0x1000000
+	s64 j;
+	s64 ret = -1;
+	for(j=0;j<len;j+=eachread){
+		if(j+eachread > len){
+			ret = read(fd, buf+j, len-j);
+		}
+		else{
+			ret = read(fd, buf+j, eachread);
+		}
+		//printf("offs=%llx,ret=%llx, errno=%d\n", j, ret, errno);
+		if(eachread == ret)continue;
+		if(ret >= 0)return j+ret;
+		return -1;
+	}
+	return len;
+}
+void llama_initmodel(char* modelpath, modelinfo* mi)
 {
 	int fd = open(modelpath, O_RDONLY|O_BINARY);
 	if(fd <= 0){
@@ -69,19 +118,18 @@ void llama_initmodel(char* modelpath, modelinfo* modelinfo)
 		return;
 	}
 
-	Config* cfg = &modelinfo->cfg;
-	if(0 == cfg){
+	if(0 == mi){
 		printf("errno=%d@malloc\n", errno);
 		goto theend;
 	}
 
-	int ret = lseek(fd, 0, SEEK_SET);
+	s64 ret = lseek64(fd, 0, SEEK_SET);
 	if(ret < 0){
 		printf("errno=%d@lseek\n", errno);
 		goto releasehead;
 	}
 
-	ret = read(fd, cfg, 0x1c);
+	ret = read(fd, mi, 0x1c);
 	if(ret <= 0){
 		printf("errno=%d@read\n", errno);
 		goto releasehead;
@@ -89,179 +137,250 @@ void llama_initmodel(char* modelpath, modelinfo* modelinfo)
 
 
 	printf("--------header--------\n");
-	printf("dim=%d\n", cfg->dim);
-	printf("hidden_dim=%d\n", cfg->hidden_dim);
-	printf("n_layers=%d\n", cfg->n_layers);
-	printf("n_heads=%d\n", cfg->n_heads);
-	printf("n_kv_heads=%d\n", cfg->n_kv_heads);
-	printf("vocab_size=%d\n", cfg->vocab_size);
-	printf("seq_len=%d\n", cfg->seq_len);
-	int shared_weights = cfg->vocab_size > 0 ? 1 : 0;
+	int shared_weights = mi->vocab_size > 0 ? 1 : 0;
+	if(mi->vocab_size < 0)mi->vocab_size = -mi->vocab_size;
+
+	printf("dim=%d\n", mi->dim);
+	printf("hidden_dim=%d\n", mi->hidden_dim);
+	printf("n_layers=%d\n", mi->n_layers);
+	printf("n_heads=%d\n", mi->n_heads);
+	printf("n_kv_heads=%d\n", mi->n_kv_heads);
+	printf("vocab_size=%d\n", mi->vocab_size);
+	printf("seq_len=%d\n", mi->seq_len);
 	printf("shared_weights=%d\n",shared_weights);
+
 	printf("\n");
 
 
-	float body[0x200];
-	TransformerWeights* weight = &modelinfo->weight;
-
-
+	float* body;
+	u64 offs = 0x1c;
+	u64 next = 0;
 	printf("--------weight--------\n");
-	unsigned long long offs = 0x1c;
-	weight->token_embedding_table = offs;
-	printf("%llx@token_embedding_table\n", offs);
-	if(DEBUG_WEIGHT){
-		lseek(fd, offs-16, SEEK_SET);
-		read(fd, body, 0x20);
-		printf("-	%f,%f,%f,%f\n",body[0],body[1],body[2],body[3]);
-		printf("+	%f,%f,%f,%f\n",body[4],body[5],body[6],body[7]);
-	}
 
-	offs += cfg->vocab_size * cfg->dim * 4;
-	weight->rms_att_weight = offs;
-	printf("%llx@rms_att_weight\n", offs);
+	//token_embedding_table
+	mi->token_embedding_table_size = mi->vocab_size * mi->dim * 4;
+	mi->token_embedding_table_data = malloc(mi->token_embedding_table_size);
+	next = offs + mi->token_embedding_table_size;
+	printf("[%16llx,%16llx)@%p:token_embedding_table\n", offs, next, mi->token_embedding_table_data);
+	lseek64(fd, offs, SEEK_SET);
+	ret = fullread(fd, mi->token_embedding_table_data, mi->token_embedding_table_size);
+	printf("	%llx / %llx\n", ret, mi->token_embedding_table_size);
 	if(DEBUG_WEIGHT){
-		lseek(fd, offs-16, SEEK_SET);
-		read(fd, body, 0x20);
+		body = mi->token_embedding_table_data;
 		printf("-	%f,%f,%f,%f\n",body[0],body[1],body[2],body[3]);
-		printf("+	%f,%f,%f,%f\n",body[4],body[5],body[6],body[7]);
 	}
+	offs = next;
 
-	offs += cfg->n_layers * cfg->dim * 4;
-	weight->wq = offs;
-	printf("%llx@wq\n", offs);
+	//rms_att_weight
+	mi->rms_att_weight_size = mi->n_layers * mi->dim * 4;
+	mi->rms_att_weight_data = malloc(mi->rms_att_weight_size);
+	next += mi->rms_att_weight_size;
+	printf("[%16llx,%16llx)@%p:rms_att_weight\n", offs, next, mi->rms_att_weight_data);
+	lseek64(fd, offs, SEEK_SET);
+	ret = fullread(fd, mi->rms_att_weight_data, mi->rms_att_weight_size);
+	printf("	%llx / %llx\n", ret, mi->rms_att_weight_size);
 	if(DEBUG_WEIGHT){
-		lseek(fd, offs-16, SEEK_SET);
-		read(fd, body, 0x20);
+		body = mi->rms_att_weight_data;
 		printf("-	%f,%f,%f,%f\n",body[0],body[1],body[2],body[3]);
-		printf("+	%f,%f,%f,%f\n",body[4],body[5],body[6],body[7]);
 	}
+	offs = next;
 
-	offs += cfg->n_layers * cfg->dim * cfg->dim * 4;
-	weight->wk = offs;
-	printf("%llx@wk\n", offs);
+	//wq
+	mi->wq_size = (u64)mi->n_layers * mi->dim * mi->dim * 4;
+	mi->wq_data = malloc(mi->wq_size);
+	next += mi->wq_size;
+	printf("[%16llx,%16llx)@%p:wq\n", offs, next, mi->wq_data);
+	lseek64(fd, offs, SEEK_SET);
+	ret = fullread(fd, mi->wq_data, mi->wq_size);
+	printf("	%llx / %llx\n", ret, mi->wq_size);
 	if(DEBUG_WEIGHT){
-		lseek(fd, offs-16, SEEK_SET);
-		read(fd, body, 0x20);
+		body = mi->wq_data;
 		printf("-	%f,%f,%f,%f\n",body[0],body[1],body[2],body[3]);
-		printf("+	%f,%f,%f,%f\n",body[4],body[5],body[6],body[7]);
 	}
+	offs = next;
 
-	offs += cfg->n_layers * cfg->dim * cfg->dim * 4;
-	weight->wv = offs;
-	printf("%llx@wv\n", offs);
+	//wk
+	mi->wk_size = (u64)mi->n_layers * mi->dim * mi->dim * 4;
+	mi->wk_data = malloc(mi->wk_size);
+	next += mi->wk_size;
+	printf("[%16llx,%16llx)@%p:wk\n", offs, next, mi->wk_data);
+	lseek64(fd, offs, SEEK_SET);
+	ret = fullread(fd, mi->wk_data, mi->wk_size);
+	printf("	%llx / %llx\n", ret, mi->wk_size);
 	if(DEBUG_WEIGHT){
-		lseek(fd, offs-16, SEEK_SET);
-		read(fd, body, 0x20);
+		body = mi->wk_data;
 		printf("-	%f,%f,%f,%f\n",body[0],body[1],body[2],body[3]);
-		printf("+	%f,%f,%f,%f\n",body[4],body[5],body[6],body[7]);
 	}
+	offs = next;
 
-	offs += cfg->n_layers * cfg->dim * cfg->dim * 4;
-	weight->wo = offs;
-	printf("%llx@wo\n", offs);
+	//wv
+	mi->wv_size = (u64)mi->n_layers * mi->dim * mi->dim * 4;
+	mi->wv_data = malloc(mi->wv_size);
+	next += mi->wv_size;
+	printf("[%16llx,%16llx)@%p:wv\n", offs, next, mi->wv_data);
+	lseek64(fd, offs, SEEK_SET);
+	ret = fullread(fd, mi->wv_data, mi->wv_size);
+	printf("	%llx / %llx\n", ret, mi->wv_size);
 	if(DEBUG_WEIGHT){
-		lseek(fd, offs-16, SEEK_SET);
-		read(fd, body, 0x20);
+		body = mi->wv_data;
 		printf("-	%f,%f,%f,%f\n",body[0],body[1],body[2],body[3]);
-		printf("+	%f,%f,%f,%f\n",body[4],body[5],body[6],body[7]);
 	}
+	offs = next;
 
-	offs += cfg->n_layers * cfg->dim * cfg->dim * 4;
-	weight->rms_ffn_weight = offs;
-	printf("%llx@rms_ffn_weight\n", offs);
+	//wo
+	mi->wo_size = (u64)mi->n_layers * mi->dim * mi->dim * 4;
+	mi->wo_data = malloc(mi->wo_size);
+	next += mi->wo_size;
+	printf("[%16llx,%16llx)@%p:wo\n", offs, next, mi->wo_data);
+	lseek64(fd, offs, SEEK_SET);
+	ret = fullread(fd, mi->wo_data, mi->wo_size);
+	printf("	%llx / %llx\n", ret, mi->wo_size);
 	if(DEBUG_WEIGHT){
-		lseek(fd, offs-16, SEEK_SET);
-		read(fd, body, 0x20);
+		body = mi->wo_data;
 		printf("-	%f,%f,%f,%f\n",body[0],body[1],body[2],body[3]);
-		printf("+	%f,%f,%f,%f\n",body[4],body[5],body[6],body[7]);
 	}
+	offs = next;
 
-	offs += cfg->n_layers * cfg->dim * 4;
-	weight->w1 = offs;
-	printf("%llx@w1\n", offs);
+	//rms_ffn_weight
+	mi->rms_ffn_weight_size = (u64)mi->n_layers * mi->dim * 4;
+	mi->rms_ffn_weight_data = malloc(mi->rms_ffn_weight_size);
+	next += mi->rms_ffn_weight_size;
+	printf("[%16llx,%16llx)@%p:rms_ffn_weight\n", offs, next, mi->rms_ffn_weight_data);
+	lseek64(fd, offs, SEEK_SET);
+	ret = fullread(fd, mi->rms_ffn_weight_data, mi->rms_ffn_weight_size);
+	printf("	%llx / %llx\n", ret, mi->rms_ffn_weight_size);
 	if(DEBUG_WEIGHT){
-		lseek(fd, offs-16, SEEK_SET);
-		read(fd, body, 0x20);
+		body = mi->rms_ffn_weight_data;
 		printf("-	%f,%f,%f,%f\n",body[0],body[1],body[2],body[3]);
-		printf("+	%f,%f,%f,%f\n",body[4],body[5],body[6],body[7]);
 	}
+	offs = next;
 
-	offs += cfg->n_layers * cfg->dim * cfg->hidden_dim * 4;
-	weight->w2 = offs;
-	printf("%llx@w2\n", offs);
+	//w1
+	mi->w1_size = (u64)mi->n_layers * mi->dim * mi->hidden_dim * 4;
+	mi->w1_data = malloc(mi->w1_size);
+	next += mi->w1_size;
+	printf("[%16llx,%16llx)@%p:w1\n", offs, next, mi->w1_data);
+	lseek64(fd, offs, SEEK_SET);
+	ret = fullread(fd, mi->w1_data, mi->w1_size);
+	printf("	%llx / %llx\n", ret, mi->w1_size);
 	if(DEBUG_WEIGHT){
-		lseek(fd, offs-16, SEEK_SET);
-		read(fd, body, 0x20);
+		body = mi->w1_data;
 		printf("-	%f,%f,%f,%f\n",body[0],body[1],body[2],body[3]);
-		printf("+	%f,%f,%f,%f\n",body[4],body[5],body[6],body[7]);
 	}
+	offs = next;
 
-	offs += cfg->n_layers * cfg->hidden_dim * cfg->dim * 4;
-	weight->w3 = offs;
-	printf("%llx@w3\n", offs);
+	//w2
+	mi->w2_size = (u64)mi->n_layers * mi->hidden_dim * mi->dim * 4;
+	mi->w2_data = malloc(mi->w2_size);
+	next += mi->w2_size;
+	printf("[%16llx,%16llx)@%p:w2\n", offs, next, mi->w2_data);
+	lseek64(fd, offs, SEEK_SET);
+	ret = fullread(fd, mi->w2_data, mi->w2_size);
+	printf("	%llx / %llx\n", ret, mi->w2_size);
 	if(DEBUG_WEIGHT){
-		lseek(fd, offs-16, SEEK_SET);
-		read(fd, body, 0x20);
+		body = mi->w2_data;
 		printf("-	%f,%f,%f,%f\n",body[0],body[1],body[2],body[3]);
-		printf("+	%f,%f,%f,%f\n",body[4],body[5],body[6],body[7]);
 	}
+	offs = next;
 
-	offs += cfg->n_layers * cfg->dim * cfg->hidden_dim * 4;
-	weight->rms_final_weight = offs;
-	printf("%llx@rms_final_weight\n", offs);
+	//w3
+	mi->w3_size = (u64)mi->n_layers * mi->dim * mi->hidden_dim * 4;
+	mi->w3_data = malloc(mi->w3_size);
+	next += mi->w3_size;
+	printf("[%16llx,%16llx)@%p:w3\n", offs, next, mi->w3_data);
+	lseek64(fd, offs, SEEK_SET);
+	ret = fullread(fd, mi->w3_data, mi->w3_size);
+	printf("	%llx / %llx\n", ret, mi->w3_size);
 	if(DEBUG_WEIGHT){
-		lseek(fd, offs-16, SEEK_SET);
-		read(fd, body, 0x20);
+		body = mi->w3_data;
 		printf("-	%f,%f,%f,%f\n",body[0],body[1],body[2],body[3]);
-		printf("+	%f,%f,%f,%f\n",body[4],body[5],body[6],body[7]);
 	}
+	offs = next;
 
-	offs += cfg->dim * 4;
-	weight->freq_cis_real = offs;
-	printf("%llx@freq_cis_real\n", offs);
+	//rms_final_weight
+	mi->rms_final_weight_size = (u64)mi->dim * 4;
+	mi->rms_final_weight_data = malloc(mi->rms_final_weight_size);
+	next += mi->rms_final_weight_size;
+	printf("[%16llx,%16llx)@%p:rms_final_weight\n", offs, next, mi->rms_final_weight_data);
+	lseek64(fd, offs, SEEK_SET);
+	ret = fullread(fd, mi->rms_final_weight_data, mi->rms_final_weight_size);
+	printf("	%llx / %llx\n", ret, mi->rms_final_weight_size);
 	if(DEBUG_WEIGHT){
-		lseek(fd, offs-16, SEEK_SET);
-		read(fd, body, 0x20);
+		body = mi->rms_final_weight_data;
 		printf("-	%f,%f,%f,%f\n",body[0],body[1],body[2],body[3]);
-		printf("+	%f,%f,%f,%f\n",body[4],body[5],body[6],body[7]);
 	}
+	offs = next;
 
-	int head_size = cfg->dim / cfg->n_heads;
-	offs += cfg->seq_len * head_size / 2 * 4;
-	weight->freq_cis_imag = offs;
+	//freq_cis_real
+	int head_size = mi->dim / mi->n_heads;
+	mi->freq_cis_real_size = (u64)mi->seq_len * head_size / 2 * 4;
+	mi->freq_cis_real_data = malloc(mi->freq_cis_real_size);
+	next += mi->freq_cis_real_size;
+	printf("[%16llx,%16llx)@%p:freq_cis_real\n", offs, next, mi->freq_cis_real_data);
+	lseek64(fd, offs, SEEK_SET);
+	ret = fullread(fd, mi->freq_cis_real_data, mi->freq_cis_real_size);
+	printf("	%llx / %llx\n", ret, mi->freq_cis_real_size);
 	if(DEBUG_WEIGHT){
-		printf("%llx@freq_cis_imag\n", offs);
-		lseek(fd, offs-16, SEEK_SET);
-		read(fd, body, 0x20);
+		body = mi->freq_cis_real_data;
 		printf("-	%f,%f,%f,%f\n",body[0],body[1],body[2],body[3]);
-		printf("+	%f,%f,%f,%f\n",body[4],body[5],body[6],body[7]);
 	}
+	offs = next;
 
-	offs += cfg->seq_len * head_size / 2 * 4;
+	//freq_cis_imag
+	mi->freq_cis_imag_size = (u64)mi->seq_len * head_size / 2 * 4;
+	mi->freq_cis_imag_data = malloc(mi->freq_cis_imag_size);
+	next += mi->freq_cis_imag_size;
+	printf("[%16llx,%16llx)@%p:freq_cis_imag\n", offs, next, mi->freq_cis_imag_data);
+	lseek64(fd, offs, SEEK_SET);
+	ret = fullread(fd, mi->freq_cis_imag_data, mi->freq_cis_imag_size);
+	printf("	%llx / %llx\n", ret, mi->freq_cis_imag_size);
+	if(DEBUG_WEIGHT){
+		body = mi->freq_cis_imag_data;
+		printf("-	%f,%f,%f,%f\n",body[0],body[1],body[2],body[3]);
+	}
+	offs = next;
+
 	if(shared_weights){
-		weight->wcls = 0x1c;
-		printf("1c@wcls\n");
+		mi->wcls_size = 0;
+		mi->wcls_data = mi->token_embedding_table_data;
+		printf("shared_weights@wcls\n");
 	}
 	else{
-		weight->wcls = offs;
-		printf("%llx@wcls\n", offs);
+		mi->wcls_size = (u64)mi->vocab_size * mi->dim * 4;
+		mi->wcls_data = malloc(mi->wcls_size);
+		next += mi->wcls_size;
+		printf("[%16llx,%16llx)@%p:wcls\n", offs, next, mi->wcls_data);
+		lseek64(fd, offs, SEEK_SET);
+		ret = fullread(fd, mi->wcls_data, mi->wcls_size);
+		printf("	%llx / %llx\n", ret, mi->wcls_size);
 		if(DEBUG_WEIGHT){
-			lseek(fd, offs-16, SEEK_SET);
-			read(fd, body, 0x20);
+			body = mi->wcls_data;
 			printf("-	%f,%f,%f,%f\n",body[0],body[1],body[2],body[3]);
-			printf("+	%f,%f,%f,%f\n",body[4],body[5],body[6],body[7]);
 		}
+		offs = next;
 	}
 
-	if(!shared_weights)offs += cfg->vocab_size * cfg->dim * 4;
-	printf("%llx@total_file\n", offs);
-
-	modelinfo->wholefile = malloc(offs);
-	printf("malloc all: %p\n",modelinfo->wholefile);
-
-	lseek(fd, 0, SEEK_SET);
-	ret = read(fd, modelinfo->wholefile, offs);
-	printf("reading all: %x/%llx\n\n", ret, offs);
+	if(	!mi->token_embedding_table_data||
+		!mi->rms_att_weight_data||
+		!mi->wq_data||
+		!mi->wk_data||
+		!mi->wv_data||
+		!mi->wo_data||
+		!mi->rms_ffn_weight_data||
+		!mi->w1_data||
+		!mi->w2_data||
+		!mi->w3_data||
+		!mi->rms_final_weight_data||
+		!mi->freq_cis_real_data||
+		!mi->freq_cis_imag_data||
+		!mi->wcls_data)
+	{
+        fprintf(stderr, "malloc failed!\n");
+        exit(EXIT_FAILURE);
+    }
+	else{
+		printf("malloc ok\n\n");
+	}
 
 releasebody:
 	//free(body);
@@ -274,78 +393,151 @@ theend:
 }
 
 
-typedef struct {    // current wave of activations
-	int x; // activation at current time stamp (dim,)
-	int xb; // same, but inside a residual branch (dim,)
-	int xb2; // an additional buffer just for convenience (dim,)
-	int hb; // buffer for hidden dimension in the ffn (hidden_dim,)
-	int hb2; // buffer for hidden dimension in the ffn (hidden_dim,)
-	int q; // query (dim,)
-	int k; // key (dim,)
-	int v; // value (dim,)
-	int att; // buffer for scores/attention values (n_heads, seq_len)
-	int logits; // output logits
-	// kv cache
-	int key_cache;   // (layer, seq_len, dim)
-	int value_cache; // (layer, seq_len, dim)
+typedef struct {
+	// activation at current time stamp (dim,)
+	u64 x_size;
+	float *x_data;
 
-	void* wholememory;
+	// same, but inside a residual branch (dim,)
+	u64 xb_size;
+	float *xb_data;
+
+	// an additional buffer just for convenience (dim,)
+	u64 xb2_size;
+	float *xb2_data;
+
+	// buffer for hidden dimension in the ffn (hidden_dim,)
+	u64 hb_size;
+	float *hb_data;
+
+	// buffer for hidden dimension in the ffn (hidden_dim,)
+	u64 hb2_size;
+	float *hb2_data;
+
+	// query (dim,)
+	u64 q_size;
+	float *q_data;
+
+	// key (dim,)
+	u64 k_size;
+	float *k_data;
+
+	// value (dim,)
+	u64 v_size;
+	float *v_data;
+
+	// buffer for scores/attention values (n_heads, seq_len)
+	u64 att_size;
+	float *att_data;
+
+	// output logits
+	u64 logits_size;
+	float *logits_data;
+
+	// kv cache// (layer, seq_len, dim)
+	u64 key_cache_size;
+	float* key_cache_data;
+
+	// (layer, seq_len, dim)
+	u64 value_cache_size;
+	float* value_cache_data;
 } RunState;
 void llama_initstate(modelinfo* mi, RunState* rs) {
-	Config* cfg = &mi->cfg;
-	int offs = 0;
+	u64 offs = 0;
+	u64 next = 0;
 	printf("--------state--------\n");
 
-	rs->x = offs;
-	printf("%x@x\n", offs);
-	offs += cfg->dim * 4;
+	rs->x_size = mi->dim * 4;
+	rs->x_data = malloc(rs->x_size);
+	next = offs + rs->x_size;
+	printf("[%16llx,%16llx)@%p:x\n", offs, next, rs->x_data);
+	offs = next;
 
-	rs->xb = offs;
-	printf("%x@xb\n", offs);
-	offs += cfg->dim * 4;
+	rs->xb_size = mi->dim * 4;
+	rs->xb_data = malloc( rs->xb_size);
+	next = offs + rs->xb_size;
+	printf("[%16llx,%16llx)@%p:xb\n", offs, next, rs->xb_data);
+	offs = next;
 
-	rs->xb2 = offs;
-	printf("%x@xb2\n", offs);
-	offs += cfg->dim * 4;
+	rs->xb2_size = mi->dim * 4;
+	rs->xb2_data = malloc( rs->xb2_size);
+	next = offs + rs->xb2_size;
+	printf("[%16llx,%16llx)@%p:xb2\n", offs, next, rs->xb2_data);
+	offs = next;
 
-	rs->hb = offs;
-	printf("%x@hb\n", offs);
-	offs += cfg->hidden_dim * 4;
+	rs->hb_size = mi->hidden_dim * 4;
+	rs->hb_data = malloc( rs->hb_size);
+	next = offs + rs->hb_size;
+	printf("[%16llx,%16llx)@%p:hb\n", offs, next, rs->hb_data);
+	offs = next;
 
-	rs->hb2 = offs;
-	printf("%x@hb2\n", offs);
-	offs += cfg->hidden_dim * 4;
+	rs->hb2_size = mi->hidden_dim * 4;
+	rs->hb2_data = malloc( rs->hb2_size);
+	next = offs + rs->hb2_size;
+	printf("[%16llx,%16llx)@%p:hb2\n", offs, next, rs->hb2_data);
+	offs = next;
 
-	rs->q = offs;
-	printf("%x@q\n", offs);
-	offs += cfg->dim * 4;
+	rs->q_size = mi->dim * 4;
+	rs->q_data = malloc( rs->q_size);
+	next = offs + rs->q_size;
+	printf("[%16llx,%16llx)@%p:q\n", offs, next, rs->q_data);
+	offs = next;
 
-	rs->k = offs;
-	printf("%x@k\n", offs);
-	offs += cfg->dim * 4;
+	rs->k_size = mi->dim * 4;
+	rs->k_data = malloc( rs->k_size);
+	next = offs + rs->k_size;
+	printf("[%16llx,%16llx)@%p:k\n", offs, next, rs->k_data);
+	offs = next;
 
-	rs->v = offs;
-	printf("%x@v\n", offs);
-	offs += cfg->dim * 4;
+	rs->v_size = mi->dim * 4;
+	rs->v_data = malloc( rs->v_size);
+	next = offs + rs->v_size;
+	printf("[%16llx,%16llx)@%p:v\n", offs, next, rs->v_data);
+	offs = next;
 
-	rs->att = offs;
-	printf("%x@att\n", offs);
-	offs += cfg->n_heads * cfg->seq_len * 4;
+	rs->att_size = mi->n_heads * mi->seq_len * 4;
+	rs->att_data = malloc( rs->att_size);
+	next = offs + rs->att_size;
+	printf("[%16llx,%16llx)@%p:att\n", offs, next, rs->att_data);
+	offs = next;
 
-	rs->logits = offs;
-	printf("%x@logits\n", offs);
-	offs += cfg->vocab_size * 4;
+	rs->logits_size = mi->vocab_size * 4;
+	rs->logits_data = malloc( rs->logits_size);
+	next = offs + rs->logits_size;
+	printf("[%16llx,%16llx)@%p:logits\n", offs, next, rs->logits_data);
+	offs = next;
 
-	rs->key_cache = offs;
-	printf("%x@key_cache\n", offs);
-	offs += cfg->n_layers * cfg->seq_len * cfg->dim * 4;
+	rs->key_cache_size = mi->n_layers * mi->seq_len * mi->dim * 4;
+	rs->key_cache_data = malloc( rs->key_cache_size);
+	next = offs + rs->key_cache_size;
+	printf("[%16llx,%16llx)@%p:key_cache\n", offs, next, rs->key_cache_data);
+	offs = next;
 
-	rs->value_cache = offs;
-	printf("%x@value_cache\n", offs);
-	offs += cfg->n_layers * cfg->seq_len * cfg->dim * 4;
+	rs->value_cache_size = mi->n_layers * mi->seq_len * mi->dim * 4;
+	rs->value_cache_data = malloc( rs->value_cache_size);
+	next = offs + rs->value_cache_size;
+	printf("[%16llx,%16llx)@%p:value_cache\n", offs, next, rs->value_cache_data);
+	offs = next;
 
-	printf("%x@toatl_size\n\n", offs);
-	rs->wholememory = malloc(offs);
+    if(	!rs->x_data ||
+		!rs->xb_data ||
+		!rs->xb2_data ||
+		!rs->hb_data ||
+		!rs->hb2_data ||
+		!rs->q_data ||
+		!rs->k_data ||
+		!rs->v_data ||
+		!rs->att_data ||
+		!rs->logits_data ||
+		!rs->key_cache_data ||
+		!rs->value_cache_data)
+	{
+        fprintf(stderr, "malloc failed!\n");
+        exit(EXIT_FAILURE);
+    }
+	else{
+		printf("malloc ok\n\n");
+	}
 }
 
 
@@ -356,7 +548,6 @@ typedef struct{
 }tokeninfo;
 void llama_inittokenizer(char* tokenpath, modelinfo* mi, tokeninfo* ti)
 {
-	Config* cfg = &mi->cfg;
 	printf("--------inittokenizer--------\n");
 
 	FILE *file = fopen(tokenpath, "rb");
@@ -367,14 +558,14 @@ void llama_inittokenizer(char* tokenpath, modelinfo* mi, tokeninfo* ti)
 	printf("max_token_length=%d\n",max_token_length);
 	ti->max_token_length = max_token_length;
 
-	float* vocab_scores = (float*)malloc(cfg->vocab_size * sizeof(float));
+	float* vocab_scores = (float*)malloc(mi->vocab_size * sizeof(float));
 	ti->vocab_scores = vocab_scores;
 
-	char** vocab = (char**)malloc(cfg->vocab_size * sizeof(char*));
+	char** vocab = (char**)malloc(mi->vocab_size * sizeof(char*));
 	ti->vocab = vocab;
 
 	int len;
-	for (int i = 0; i < cfg->vocab_size; i++) {
+	for (int i = 0; i < mi->vocab_size; i++) {
 		if (fread(vocab_scores + i, sizeof(float), 1, file) != 1) { printf("failed read\n"); return;}
 		if (fread(&len, sizeof(int), 1, file) != 1) { printf("failed read\n"); return; }
 		vocab[i] = (char *)malloc(len + 1);
@@ -396,21 +587,13 @@ void llama_initprompt(modelinfo* mi, TokenState* ts)
 {
 	printf("--------initprompt--------\n");
 
-	Config* cfg = &mi->cfg;
-	ts->prompt_tokens = (int*)malloc(cfg->seq_len * sizeof(int));
+	ts->prompt_tokens = (int*)malloc(mi->seq_len * sizeof(int));
 	ts->num_prompt_tokens = 0;
 	printf("size=%d,addr=%p\n", ts->num_prompt_tokens, ts->prompt_tokens);
 
 	printf("\n");
 }
 
-
-long time_in_ms() {
-	// return time in milliseconds, for benchmarking the model speed
-	struct timespec time;
-	clock_gettime(CLOCK_REALTIME, &time);
-	return time.tv_sec * 1000 + time.tv_nsec / 1000000;
-}
 
 int str_lookup(char *str, char **vocab, int vocab_size) {
 	// find the first perfect match for str in vocab, return its index or -1 if not found
@@ -476,8 +659,7 @@ void llama_prompt(modelinfo* mi, tokeninfo* tk, TokenState* ts, char* prompt)
 		goto theend;
 	}
 
-	Config* cfg = &mi->cfg;
-	bpe_encode(prompt, tk->vocab, tk->vocab_scores, cfg->vocab_size, tk->max_token_length, ts->prompt_tokens, &ts->num_prompt_tokens);
+	bpe_encode(prompt, tk->vocab, tk->vocab_scores, mi->vocab_size, tk->max_token_length, ts->prompt_tokens, &ts->num_prompt_tokens);
 	for(int j=0;j<ts->num_prompt_tokens;j++){
 		if(DEBUG_PROMPT){
 			int t = ts->prompt_tokens[j];
@@ -542,42 +724,39 @@ void matmul(float* xout, float* x, float* w, int n, int d) {
 	}
 }
 void transformer(int token, int pos, modelinfo* mi, RunState* rs) {
-	Config* cfg = &mi->cfg;
-	TransformerWeights* w = &mi->weight;
+	float* w_token_embedding_table = mi->token_embedding_table_data;
+	float* w_rms_att_weight = mi->rms_att_weight_data;
+	float* w_rms_ffn_weight = mi->rms_ffn_weight_data;
+	float* w_wq = mi->wq_data;
+	float* w_wk = mi->wk_data;
+	float* w_wv = mi->wv_data;
+	float* w_wo = mi->wo_data;
+	float* w_w1 = mi->w1_data;
+	float* w_w2 = mi->w2_data;
+	float* w_w3 = mi->w3_data;
+	float* w_rms_final_weight = mi->rms_final_weight_data;
+	float* w_freq_cis_real = mi->freq_cis_real_data;
+	float* w_freq_cis_imag = mi->freq_cis_imag_data;
+	float* w_wcls = mi->wcls_data;
 
-	float* w_token_embedding_table = mi->wholefile + w->token_embedding_table;
-	float* w_rms_att_weight = mi->wholefile + w->rms_att_weight;
-	float* w_rms_ffn_weight = mi->wholefile + w->rms_ffn_weight;
-	float* w_wq = mi->wholefile + w->wq;
-	float* w_wk = mi->wholefile + w->wk;
-	float* w_wv = mi->wholefile + w->wv;
-	float* w_wo = mi->wholefile + w->wo;
-	float* w_w1 = mi->wholefile + w->w1;
-	float* w_w2 = mi->wholefile + w->w2;
-	float* w_w3 = mi->wholefile + w->w3;
-	float* w_rms_final_weight = mi->wholefile + w->rms_final_weight;
-	float* w_freq_cis_real = mi->wholefile + w->freq_cis_real;
-	float* w_freq_cis_imag = mi->wholefile + w->freq_cis_imag;
-	float* w_wcls = mi->wholefile + w->wcls;
-
-	float* rs_x = rs->wholememory + rs->x;
-	float* rs_xb = rs->wholememory + rs->xb;
-	float* rs_xb2 = rs->wholememory + rs->xb2;
-	float* rs_hb = rs->wholememory + rs->hb;
-	float* rs_hb2 = rs->wholememory + rs->hb2;
-	float* rs_q = rs->wholememory + rs->q;
-	float* rs_k = rs->wholememory + rs->k;
-	float* rs_v = rs->wholememory + rs->v;
-	float* rs_att = rs->wholememory + rs->att;
-	float* rs_logits = rs->wholememory + rs->logits;
-	float* rs_key_cache = rs->wholememory + rs->key_cache;
-	float* rs_value_cache = rs->wholememory + rs->value_cache;
+	float* rs_x = rs->x_data;
+	float* rs_xb = rs->xb_data;
+	float* rs_xb2 = rs->xb2_data;
+	float* rs_hb = rs->hb_data;
+	float* rs_hb2 = rs->hb2_data;
+	float* rs_q = rs->q_data;
+	float* rs_k = rs->k_data;
+	float* rs_v = rs->v_data;
+	float* rs_att = rs->att_data;
+	float* rs_logits = rs->logits_data;
+	float* rs_key_cache = rs->key_cache_data;
+	float* rs_value_cache = rs->value_cache_data;
 
 	// a few convenience variables
 	float *x = rs_x;
-	int dim = cfg->dim;
-	int hidden_dim =  cfg->hidden_dim;
-	int head_size = dim / cfg->n_heads;
+	int dim = mi->dim;
+	int hidden_dim =  mi->hidden_dim;
+	int head_size = dim / mi->n_heads;
 
 	// copy the token embedding into x
 	float* content_row = &(w_token_embedding_table[token * dim]);
@@ -588,7 +767,7 @@ void transformer(int token, int pos, modelinfo* mi, RunState* rs) {
 	float* freq_cis_imag_row = w_freq_cis_imag + pos * head_size / 2;
 
 	// forward all the layers
-	for(int l = 0; l < cfg->n_layers; l++) {
+	for(int l = 0; l < mi->n_layers; l++) {
 
 		// attention rmsnorm
 		rmsnorm(rs_xb, x, w_rms_att_weight + l*dim, dim);
@@ -599,7 +778,7 @@ void transformer(int token, int pos, modelinfo* mi, RunState* rs) {
 		matmul(rs_v, rs_xb, w_wv + l*dim*dim, dim, dim);
 
 		// apply RoPE rotation to the q and k vectors for each head
-		for (int h = 0; h < cfg->n_heads; h++) {
+		for (int h = 0; h < mi->n_heads; h++) {
 			// get the q and k vectors for this head
 			float* q = rs_q + h * head_size;
 			float* k = rs_k + h * head_size;
@@ -619,7 +798,7 @@ void transformer(int token, int pos, modelinfo* mi, RunState* rs) {
 		}
 
 		// save key,value at this time step (pos) to our kv cache
-		int loff = l * cfg->seq_len * dim; // kv cache layer offset for convenience
+		int loff = l * mi->seq_len * dim; // kv cache layer offset for convenience
 		float* key_cache_row = rs_key_cache + loff + pos * dim;
 		float* value_cache_row = rs_value_cache + loff + pos * dim;
 		memcpy(key_cache_row, rs_k, dim*sizeof(*key_cache_row));
@@ -628,11 +807,11 @@ void transformer(int token, int pos, modelinfo* mi, RunState* rs) {
 		// multihead attention. iterate over all heads
 		int h;
 		#pragma omp parallel for private(h)
-		for (h = 0; h < cfg->n_heads; h++) {
+		for (h = 0; h < mi->n_heads; h++) {
 			// get the query vector for this head
 			float* q = rs_q + h * head_size;
 			// attention scores for this head
-			float* att = rs_att + h * cfg->seq_len;
+			float* att = rs_att + h * mi->seq_len;
 			// iterate over all timesteps, including the current one
 			for (int t = 0; t <= pos; t++) {
 				// get the key vector for this head and at this timestep
@@ -702,14 +881,14 @@ void transformer(int token, int pos, modelinfo* mi, RunState* rs) {
 	//printf("222\n");
 
 	// classifier into logits
-	//printf("%p,%p,%p,%d,%d\n",rs_logits, x, w_wcls, cfg->dim, cfg->vocab_size);
+	//printf("%p,%p,%p,%d,%d\n",rs_logits, x, w_wcls, mi->dim, mi->vocab_size);
 	//printf("wcls=%p,offs=%x\n",w_wcls, (void*)w_wcls-mi->wholefile);
 	//matmul_debug=1;
-	matmul(rs_logits, x, w_wcls, cfg->dim, cfg->vocab_size);
+	matmul(rs_logits, x, w_wcls, mi->dim, mi->vocab_size);
 	//matmul_debug=0;
 	//printf("333\n");
 }
-unsigned long long rng_seed;
+unsigned long long rng_seed = 0x8273478;
 unsigned int random_u32() {
 	// xorshift rng: https://en.wikipedia.org/wiki/Xorshift#xorshift.2A
 	rng_seed ^= rng_seed >> 12;
@@ -747,8 +926,7 @@ int argmax(float* v, int n) {
 void llama_runmodel(modelinfo* mi, RunState* rs, tokeninfo* ti, TokenState* ts)
 {
 	printf("--------runmodel--------\n");
-	Config* cfg = &mi->cfg;
-	float* rs_logits = rs->wholememory + rs->logits;
+	float* rs_logits = rs->logits_data;
 
 	// start the main loop
 	long start = 0;  // used to time our code, only initialized after first iteration
@@ -757,7 +935,7 @@ void llama_runmodel(modelinfo* mi, RunState* rs, tokeninfo* ti, TokenState* ts)
 	int pos = 0;     // position in the sequence
 	//printf("<s>\n"); // explicit print the initial BOS token for stylistic symmetry reasons
 
-	float temperature = 0.0;
+	float temperature = 1.0;
 	int steps = 256;
 	while (pos < steps) {
 		//printf("pos=%d,steps=%d\n",pos,steps);
@@ -772,27 +950,35 @@ void llama_runmodel(modelinfo* mi, RunState* rs, tokeninfo* ti, TokenState* ts)
 			// sample the next token
 			if (temperature == 0.0f) {
 				// greedy argmax sampling: take the token with the highest probability
-				next = argmax(rs_logits, cfg->vocab_size);
+				next = argmax(rs_logits, mi->vocab_size);
 			} else {
 				// apply the temperature to the logits
-				for (int q=0; q<cfg->vocab_size; q++) { rs_logits[q] /= temperature; }
+				for (int q=0; q<mi->vocab_size; q++) { rs_logits[q] /= temperature; }
 				// apply softmax to the logits to get the probabilities for next token
-				softmax(rs_logits, cfg->vocab_size);
+				softmax(rs_logits, mi->vocab_size);
 				// we sample from this distribution to get the next token
-				next = sample(rs_logits, cfg->vocab_size);
+				next = sample(rs_logits, mi->vocab_size);
 			}
 		}
+		pos++;
+
+		if(1 == next)break;
 
 		// following BOS token (1), sentencepiece decoder strips any leading whitespace (see PR #89)
 		char *token_str = (token == 1 && ti->vocab[next][0] == ' ') ? ti->vocab[next]+1 : ti->vocab[next];
 		printf("%s", token_str);
 		fflush(stdout);
-
-		// advance forward
 		token = next;
-		pos++;
+
 		// init our timer here because the first iteration is slow due to memmap
 		if (start == 0) { start = time_in_ms(); }
+	}
+	printf("\n\n");
+
+	if (pos > 1) {
+		long end = time_in_ms();
+		printf("--------evaluate--------\n");
+		printf("achieved tok/s: %f\n", (pos-1) / (double)(end-start)*1000);
 	}
 }
 
@@ -813,7 +999,11 @@ void llama(int argc, char** argv)
 
 	char str[256];
 	do{
-		gets(str);
+		printf("--------userinput--------\n");
+		printf(">>");
+		input(str, 256);
+		printf("\n");
+
 		llama_prompt(&model, &token, &tokenstate, str);
 		llama_runmodel(&model, &modelstate, &token, &tokenstate);
 		printf("\n");
