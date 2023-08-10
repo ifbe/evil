@@ -24,6 +24,7 @@
 	#define O_BINARY 0x0
 #endif
 int input(void*, int);
+int output(void*, int);
 
 #ifdef _WIN32
 #include <windows.h>
@@ -691,7 +692,9 @@ void llama_prompt(modelinfo* mi, tokeninfo* tk, TokenState* ts, char* prompt)
 	for(int j=0;j<ts->num_prompt_tokens;j++){
 		if(DEBUG_PROMPT){
 			int t = ts->prompt_tokens[j];
-			printf("%d: token=%d, string=%s\n", j, t, tk->vocab[t]);
+			printf("%d: token=%d, string=", j, t);
+			output(tk->vocab[t], strlen(tk->vocab[t]));
+			printf("\n");
 		}
 	}
 
@@ -994,7 +997,8 @@ void llama_runmodel(modelinfo* mi, RunState* rs, tokeninfo* ti, TokenState* ts)
 
 		// following BOS token (1), sentencepiece decoder strips any leading whitespace (see PR #89)
 		char *token_str = (token == 1 && ti->vocab[next][0] == ' ') ? ti->vocab[next]+1 : ti->vocab[next];
-		printf("%s", token_str);
+		//printf("%s", token_str);
+		output(token_str, strlen(token_str));
 		fflush(stdout);
 		token = next;
 
