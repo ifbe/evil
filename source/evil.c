@@ -74,12 +74,13 @@ void help(char* buf)
 	printf("	a.exe delete\n");
 	printf("	a.exe change\n");
 	printf("	a.exe search str func@c0 file@20\n");
-	printf("show off\n");
+	printf("special operation\n");
 	printf("	a.exe render\n");
 	printf("	a.exe kirchhoff\n");
 	printf("	a.exe route\n");
 	printf("	a.exe serve\n");
 	printf("	a.exe substr\n");
+	printf("	OMP_NUM_THREADS=4 a.exe llama llama7b.bin tokenizer.bin\n");
 }
 int main(int argc, char** argv)
 {

@@ -16,7 +16,7 @@
 #define s16 signed short
 #define s32 signed int
 #define s64 signed long long
-#define DEBUG_WEIGHT 0
+#define DEBUG_WEIGHT 1
 #define DEBUG_TOKEN 0
 #define DEBUG_PROMPT 1
 
@@ -91,6 +91,18 @@ typedef struct{
 	float* freq_cis_imag_data;
 	float* wcls_data;
 }modelinfo;
+void printfloat(void* addr)
+{
+	float* p = addr;
+	printf("float:	%f,%f,%f,%f\n", p[0], p[1], p[2], p[3]);
+}
+void printu8(void* addr)
+{
+	int j;
+	u8* p = addr;
+	printf("uchar8:	");
+	for(j=0;j<16;j++)printf("%2x%c", p[j], j==15?'\n':',');
+}
 s64 fullread(int fd, void* buf, u64 len)
 {
 #define eachread 0x1000000
@@ -152,7 +164,6 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	printf("\n");
 
 
-	float* body;
 	u64 offs = 0x1c;
 	u64 next = 0;
 	printf("--------weight--------\n");
@@ -164,10 +175,10 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	printf("[%16llx,%16llx)@%p:token_embedding_table\n", offs, next, mi->token_embedding_table_data);
 	lseek64(fd, offs, SEEK_SET);
 	ret = fullread(fd, mi->token_embedding_table_data, mi->token_embedding_table_size);
-	printf("	%llx / %llx\n", ret, mi->token_embedding_table_size);
+	printf("read:	%llx / %llx\n", ret, mi->token_embedding_table_size);
 	if(DEBUG_WEIGHT){
-		body = mi->token_embedding_table_data;
-		printf("-	%f,%f,%f,%f\n",body[0],body[1],body[2],body[3]);
+		printu8(mi->token_embedding_table_data);
+		printfloat(mi->token_embedding_table_data);
 	}
 	offs = next;
 
@@ -178,10 +189,10 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	printf("[%16llx,%16llx)@%p:rms_att_weight\n", offs, next, mi->rms_att_weight_data);
 	lseek64(fd, offs, SEEK_SET);
 	ret = fullread(fd, mi->rms_att_weight_data, mi->rms_att_weight_size);
-	printf("	%llx / %llx\n", ret, mi->rms_att_weight_size);
+	printf("read:	%llx / %llx\n", ret, mi->rms_att_weight_size);
 	if(DEBUG_WEIGHT){
-		body = mi->rms_att_weight_data;
-		printf("-	%f,%f,%f,%f\n",body[0],body[1],body[2],body[3]);
+		printu8(mi->rms_att_weight_data);
+		printfloat(mi->rms_att_weight_data);
 	}
 	offs = next;
 
@@ -192,10 +203,10 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	printf("[%16llx,%16llx)@%p:wq\n", offs, next, mi->wq_data);
 	lseek64(fd, offs, SEEK_SET);
 	ret = fullread(fd, mi->wq_data, mi->wq_size);
-	printf("	%llx / %llx\n", ret, mi->wq_size);
+	printf("read:	%llx / %llx\n", ret, mi->wq_size);
 	if(DEBUG_WEIGHT){
-		body = mi->wq_data;
-		printf("-	%f,%f,%f,%f\n",body[0],body[1],body[2],body[3]);
+		printu8(mi->wq_data);
+		printfloat(mi->wq_data);
 	}
 	offs = next;
 
@@ -206,10 +217,10 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	printf("[%16llx,%16llx)@%p:wk\n", offs, next, mi->wk_data);
 	lseek64(fd, offs, SEEK_SET);
 	ret = fullread(fd, mi->wk_data, mi->wk_size);
-	printf("	%llx / %llx\n", ret, mi->wk_size);
+	printf("read:	%llx / %llx\n", ret, mi->wk_size);
 	if(DEBUG_WEIGHT){
-		body = mi->wk_data;
-		printf("-	%f,%f,%f,%f\n",body[0],body[1],body[2],body[3]);
+		printu8(mi->wk_data);
+		printfloat(mi->wk_data);
 	}
 	offs = next;
 
@@ -220,10 +231,10 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	printf("[%16llx,%16llx)@%p:wv\n", offs, next, mi->wv_data);
 	lseek64(fd, offs, SEEK_SET);
 	ret = fullread(fd, mi->wv_data, mi->wv_size);
-	printf("	%llx / %llx\n", ret, mi->wv_size);
+	printf("read:	%llx / %llx\n", ret, mi->wv_size);
 	if(DEBUG_WEIGHT){
-		body = mi->wv_data;
-		printf("-	%f,%f,%f,%f\n",body[0],body[1],body[2],body[3]);
+		printu8(mi->wv_data);
+		printfloat(mi->wv_data);
 	}
 	offs = next;
 
@@ -234,10 +245,10 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	printf("[%16llx,%16llx)@%p:wo\n", offs, next, mi->wo_data);
 	lseek64(fd, offs, SEEK_SET);
 	ret = fullread(fd, mi->wo_data, mi->wo_size);
-	printf("	%llx / %llx\n", ret, mi->wo_size);
+	printf("read:	%llx / %llx\n", ret, mi->wo_size);
 	if(DEBUG_WEIGHT){
-		body = mi->wo_data;
-		printf("-	%f,%f,%f,%f\n",body[0],body[1],body[2],body[3]);
+		printu8(mi->wo_data);
+		printfloat(mi->wo_data);
 	}
 	offs = next;
 
@@ -248,10 +259,10 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	printf("[%16llx,%16llx)@%p:rms_ffn_weight\n", offs, next, mi->rms_ffn_weight_data);
 	lseek64(fd, offs, SEEK_SET);
 	ret = fullread(fd, mi->rms_ffn_weight_data, mi->rms_ffn_weight_size);
-	printf("	%llx / %llx\n", ret, mi->rms_ffn_weight_size);
+	printf("read:	%llx / %llx\n", ret, mi->rms_ffn_weight_size);
 	if(DEBUG_WEIGHT){
-		body = mi->rms_ffn_weight_data;
-		printf("-	%f,%f,%f,%f\n",body[0],body[1],body[2],body[3]);
+		printu8(mi->rms_ffn_weight_data);
+		printfloat(mi->rms_ffn_weight_data);
 	}
 	offs = next;
 
@@ -262,10 +273,10 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	printf("[%16llx,%16llx)@%p:w1\n", offs, next, mi->w1_data);
 	lseek64(fd, offs, SEEK_SET);
 	ret = fullread(fd, mi->w1_data, mi->w1_size);
-	printf("	%llx / %llx\n", ret, mi->w1_size);
+	printf("read:	%llx / %llx\n", ret, mi->w1_size);
 	if(DEBUG_WEIGHT){
-		body = mi->w1_data;
-		printf("-	%f,%f,%f,%f\n",body[0],body[1],body[2],body[3]);
+		printu8(mi->w1_data);
+		printfloat(mi->w1_data);
 	}
 	offs = next;
 
@@ -276,10 +287,10 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	printf("[%16llx,%16llx)@%p:w2\n", offs, next, mi->w2_data);
 	lseek64(fd, offs, SEEK_SET);
 	ret = fullread(fd, mi->w2_data, mi->w2_size);
-	printf("	%llx / %llx\n", ret, mi->w2_size);
+	printf("read:	%llx / %llx\n", ret, mi->w2_size);
 	if(DEBUG_WEIGHT){
-		body = mi->w2_data;
-		printf("-	%f,%f,%f,%f\n",body[0],body[1],body[2],body[3]);
+		printu8(mi->w2_data);
+		printfloat(mi->w2_data);
 	}
 	offs = next;
 
@@ -290,10 +301,10 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	printf("[%16llx,%16llx)@%p:w3\n", offs, next, mi->w3_data);
 	lseek64(fd, offs, SEEK_SET);
 	ret = fullread(fd, mi->w3_data, mi->w3_size);
-	printf("	%llx / %llx\n", ret, mi->w3_size);
+	printf("read:	%llx / %llx\n", ret, mi->w3_size);
 	if(DEBUG_WEIGHT){
-		body = mi->w3_data;
-		printf("-	%f,%f,%f,%f\n",body[0],body[1],body[2],body[3]);
+		printu8(mi->w3_data);
+		printfloat(mi->w3_data);
 	}
 	offs = next;
 
@@ -304,10 +315,10 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	printf("[%16llx,%16llx)@%p:rms_final_weight\n", offs, next, mi->rms_final_weight_data);
 	lseek64(fd, offs, SEEK_SET);
 	ret = fullread(fd, mi->rms_final_weight_data, mi->rms_final_weight_size);
-	printf("	%llx / %llx\n", ret, mi->rms_final_weight_size);
+	printf("read:	%llx / %llx\n", ret, mi->rms_final_weight_size);
 	if(DEBUG_WEIGHT){
-		body = mi->rms_final_weight_data;
-		printf("-	%f,%f,%f,%f\n",body[0],body[1],body[2],body[3]);
+		printu8(mi->rms_final_weight_data);
+		printfloat(mi->rms_final_weight_data);
 	}
 	offs = next;
 
@@ -319,10 +330,10 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	printf("[%16llx,%16llx)@%p:freq_cis_real\n", offs, next, mi->freq_cis_real_data);
 	lseek64(fd, offs, SEEK_SET);
 	ret = fullread(fd, mi->freq_cis_real_data, mi->freq_cis_real_size);
-	printf("	%llx / %llx\n", ret, mi->freq_cis_real_size);
+	printf("read:	%llx / %llx\n", ret, mi->freq_cis_real_size);
 	if(DEBUG_WEIGHT){
-		body = mi->freq_cis_real_data;
-		printf("-	%f,%f,%f,%f\n",body[0],body[1],body[2],body[3]);
+		printu8(mi->freq_cis_real_data);
+		printfloat(mi->freq_cis_real_data);
 	}
 	offs = next;
 
@@ -333,10 +344,10 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	printf("[%16llx,%16llx)@%p:freq_cis_imag\n", offs, next, mi->freq_cis_imag_data);
 	lseek64(fd, offs, SEEK_SET);
 	ret = fullread(fd, mi->freq_cis_imag_data, mi->freq_cis_imag_size);
-	printf("	%llx / %llx\n", ret, mi->freq_cis_imag_size);
+	printf("read:	%llx / %llx\n", ret, mi->freq_cis_imag_size);
 	if(DEBUG_WEIGHT){
-		body = mi->freq_cis_imag_data;
-		printf("-	%f,%f,%f,%f\n",body[0],body[1],body[2],body[3]);
+		printu8(mi->freq_cis_imag_data);
+		printfloat(mi->freq_cis_imag_data);
 	}
 	offs = next;
 
@@ -352,10 +363,10 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 		printf("[%16llx,%16llx)@%p:wcls\n", offs, next, mi->wcls_data);
 		lseek64(fd, offs, SEEK_SET);
 		ret = fullread(fd, mi->wcls_data, mi->wcls_size);
-		printf("	%llx / %llx\n", ret, mi->wcls_size);
+		printf("read:	%llx / %llx\n", ret, mi->wcls_size);
 		if(DEBUG_WEIGHT){
-			body = mi->wcls_data;
-			printf("-	%f,%f,%f,%f\n",body[0],body[1],body[2],body[3]);
+			printu8(mi->wcls_data);
+			printfloat(mi->wcls_data);
 		}
 		offs = next;
 	}
@@ -604,16 +615,33 @@ int str_lookup(char *str, char **vocab, int vocab_size) {
 	}
 	return -1;
 }
-void bpe_encode(char *text, char **vocab, float *vocab_scores, int vocab_size, unsigned int max_token_length, int *tokens, int *n_tokens) {
+void bpe_encode(unsigned char *text, char **vocab, float *vocab_scores, int vocab_size, unsigned int max_token_length, int *tokens, int *n_tokens) {
 	
 	// a temporary buffer to merge two consecutive tokens
-	char* str_buffer = malloc((max_token_length*2+1) * sizeof(char)); // *2 for concat, +1 for null terminator
+	unsigned char* str_buffer = malloc((max_token_length*2+1) * sizeof(char)); // *2 for concat, +1 for null terminator
 
 	// first encode every individual byte in the input string
 	*n_tokens = 0; // the number of tokens
-	for (char *c = text; *c != '\0'; c++) {
-		sprintf(str_buffer, "%c", *c);
-		int id = str_lookup(str_buffer, vocab, vocab_size);
+	for (unsigned char *c = text; *c != '\0'; c++) {
+		if(*c >= 0xf0){
+			memcpy(str_buffer, c, 4);
+			str_buffer[4] = 0;
+			c += 3;
+		}
+		else if(*c >= 0xe0){
+			memcpy(str_buffer, c, 3);
+			str_buffer[3] = 0;
+			c += 2;
+		}
+		else if(*c >= 0xc0){
+			memcpy(str_buffer, c, 2);
+			str_buffer[2] = 0;
+			c += 1;
+		}
+		else{
+			sprintf((char*)str_buffer, "%c", *c);
+		}
+		int id = str_lookup((char*)str_buffer, vocab, vocab_size);
 		if (id == -1) { printf("not good\n"); exit(1);}
 		tokens[*n_tokens] = id;
 		(*n_tokens)++;
@@ -627,8 +655,8 @@ void bpe_encode(char *text, char **vocab, float *vocab_scores, int vocab_size, u
 
 		for (int i=0; i < (*n_tokens-1); i++) {
 			// check if we can merge the pair (tokens[i], tokens[i+1])
-			sprintf(str_buffer, "%s%s", vocab[tokens[i]], vocab[tokens[i+1]]);
-			int id = str_lookup(str_buffer, vocab, vocab_size);
+			sprintf((char*)str_buffer, "%s%s", vocab[tokens[i]], vocab[tokens[i+1]]);
+			int id = str_lookup((char*)str_buffer, vocab, vocab_size);
 			if (id != -1 && vocab_scores[id] > best_score) {
 				// this merge pair exists in vocab! record its score and position
 				best_score = vocab_scores[id];
@@ -659,7 +687,7 @@ void llama_prompt(modelinfo* mi, tokeninfo* tk, TokenState* ts, char* prompt)
 		goto theend;
 	}
 
-	bpe_encode(prompt, tk->vocab, tk->vocab_scores, mi->vocab_size, tk->max_token_length, ts->prompt_tokens, &ts->num_prompt_tokens);
+	bpe_encode((u8*)prompt, tk->vocab, tk->vocab_scores, mi->vocab_size, tk->max_token_length, ts->prompt_tokens, &ts->num_prompt_tokens);
 	for(int j=0;j<ts->num_prompt_tokens;j++){
 		if(DEBUG_PROMPT){
 			int t = ts->prompt_tokens[j];
@@ -983,6 +1011,21 @@ void llama_runmodel(modelinfo* mi, RunState* rs, tokeninfo* ti, TokenState* ts)
 }
 
 
+int getinputincludingcrlf(char* str, int len)
+{
+	int ret = 0;
+	int off = 0;
+	do{
+		ret = input(str+off, 256-off);
+		if(1==ret)break;
+
+		str[off+ret-1] = '\n';
+		str[off+ret] = 0;
+		off += ret;
+	}while(ret>1);
+
+	return off;
+}
 void llama(int argc, char** argv)
 {
 	modelinfo model;
@@ -1001,7 +1044,8 @@ void llama(int argc, char** argv)
 	do{
 		printf("--------userinput--------\n");
 		printf(">>");
-		input(str, 256);
+		getinputincludingcrlf(str, 256);
+		printu8(str);
 		printf("\n");
 
 		llama_prompt(&model, &token, &tokenstate, str);

@@ -83,7 +83,6 @@ clifast:
 	source/operator/2indite/render/cli.c \
 	source/operator/2indite/serve/none.c \
 	-Isource/libunit -Isource -lm
-	@echo OMP_NUM_THREADS=4 ./run out/model.bin
 
 win:
 	gcc -o a.exe $(SRC) \
