@@ -113,7 +113,7 @@ int lowlevel_input()
 	KEY_EVENT_RECORD k0, k1;
 	while(1)
 	{
-		if(!ReadConsoleInput(hStdin, irInBuf, 2, &num))
+		if(!ReadConsoleInput(hStdin, irInBuf, 1, &num))
 		{
 			printf("ReadConsoleInput");
 			return 0;
@@ -121,15 +121,16 @@ int lowlevel_input()
 		if(KEY_EVENT != irInBuf[0].EventType)continue;
 
 		k0 = irInBuf[0].Event.KeyEvent;
-		if(0 == k0.bKeyDown)continue;
 /*
-printf("num=%x,bKeyDown=%x,wRepeatCount=%x,wVirtualKeyCode=%x,wVirtualScanCode=%x,UnicodeChar=%x,dwControlKeyState=%x\n",
+printf("{num=%x,bKeyDown=%x,wRepeatCount=%x,wVirtualKeyCode=%x,wVirtualScanCode=%x,UnicodeChar=%x,dwControlKeyState=%x}\n",
 num,
 k0.bKeyDown, k0.wRepeatCount,
 k0.wVirtualKeyCode, k0.wVirtualScanCode,
 k0.uChar.UnicodeChar, k0.dwControlKeyState
 );
 */
+		if(0 == k0.bKeyDown)continue;
+
 		if(k0.uChar.AsciiChar == 0)
 		{
 			ret = k0.wVirtualKeyCode;
@@ -144,18 +145,20 @@ k0.uChar.UnicodeChar, k0.dwControlKeyState
 				continue;
 			}
 		}
-		else
+		else if(k0.uChar.UnicodeChar < 0x80)
 		{
-			ret = k0.uChar.UnicodeChar;
-			if(ret < 0x80){
-				if( (4 == ret) && (k0.dwControlKeyState&8) )return 0;
-				return ret;
+			if( (4 == k0.uChar.UnicodeChar) && (k0.dwControlKeyState&8) )return 0;
+			return k0.uChar.UnicodeChar;
+		}
+		else{
+			if(!ReadConsoleInput(hStdin, &irInBuf[1], 1, &num)){
+				printf("read unicode error\n");
+				return 0;
 			}
-
 			k1 = irInBuf[1].Event.KeyEvent;
 			//k2 = irInBuf[2].Event.KeyEvent;
 			//printf("k0=%x,k1=%x,k2=%x\n",k0.uChar.UnicodeChar,k1.uChar.UnicodeChar,k2.uChar.UnicodeChar);
-			return (ret&0xff) | ((k1.uChar.UnicodeChar&0xff) << 8);
+			return (k0.uChar.UnicodeChar&0xff) | ((k1.uChar.UnicodeChar&0xff) << 8);
 		}
 	}
 	return 0;
@@ -168,7 +171,7 @@ int input(u8* buf, int len)
 	while(1)
 	{
 		ret = lowlevel_input();
-		//printf("%x\n",ret);
+		//printf("<%x>",ret);
 		if(0 == ret)break;
 		else if(0x8 == ret){
 			if(0 == j)continue;
