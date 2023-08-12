@@ -83,6 +83,11 @@ clifast:
 	source/operator/2indite/render/cli.c \
 	source/operator/2indite/serve/none.c \
 	-Isource/libunit -Isource -lm
+cliomp:
+	gcc -fopenmp -Ofast -o a.exe $(SRC) \
+	source/operator/2indite/render/cli.c \
+	source/operator/2indite/serve/none.c \
+	-Isource/libunit -Isource -lm
 
 win:
 	gcc -o a.exe $(SRC) \

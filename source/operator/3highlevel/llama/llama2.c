@@ -616,7 +616,7 @@ int str_lookup(char *str, char **vocab, int vocab_size) {
 	}
 	return -1;
 }
-void bpe_encode(unsigned char *text, char **vocab, float *vocab_scores, int vocab_size, unsigned int max_token_length, int *tokens, int *n_tokens) {
+int bpe_encode(unsigned char *text, char **vocab, float *vocab_scores, int vocab_size, unsigned int max_token_length, int *tokens, int *n_tokens) {
 	
 	// a temporary buffer to merge two consecutive tokens
 	unsigned char* str_buffer = malloc((max_token_length*2+1) * sizeof(char)); // *2 for concat, +1 for null terminator
@@ -643,7 +643,10 @@ void bpe_encode(unsigned char *text, char **vocab, float *vocab_scores, int voca
 			sprintf((char*)str_buffer, "%c", *c);
 		}
 		int id = str_lookup((char*)str_buffer, vocab, vocab_size);
-		if (id == -1) { printf("not good\n"); exit(1);}
+		if (id == -1) {
+			printf("not good: %x,%x,%x,%x\n",str_buffer[0],str_buffer[1],str_buffer[2],str_buffer[3]);
+			return -1;
+		}
 		tokens[*n_tokens] = id;
 		(*n_tokens)++;
 	}
@@ -680,15 +683,17 @@ void bpe_encode(unsigned char *text, char **vocab, float *vocab_scores, int voca
 	}
 
 	free(str_buffer);
+	return 1;
 }
-void llama_prompt(modelinfo* mi, tokeninfo* tk, TokenState* ts, char* prompt)
+int llama_prompt(modelinfo* mi, tokeninfo* tk, TokenState* ts, char* prompt)
 {
 	printf("--------prompt--------\n");
 	if(NULL == prompt){
 		goto theend;
 	}
 
-	bpe_encode((u8*)prompt, tk->vocab, tk->vocab_scores, mi->vocab_size, tk->max_token_length, ts->prompt_tokens, &ts->num_prompt_tokens);
+	int ret = bpe_encode((u8*)prompt, tk->vocab, tk->vocab_scores, mi->vocab_size, tk->max_token_length, ts->prompt_tokens, &ts->num_prompt_tokens);
+	if(ret<0)return -1;
 	for(int j=0;j<ts->num_prompt_tokens;j++){
 		if(DEBUG_PROMPT){
 			int t = ts->prompt_tokens[j];
@@ -700,6 +705,7 @@ void llama_prompt(modelinfo* mi, tokeninfo* tk, TokenState* ts, char* prompt)
 
 theend:
 	printf("\n");
+	return ts->num_prompt_tokens;
 }
 
 
@@ -1023,7 +1029,8 @@ int getinputincludingcrlf(char* str, int len)
 		ret = input(str+off, 256-off);
 		if(1==ret)break;
 
-		str[off+ret-1] = '\n';
+		if(off>1)str[off-1] = '\n';
+
 		str[off+ret] = 0;
 		off += ret;
 	}while(ret>1);
@@ -1044,6 +1051,7 @@ void llama(int argc, char** argv)
 	TokenState tokenstate;
 	llama_initprompt(&model, &tokenstate);
 
+	int ret;
 	char str[256];
 	do{
 		printf("--------userinput--------\n");
@@ -1052,7 +1060,9 @@ void llama(int argc, char** argv)
 		printu8(str);
 		printf("\n");
 
-		llama_prompt(&model, &token, &tokenstate, str);
+		ret = llama_prompt(&model, &token, &tokenstate, str);
+		if(ret<0)continue;
+
 		llama_runmodel(&model, &modelstate, &token, &tokenstate);
 		printf("\n");
 	}while(1);
