@@ -45,6 +45,8 @@ long time_in_ms() {
 }
 
 
+#define MODELWEIGHT_HEADSIZE 0x1c
+#define MODELWEIGHT_FLOATTYPE float
 typedef struct{
 	int dim; // transformer dimension
 	int hidden_dim; // for ffn layers
@@ -77,25 +79,25 @@ typedef struct{
 	// (optional) classifier weights for the logits, on the last layer
 	unsigned long long wcls_size;
 
-	float* token_embedding_table_data;
-	float* rms_att_weight_data;
-	float* wq_data;
-	float* wk_data;
-	float* wv_data;
-	float* wo_data;
-	float* rms_ffn_weight_data;
-	float* w1_data;
-	float* w2_data;
-	float* w3_data;
-	float* rms_final_weight_data;
-	float* freq_cis_real_data;
-	float* freq_cis_imag_data;
-	float* wcls_data;
+	MODELWEIGHT_FLOATTYPE* token_embedding_table_data;
+	MODELWEIGHT_FLOATTYPE* rms_att_weight_data;
+	MODELWEIGHT_FLOATTYPE* wq_data;
+	MODELWEIGHT_FLOATTYPE* wk_data;
+	MODELWEIGHT_FLOATTYPE* wv_data;
+	MODELWEIGHT_FLOATTYPE* wo_data;
+	MODELWEIGHT_FLOATTYPE* rms_ffn_weight_data;
+	MODELWEIGHT_FLOATTYPE* w1_data;
+	MODELWEIGHT_FLOATTYPE* w2_data;
+	MODELWEIGHT_FLOATTYPE* w3_data;
+	MODELWEIGHT_FLOATTYPE* rms_final_weight_data;
+	MODELWEIGHT_FLOATTYPE* freq_cis_real_data;
+	MODELWEIGHT_FLOATTYPE* freq_cis_imag_data;
+	MODELWEIGHT_FLOATTYPE* wcls_data;
 }modelinfo;
 void printfloat(void* addr)
 {
-	float* p = addr;
-	printf("float:	%f,%f,%f,%f\n", p[0], p[1], p[2], p[3]);
+	MODELWEIGHT_FLOATTYPE* p = addr;
+	printf("float:	%f,%f,%f,%f\n", (float)p[0], (float)p[1], (float)p[2], (float)p[3]);
 }
 void printu8(void* addr)
 {
@@ -142,7 +144,7 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 		goto releasehead;
 	}
 
-	ret = read(fd, mi, 0x1c);
+	ret = read(fd, mi, MODELWEIGHT_HEADSIZE);
 	if(ret <= 0){
 		printf("errno=%d@read\n", errno);
 		goto releasehead;
@@ -165,12 +167,12 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	printf("\n");
 
 
-	u64 offs = 0x1c;
+	u64 offs = MODELWEIGHT_HEADSIZE;
 	u64 next = 0;
 	printf("--------weight--------\n");
 
 	//token_embedding_table
-	mi->token_embedding_table_size = mi->vocab_size * mi->dim * 4;
+	mi->token_embedding_table_size = mi->vocab_size * mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	mi->token_embedding_table_data = malloc(mi->token_embedding_table_size);
 	next = offs + mi->token_embedding_table_size;
 	printf("[%16llx,%16llx)@%p:token_embedding_table\n", offs, next, mi->token_embedding_table_data);
@@ -184,7 +186,7 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	offs = next;
 
 	//rms_att_weight
-	mi->rms_att_weight_size = mi->n_layers * mi->dim * 4;
+	mi->rms_att_weight_size = mi->n_layers * mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	mi->rms_att_weight_data = malloc(mi->rms_att_weight_size);
 	next += mi->rms_att_weight_size;
 	printf("[%16llx,%16llx)@%p:rms_att_weight\n", offs, next, mi->rms_att_weight_data);
@@ -198,7 +200,7 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	offs = next;
 
 	//wq
-	mi->wq_size = (u64)mi->n_layers * mi->dim * mi->dim * 4;
+	mi->wq_size = (u64)mi->n_layers * mi->dim * mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	mi->wq_data = malloc(mi->wq_size);
 	next += mi->wq_size;
 	printf("[%16llx,%16llx)@%p:wq\n", offs, next, mi->wq_data);
@@ -212,7 +214,7 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	offs = next;
 
 	//wk
-	mi->wk_size = (u64)mi->n_layers * mi->dim * mi->dim * 4;
+	mi->wk_size = (u64)mi->n_layers * mi->dim * mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	mi->wk_data = malloc(mi->wk_size);
 	next += mi->wk_size;
 	printf("[%16llx,%16llx)@%p:wk\n", offs, next, mi->wk_data);
@@ -226,7 +228,7 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	offs = next;
 
 	//wv
-	mi->wv_size = (u64)mi->n_layers * mi->dim * mi->dim * 4;
+	mi->wv_size = (u64)mi->n_layers * mi->dim * mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	mi->wv_data = malloc(mi->wv_size);
 	next += mi->wv_size;
 	printf("[%16llx,%16llx)@%p:wv\n", offs, next, mi->wv_data);
@@ -240,7 +242,7 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	offs = next;
 
 	//wo
-	mi->wo_size = (u64)mi->n_layers * mi->dim * mi->dim * 4;
+	mi->wo_size = (u64)mi->n_layers * mi->dim * mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	mi->wo_data = malloc(mi->wo_size);
 	next += mi->wo_size;
 	printf("[%16llx,%16llx)@%p:wo\n", offs, next, mi->wo_data);
@@ -254,7 +256,7 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	offs = next;
 
 	//rms_ffn_weight
-	mi->rms_ffn_weight_size = (u64)mi->n_layers * mi->dim * 4;
+	mi->rms_ffn_weight_size = (u64)mi->n_layers * mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	mi->rms_ffn_weight_data = malloc(mi->rms_ffn_weight_size);
 	next += mi->rms_ffn_weight_size;
 	printf("[%16llx,%16llx)@%p:rms_ffn_weight\n", offs, next, mi->rms_ffn_weight_data);
@@ -268,7 +270,7 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	offs = next;
 
 	//w1
-	mi->w1_size = (u64)mi->n_layers * mi->dim * mi->hidden_dim * 4;
+	mi->w1_size = (u64)mi->n_layers * mi->dim * mi->hidden_dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	mi->w1_data = malloc(mi->w1_size);
 	next += mi->w1_size;
 	printf("[%16llx,%16llx)@%p:w1\n", offs, next, mi->w1_data);
@@ -282,7 +284,7 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	offs = next;
 
 	//w2
-	mi->w2_size = (u64)mi->n_layers * mi->hidden_dim * mi->dim * 4;
+	mi->w2_size = (u64)mi->n_layers * mi->hidden_dim * mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	mi->w2_data = malloc(mi->w2_size);
 	next += mi->w2_size;
 	printf("[%16llx,%16llx)@%p:w2\n", offs, next, mi->w2_data);
@@ -296,7 +298,7 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	offs = next;
 
 	//w3
-	mi->w3_size = (u64)mi->n_layers * mi->dim * mi->hidden_dim * 4;
+	mi->w3_size = (u64)mi->n_layers * mi->dim * mi->hidden_dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	mi->w3_data = malloc(mi->w3_size);
 	next += mi->w3_size;
 	printf("[%16llx,%16llx)@%p:w3\n", offs, next, mi->w3_data);
@@ -310,7 +312,7 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	offs = next;
 
 	//rms_final_weight
-	mi->rms_final_weight_size = (u64)mi->dim * 4;
+	mi->rms_final_weight_size = (u64)mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	mi->rms_final_weight_data = malloc(mi->rms_final_weight_size);
 	next += mi->rms_final_weight_size;
 	printf("[%16llx,%16llx)@%p:rms_final_weight\n", offs, next, mi->rms_final_weight_data);
@@ -325,7 +327,7 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 
 	//freq_cis_real
 	int head_size = mi->dim / mi->n_heads;
-	mi->freq_cis_real_size = (u64)mi->seq_len * head_size / 2 * 4;
+	mi->freq_cis_real_size = (u64)mi->seq_len * head_size / 2 * sizeof(MODELWEIGHT_FLOATTYPE);
 	mi->freq_cis_real_data = malloc(mi->freq_cis_real_size);
 	next += mi->freq_cis_real_size;
 	printf("[%16llx,%16llx)@%p:freq_cis_real\n", offs, next, mi->freq_cis_real_data);
@@ -339,7 +341,7 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	offs = next;
 
 	//freq_cis_imag
-	mi->freq_cis_imag_size = (u64)mi->seq_len * head_size / 2 * 4;
+	mi->freq_cis_imag_size = (u64)mi->seq_len * head_size / 2 * sizeof(MODELWEIGHT_FLOATTYPE);
 	mi->freq_cis_imag_data = malloc(mi->freq_cis_imag_size);
 	next += mi->freq_cis_imag_size;
 	printf("[%16llx,%16llx)@%p:freq_cis_imag\n", offs, next, mi->freq_cis_imag_data);
@@ -358,7 +360,7 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 		printf("shared_weights@wcls\n");
 	}
 	else{
-		mi->wcls_size = (u64)mi->vocab_size * mi->dim * 4;
+		mi->wcls_size = (u64)mi->vocab_size * mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
 		mi->wcls_data = malloc(mi->wcls_size);
 		next += mi->wcls_size;
 		printf("[%16llx,%16llx)@%p:wcls\n", offs, next, mi->wcls_data);
@@ -408,124 +410,124 @@ theend:
 typedef struct {
 	// activation at current time stamp (dim,)
 	u64 x_size;
-	float *x_data;
+	MODELWEIGHT_FLOATTYPE *x_data;
 
 	// same, but inside a residual branch (dim,)
 	u64 xb_size;
-	float *xb_data;
+	MODELWEIGHT_FLOATTYPE *xb_data;
 
 	// an additional buffer just for convenience (dim,)
 	u64 xb2_size;
-	float *xb2_data;
+	MODELWEIGHT_FLOATTYPE *xb2_data;
 
 	// buffer for hidden dimension in the ffn (hidden_dim,)
 	u64 hb_size;
-	float *hb_data;
+	MODELWEIGHT_FLOATTYPE *hb_data;
 
 	// buffer for hidden dimension in the ffn (hidden_dim,)
 	u64 hb2_size;
-	float *hb2_data;
+	MODELWEIGHT_FLOATTYPE *hb2_data;
 
 	// query (dim,)
 	u64 q_size;
-	float *q_data;
+	MODELWEIGHT_FLOATTYPE *q_data;
 
 	// key (dim,)
 	u64 k_size;
-	float *k_data;
+	MODELWEIGHT_FLOATTYPE *k_data;
 
 	// value (dim,)
 	u64 v_size;
-	float *v_data;
+	MODELWEIGHT_FLOATTYPE *v_data;
 
 	// buffer for scores/attention values (n_heads, seq_len)
 	u64 att_size;
-	float *att_data;
+	MODELWEIGHT_FLOATTYPE *att_data;
 
 	// output logits
 	u64 logits_size;
-	float *logits_data;
+	MODELWEIGHT_FLOATTYPE *logits_data;
 
 	// kv cache// (layer, seq_len, dim)
 	u64 key_cache_size;
-	float* key_cache_data;
+	MODELWEIGHT_FLOATTYPE* key_cache_data;
 
 	// (layer, seq_len, dim)
 	u64 value_cache_size;
-	float* value_cache_data;
+	MODELWEIGHT_FLOATTYPE* value_cache_data;
 } RunState;
 void llama_initstate(modelinfo* mi, RunState* rs) {
 	u64 offs = 0;
 	u64 next = 0;
 	printf("--------state--------\n");
 
-	rs->x_size = mi->dim * 4;
+	rs->x_size = mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	rs->x_data = malloc(rs->x_size);
 	next = offs + rs->x_size;
 	printf("[%16llx,%16llx)@%p:x\n", offs, next, rs->x_data);
 	offs = next;
 
-	rs->xb_size = mi->dim * 4;
+	rs->xb_size = mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	rs->xb_data = malloc( rs->xb_size);
 	next = offs + rs->xb_size;
 	printf("[%16llx,%16llx)@%p:xb\n", offs, next, rs->xb_data);
 	offs = next;
 
-	rs->xb2_size = mi->dim * 4;
+	rs->xb2_size = mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	rs->xb2_data = malloc( rs->xb2_size);
 	next = offs + rs->xb2_size;
 	printf("[%16llx,%16llx)@%p:xb2\n", offs, next, rs->xb2_data);
 	offs = next;
 
-	rs->hb_size = mi->hidden_dim * 4;
+	rs->hb_size = mi->hidden_dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	rs->hb_data = malloc( rs->hb_size);
 	next = offs + rs->hb_size;
 	printf("[%16llx,%16llx)@%p:hb\n", offs, next, rs->hb_data);
 	offs = next;
 
-	rs->hb2_size = mi->hidden_dim * 4;
+	rs->hb2_size = mi->hidden_dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	rs->hb2_data = malloc( rs->hb2_size);
 	next = offs + rs->hb2_size;
 	printf("[%16llx,%16llx)@%p:hb2\n", offs, next, rs->hb2_data);
 	offs = next;
 
-	rs->q_size = mi->dim * 4;
+	rs->q_size = mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	rs->q_data = malloc( rs->q_size);
 	next = offs + rs->q_size;
 	printf("[%16llx,%16llx)@%p:q\n", offs, next, rs->q_data);
 	offs = next;
 
-	rs->k_size = mi->dim * 4;
+	rs->k_size = mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	rs->k_data = malloc( rs->k_size);
 	next = offs + rs->k_size;
 	printf("[%16llx,%16llx)@%p:k\n", offs, next, rs->k_data);
 	offs = next;
 
-	rs->v_size = mi->dim * 4;
+	rs->v_size = mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	rs->v_data = malloc( rs->v_size);
 	next = offs + rs->v_size;
 	printf("[%16llx,%16llx)@%p:v\n", offs, next, rs->v_data);
 	offs = next;
 
-	rs->att_size = mi->n_heads * mi->seq_len * 4;
+	rs->att_size = mi->n_heads * mi->seq_len * sizeof(MODELWEIGHT_FLOATTYPE);
 	rs->att_data = malloc( rs->att_size);
 	next = offs + rs->att_size;
 	printf("[%16llx,%16llx)@%p:att\n", offs, next, rs->att_data);
 	offs = next;
 
-	rs->logits_size = mi->vocab_size * 4;
+	rs->logits_size = mi->vocab_size * sizeof(MODELWEIGHT_FLOATTYPE);
 	rs->logits_data = malloc( rs->logits_size);
 	next = offs + rs->logits_size;
 	printf("[%16llx,%16llx)@%p:logits\n", offs, next, rs->logits_data);
 	offs = next;
 
-	rs->key_cache_size = mi->n_layers * mi->seq_len * mi->dim * 4;
+	rs->key_cache_size = mi->n_layers * mi->seq_len * mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	rs->key_cache_data = malloc( rs->key_cache_size);
 	next = offs + rs->key_cache_size;
 	printf("[%16llx,%16llx)@%p:key_cache\n", offs, next, rs->key_cache_data);
 	offs = next;
 
-	rs->value_cache_size = mi->n_layers * mi->seq_len * mi->dim * 4;
+	rs->value_cache_size = mi->n_layers * mi->seq_len * mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	rs->value_cache_data = malloc( rs->value_cache_size);
 	next = offs + rs->value_cache_size;
 	printf("[%16llx,%16llx)@%p:value_cache\n", offs, next, rs->value_cache_data);
@@ -555,7 +557,7 @@ void llama_initstate(modelinfo* mi, RunState* rs) {
 
 typedef struct{
 	unsigned int max_token_length;
-	float* vocab_scores;
+	MODELWEIGHT_FLOATTYPE* vocab_scores;
 	char** vocab;
 }tokeninfo;
 void llama_inittokenizer(char* tokenpath, modelinfo* mi, tokeninfo* ti)
@@ -570,7 +572,7 @@ void llama_inittokenizer(char* tokenpath, modelinfo* mi, tokeninfo* ti)
 	printf("max_token_length=%d\n",max_token_length);
 	ti->max_token_length = max_token_length;
 
-	float* vocab_scores = (float*)malloc(mi->vocab_size * sizeof(float));
+	MODELWEIGHT_FLOATTYPE* vocab_scores = (MODELWEIGHT_FLOATTYPE*)malloc(mi->vocab_size * sizeof(MODELWEIGHT_FLOATTYPE));
 	ti->vocab_scores = vocab_scores;
 
 	char** vocab = (char**)malloc(mi->vocab_size * sizeof(char*));
@@ -578,7 +580,7 @@ void llama_inittokenizer(char* tokenpath, modelinfo* mi, tokeninfo* ti)
 
 	int len;
 	for (int i = 0; i < mi->vocab_size; i++) {
-		if (fread(vocab_scores + i, sizeof(float), 1, file) != 1) { printf("failed read\n"); return;}
+		if (fread(vocab_scores + i, sizeof(MODELWEIGHT_FLOATTYPE), 1, file) != 1) { printf("failed read\n"); return;}
 		if (fread(&len, sizeof(int), 1, file) != 1) { printf("failed read\n"); return; }
 		vocab[i] = (char *)malloc(len + 1);
 		if (fread(vocab[i], len, 1, file) != 1) { printf("failed read\n"); return; }
@@ -616,7 +618,7 @@ int str_lookup(char *str, char **vocab, int vocab_size) {
 	}
 	return -1;
 }
-int bpe_encode(unsigned char *text, char **vocab, float *vocab_scores, int vocab_size, unsigned int max_token_length, int *tokens, int *n_tokens) {
+int bpe_encode(unsigned char *text, char **vocab, MODELWEIGHT_FLOATTYPE *vocab_scores, int vocab_size, unsigned int max_token_length, int *tokens, int *n_tokens) {
 	
 	// a temporary buffer to merge two consecutive tokens
 	unsigned char* str_buffer = malloc((max_token_length*2+1) * sizeof(char)); // *2 for concat, +1 for null terminator
@@ -653,7 +655,7 @@ int bpe_encode(unsigned char *text, char **vocab, float *vocab_scores, int vocab
 
 	// merge the best consecutive pair each iteration, according the scores in vocab_scores
 	while (1) {
-		float best_score = -1e10;
+		MODELWEIGHT_FLOATTYPE best_score = -1e10;
 		int best_id = -1;
 		int best_idx = -1;
 
@@ -709,14 +711,14 @@ theend:
 }
 
 
-void accum(float *a, float *b, int size) {
+void accum(MODELWEIGHT_FLOATTYPE *a, MODELWEIGHT_FLOATTYPE *b, int size) {
 	for (int i = 0; i < size; i++) {
 		a[i] += b[i];
 	}
 }
-void rmsnorm(float* o, float* x, float* weight, int size) {
+void rmsnorm(MODELWEIGHT_FLOATTYPE* o, MODELWEIGHT_FLOATTYPE* x, MODELWEIGHT_FLOATTYPE* weight, int size) {
 	// calculate sum of squares
-	float ss = 0.0f;
+	MODELWEIGHT_FLOATTYPE ss = 0.0f;
 	for (int j = 0; j < size; j++) {
 		ss += x[j] * x[j];
 	}
@@ -728,16 +730,16 @@ void rmsnorm(float* o, float* x, float* weight, int size) {
 		o[j] = weight[j] * (ss * x[j]);
 	}
 }
-void softmax(float* x, int size) {
+void softmax(MODELWEIGHT_FLOATTYPE* x, int size) {
 	// find max value (for numerical stability)
-	float max_val = x[0];
+	MODELWEIGHT_FLOATTYPE max_val = x[0];
 	for (int i = 1; i < size; i++) {
 		if (x[i] > max_val) {
 			max_val = x[i];
 		}
 	}
 	// exp and sum
-	float sum = 0.0f;
+	MODELWEIGHT_FLOATTYPE sum = 0.0f;
 	for (int i = 0; i < size; i++) {
 		x[i] = expf(x[i] - max_val);
 		sum += x[i];
@@ -747,13 +749,13 @@ void softmax(float* x, int size) {
 		x[i] /= sum;
 	}
 }
-void matmul(float* xout, float* x, float* w, int n, int d) {
+void matmul(MODELWEIGHT_FLOATTYPE* xout, MODELWEIGHT_FLOATTYPE* x, MODELWEIGHT_FLOATTYPE* w, int n, int d) {
 	// W (d,n) @ x (n,) -> xout (d,)
 	// by far the most amount of time is spent inside this little function
 	int i;
 	#pragma omp parallel for private(i)
 	for (i = 0; i < d; i++) {
-		float val = 0.0f;
+		MODELWEIGHT_FLOATTYPE val = 0.0f;
 		for (int j = 0; j < n; j++) {
 			val += w[i * n + j] * x[j];
 		}
@@ -761,47 +763,47 @@ void matmul(float* xout, float* x, float* w, int n, int d) {
 	}
 }
 void transformer(int token, int pos, modelinfo* mi, RunState* rs) {
-	float* w_token_embedding_table = mi->token_embedding_table_data;
-	float* w_rms_att_weight = mi->rms_att_weight_data;
-	float* w_rms_ffn_weight = mi->rms_ffn_weight_data;
-	float* w_wq = mi->wq_data;
-	float* w_wk = mi->wk_data;
-	float* w_wv = mi->wv_data;
-	float* w_wo = mi->wo_data;
-	float* w_w1 = mi->w1_data;
-	float* w_w2 = mi->w2_data;
-	float* w_w3 = mi->w3_data;
-	float* w_rms_final_weight = mi->rms_final_weight_data;
-	float* w_freq_cis_real = mi->freq_cis_real_data;
-	float* w_freq_cis_imag = mi->freq_cis_imag_data;
-	float* w_wcls = mi->wcls_data;
+	MODELWEIGHT_FLOATTYPE* w_token_embedding_table = mi->token_embedding_table_data;
+	MODELWEIGHT_FLOATTYPE* w_rms_att_weight = mi->rms_att_weight_data;
+	MODELWEIGHT_FLOATTYPE* w_rms_ffn_weight = mi->rms_ffn_weight_data;
+	MODELWEIGHT_FLOATTYPE* w_wq = mi->wq_data;
+	MODELWEIGHT_FLOATTYPE* w_wk = mi->wk_data;
+	MODELWEIGHT_FLOATTYPE* w_wv = mi->wv_data;
+	MODELWEIGHT_FLOATTYPE* w_wo = mi->wo_data;
+	MODELWEIGHT_FLOATTYPE* w_w1 = mi->w1_data;
+	MODELWEIGHT_FLOATTYPE* w_w2 = mi->w2_data;
+	MODELWEIGHT_FLOATTYPE* w_w3 = mi->w3_data;
+	MODELWEIGHT_FLOATTYPE* w_rms_final_weight = mi->rms_final_weight_data;
+	MODELWEIGHT_FLOATTYPE* w_freq_cis_real = mi->freq_cis_real_data;
+	MODELWEIGHT_FLOATTYPE* w_freq_cis_imag = mi->freq_cis_imag_data;
+	MODELWEIGHT_FLOATTYPE* w_wcls = mi->wcls_data;
 
-	float* rs_x = rs->x_data;
-	float* rs_xb = rs->xb_data;
-	float* rs_xb2 = rs->xb2_data;
-	float* rs_hb = rs->hb_data;
-	float* rs_hb2 = rs->hb2_data;
-	float* rs_q = rs->q_data;
-	float* rs_k = rs->k_data;
-	float* rs_v = rs->v_data;
-	float* rs_att = rs->att_data;
-	float* rs_logits = rs->logits_data;
-	float* rs_key_cache = rs->key_cache_data;
-	float* rs_value_cache = rs->value_cache_data;
+	MODELWEIGHT_FLOATTYPE* rs_x = rs->x_data;
+	MODELWEIGHT_FLOATTYPE* rs_xb = rs->xb_data;
+	MODELWEIGHT_FLOATTYPE* rs_xb2 = rs->xb2_data;
+	MODELWEIGHT_FLOATTYPE* rs_hb = rs->hb_data;
+	MODELWEIGHT_FLOATTYPE* rs_hb2 = rs->hb2_data;
+	MODELWEIGHT_FLOATTYPE* rs_q = rs->q_data;
+	MODELWEIGHT_FLOATTYPE* rs_k = rs->k_data;
+	MODELWEIGHT_FLOATTYPE* rs_v = rs->v_data;
+	MODELWEIGHT_FLOATTYPE* rs_att = rs->att_data;
+	MODELWEIGHT_FLOATTYPE* rs_logits = rs->logits_data;
+	MODELWEIGHT_FLOATTYPE* rs_key_cache = rs->key_cache_data;
+	MODELWEIGHT_FLOATTYPE* rs_value_cache = rs->value_cache_data;
 
 	// a few convenience variables
-	float *x = rs_x;
+	MODELWEIGHT_FLOATTYPE *x = rs_x;
 	int dim = mi->dim;
 	int hidden_dim =  mi->hidden_dim;
 	int head_size = dim / mi->n_heads;
 
 	// copy the token embedding into x
-	float* content_row = &(w_token_embedding_table[token * dim]);
+	MODELWEIGHT_FLOATTYPE* content_row = &(w_token_embedding_table[token * dim]);
 	memcpy(x, content_row, dim*sizeof(*x));
 
 	// pluck out the "pos" row of freq_cis_real and freq_cis_imag
-	float* freq_cis_real_row = w_freq_cis_real + pos * head_size / 2;
-	float* freq_cis_imag_row = w_freq_cis_imag + pos * head_size / 2;
+	MODELWEIGHT_FLOATTYPE* freq_cis_real_row = w_freq_cis_real + pos * head_size / 2;
+	MODELWEIGHT_FLOATTYPE* freq_cis_imag_row = w_freq_cis_imag + pos * head_size / 2;
 
 	// forward all the layers
 	for(int l = 0; l < mi->n_layers; l++) {
@@ -817,16 +819,16 @@ void transformer(int token, int pos, modelinfo* mi, RunState* rs) {
 		// apply RoPE rotation to the q and k vectors for each head
 		for (int h = 0; h < mi->n_heads; h++) {
 			// get the q and k vectors for this head
-			float* q = rs_q + h * head_size;
-			float* k = rs_k + h * head_size;
+			MODELWEIGHT_FLOATTYPE* q = rs_q + h * head_size;
+			MODELWEIGHT_FLOATTYPE* k = rs_k + h * head_size;
 			// rotate q and k by the freq_cis_real and freq_cis_imag
 			for (int i = 0; i < head_size; i+=2) {
-				float q0 = q[i];
-				float q1 = q[i+1];
-				float k0 = k[i];
-				float k1 = k[i+1];
-				float fcr = freq_cis_real_row[i/2];
-				float fci = freq_cis_imag_row[i/2];
+				MODELWEIGHT_FLOATTYPE q0 = q[i];
+				MODELWEIGHT_FLOATTYPE q1 = q[i+1];
+				MODELWEIGHT_FLOATTYPE k0 = k[i];
+				MODELWEIGHT_FLOATTYPE k1 = k[i+1];
+				MODELWEIGHT_FLOATTYPE fcr = freq_cis_real_row[i/2];
+				MODELWEIGHT_FLOATTYPE fci = freq_cis_imag_row[i/2];
 				q[i]   = q0 * fcr - q1 * fci;
 				q[i+1] = q0 * fci + q1 * fcr;
 				k[i]   = k0 * fcr - k1 * fci;
@@ -836,8 +838,8 @@ void transformer(int token, int pos, modelinfo* mi, RunState* rs) {
 
 		// save key,value at this time step (pos) to our kv cache
 		int loff = l * mi->seq_len * dim; // kv cache layer offset for convenience
-		float* key_cache_row = rs_key_cache + loff + pos * dim;
-		float* value_cache_row = rs_value_cache + loff + pos * dim;
+		MODELWEIGHT_FLOATTYPE* key_cache_row = rs_key_cache + loff + pos * dim;
+		MODELWEIGHT_FLOATTYPE* value_cache_row = rs_value_cache + loff + pos * dim;
 		memcpy(key_cache_row, rs_k, dim*sizeof(*key_cache_row));
 		memcpy(value_cache_row, rs_v, dim*sizeof(*value_cache_row));
 		
@@ -846,15 +848,15 @@ void transformer(int token, int pos, modelinfo* mi, RunState* rs) {
 		#pragma omp parallel for private(h)
 		for (h = 0; h < mi->n_heads; h++) {
 			// get the query vector for this head
-			float* q = rs_q + h * head_size;
+			MODELWEIGHT_FLOATTYPE* q = rs_q + h * head_size;
 			// attention scores for this head
-			float* att = rs_att + h * mi->seq_len;
+			MODELWEIGHT_FLOATTYPE* att = rs_att + h * mi->seq_len;
 			// iterate over all timesteps, including the current one
 			for (int t = 0; t <= pos; t++) {
 				// get the key vector for this head and at this timestep
-				float* k = rs_key_cache + loff + t * dim + h * head_size;
+				MODELWEIGHT_FLOATTYPE* k = rs_key_cache + loff + t * dim + h * head_size;
 				// calculate the attention score as the dot product of q and k
-				float score = 0.0f;
+				MODELWEIGHT_FLOATTYPE score = 0.0f;
 				for (int i = 0; i < head_size; i++) {
 					score += q[i] * k[i];
 				}
@@ -867,13 +869,13 @@ void transformer(int token, int pos, modelinfo* mi, RunState* rs) {
 			softmax(att, pos + 1);
 
 			// weighted sum of the values, store back into xb
-			float* xb = rs_xb + h * head_size;
-			memset(xb, 0, head_size * sizeof(float));
+			MODELWEIGHT_FLOATTYPE* xb = rs_xb + h * head_size;
+			memset(xb, 0, head_size * sizeof(MODELWEIGHT_FLOATTYPE));
 			for (int t = 0; t <= pos; t++) {
 				// get the value vector for this head and at this timestep
-				float* v = rs_value_cache + loff + t * dim + h * head_size;
+				MODELWEIGHT_FLOATTYPE* v = rs_value_cache + loff + t * dim + h * head_size;
 				// get the attention weight for this timestep
-				float a = att[t];
+				MODELWEIGHT_FLOATTYPE a = att[t];
 				// accumulate the weighted value into xb
 				for (int i = 0; i < head_size; i++) {
 					xb[i] += a * v[i];
@@ -936,10 +938,10 @@ unsigned int random_u32() {
 float random_f32() { // random float32 in [0,1)
 	return (random_u32() >> 8) / 16777216.0f;
 }
-int sample(float* probabilities, int n) {
+int sample(MODELWEIGHT_FLOATTYPE* probabilities, int n) {
 	// sample index from probabilities, they must sum to 1
-	float r = random_f32();
-	float cdf = 0.0f;
+	MODELWEIGHT_FLOATTYPE r = random_f32();
+	MODELWEIGHT_FLOATTYPE cdf = 0.0f;
 	for (int i = 0; i < n; i++) {
 		cdf += probabilities[i];
 		if (r < cdf) {
@@ -948,10 +950,10 @@ int sample(float* probabilities, int n) {
 	}
 	return n - 1; // in case of rounding errors
 }
-int argmax(float* v, int n) {
+int argmax(MODELWEIGHT_FLOATTYPE* v, int n) {
 	// return argmax of v in elements 0..n
 	int max_i = 0;
-	float max_p = v[0];
+	MODELWEIGHT_FLOATTYPE max_p = v[0];
 	for (int i = 1; i < n; i++) {
 		if (v[i] > max_p) {
 			max_i = i;
@@ -963,7 +965,7 @@ int argmax(float* v, int n) {
 void llama_runmodel(modelinfo* mi, RunState* rs, tokeninfo* ti, TokenState* ts)
 {
 	printf("--------runmodel--------\n");
-	float* rs_logits = rs->logits_data;
+	MODELWEIGHT_FLOATTYPE* rs_logits = rs->logits_data;
 
 	// start the main loop
 	long start = 0;  // used to time our code, only initialized after first iteration
@@ -972,7 +974,7 @@ void llama_runmodel(modelinfo* mi, RunState* rs, tokeninfo* ti, TokenState* ts)
 	int pos = 0;     // position in the sequence
 	//printf("<s>\n"); // explicit print the initial BOS token for stylistic symmetry reasons
 
-	float temperature = 1.0;
+	MODELWEIGHT_FLOATTYPE temperature = 1.0;
 	int steps = 256;
 	while (pos < steps) {
 		//printf("pos=%d,steps=%d\n",pos,steps);

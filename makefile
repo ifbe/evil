@@ -61,6 +61,7 @@ source/parser/2cfamily/learn/test/count.c \
 source/parser/2cfamily/learn/test/include.c \
 source/operator/0format/conv.c \
 source/operator/0format/format.c \
+source/operator/0format/fp32tobf16.c \
 source/operator/1easyop/create.c \
 source/operator/1easyop/delete.c \
 source/operator/1easyop/search.c \
@@ -84,7 +85,7 @@ clifast:
 	source/operator/2indite/serve/none.c \
 	-Isource/libunit -Isource -lm
 cliomp:
-	gcc -fopenmp -Ofast -o a.exe $(SRC) \
+	gcc -Ofast -fopenmp -o a.exe $(SRC) \
 	source/operator/2indite/render/cli.c \
 	source/operator/2indite/serve/none.c \
 	-Isource/libunit -Isource -lm

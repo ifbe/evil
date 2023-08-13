@@ -28,9 +28,6 @@ void relation_delete();
 void worker_create();
 void worker_delete();
 //
-int conv(int argc,char** argv);
-int format(int argc,char** argv);
-//
 int disasm(int argc,char** argv);
 int disasm_arm64(int argc,char** argv);
 int disasm_x8664(int argc,char** argv);
@@ -41,6 +38,10 @@ int travel_x8664(int argc,char** argv);
 //
 int learn(int argc,char** argv);
 int compile(int argc,char** argv);
+//
+int conv(int argc,char** argv);
+int format(int argc,char** argv);
+int fp32tobf16(int argc,char** argv);
 //
 int create(int argc,char** argv);
 int delete(int argc,char** argv);
@@ -61,14 +62,15 @@ int llama(int argc,char** argv);
 void help(char* buf)
 {
 	if(buf != 0)printf("wrong usage: %s\n", buf);
-	printf("machine work\n");
-	printf("	a.exe conv ac2intel test.ac\n");
-	printf("	a.exe format test.c\n");
 	printf("analyze thing\n");
 	printf("	a.exe disasm xxx.exe\n");
 	printf("	a.exe follow xxx.bin\n");
 	printf("	a.exe compile test.c\n");
 	printf("	a.exe learn aaa.c /some/dir/bbb.cpp /my/folder/haha*\n");
+	printf("easy operation\n");
+	printf("	a.exe conv ac2intel test.ac\n");
+	printf("	a.exe format test.c\n");
+	printf("	a.exe fp32tobf16 in.bin out.bin\n");
 	printf("mydb operation\n");
 	printf("	a.exe insert\n");
 	printf("	a.exe delete\n");
@@ -80,17 +82,15 @@ void help(char* buf)
 	printf("	a.exe route\n");
 	printf("	a.exe serve\n");
 	printf("	a.exe substr\n");
+	printf("highlevel operation\n");
 	printf("	OMP_NUM_THREADS=4 a.exe llama llama7b.bin tokenizer.bin\n");
 }
 int main(int argc, char** argv)
 {
-	//--------------------------help---------------------------
-	if(argc==1)
-	{
+	if(argc==1){
 		help(0);
 		return 0;
 	}
-	//---------------------------------------------------------
 
 
 	//--------------------------.42 dir check------------------
@@ -121,15 +121,16 @@ int main(int argc, char** argv)
 	//----------------------------------------------------------
 
 
-	//simple
-	if(strcmp(argv[1], "conv") == 0){
-		conv(argc-1, argv+1);
-	}
-	if(strcmp(argv[1], "format") == 0){
-		format(argc-1, argv+1);
+	//check
+	printf("argv1=%s\n", argv[1]);
+	if(argv[1][0] < 0x20){
+		help(0);
+		return 0;
 	}
 
-	//difficult
+	//parse binary
+
+	//parse assembly
 	else if(strcmp(argv[1], "disasm_arm64") == 0){
 		disasm_arm64(argc-1, argv+1);
 	}
@@ -151,6 +152,8 @@ int main(int argc, char** argv)
 	else if(strcmp(argv[1], "travel_x8664") == 0){
 		travel_x8664(argc-1, argv+1);
 	}
+
+	//parse c
 	else if(strcmp(argv[1], "learn") == 0){
 		learn(argc-1, argv+1);
 	}
@@ -158,7 +161,20 @@ int main(int argc, char** argv)
 		compile(argc-1, argv+1);
 	}
 
-	//database
+	//parse humanlang
+
+	//operate simple
+	else if(strcmp(argv[1], "conv") == 0){
+		conv(argc-1, argv+1);
+	}
+	else if(strcmp(argv[1], "format") == 0){
+		format(argc-1, argv+1);
+	}
+	else if(strncmp(argv[1], "fp32", 4) == 0){
+		fp32tobf16(argc-1, argv+1);
+	}
+
+	//operate database
 	else if(strcmp(argv[1], "create") == 0){
 		create(argc-1, argv+1);
 	}
@@ -172,7 +188,7 @@ int main(int argc, char** argv)
 		modify(argc-1, argv+1);
 	}
 
-	//creative
+	//operate creative
 	else if(strcmp(argv[1], "render") == 0){
 		render(argc-1, argv+1);
 	}
@@ -189,15 +205,14 @@ int main(int argc, char** argv)
 		substr(argc-1, argv+1);
 	}
 
+	//operate highlevel
 	else if(strncmp(argv[1], "llama", 5) == 0){
 		llama(argc-1, argv+1);
 	}
 
-	//
-	else
-	{
+	//wrong usage
+	else{
 		help(argv[1]);
-		return 0;
 	}
 
 
@@ -213,4 +228,5 @@ int main(int argc, char** argv)
 	filemd5_delete();
 	filedata_delete();
 	//---------------------------------------------------------
+	return 0;
 }

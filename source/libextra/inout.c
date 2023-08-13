@@ -240,7 +240,7 @@ int input(u8* buf, int len)
 
 void output(char* buf, int len)
 {
-	printf("%.*s\n", len, buf);
+	printf("%.*s", len, buf);
 }
 int input(u8* buf, int len)
 {
