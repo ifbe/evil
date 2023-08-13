@@ -727,7 +727,7 @@ void rmsnorm(MODELWEIGHT_FLOATTYPE* o, MODELWEIGHT_FLOATTYPE* x, MODELWEIGHT_FLO
 	ss = 1.0f / sqrtf(ss);
 	// normalize and scale
 	for (int j = 0; j < size; j++) {
-		o[j] = weight[j] * (ss * x[j]);
+		o[j] = (weight[j] * x[j]) * ss;
 	}
 }
 void softmax(MODELWEIGHT_FLOATTYPE* x, int size) {
@@ -799,7 +799,7 @@ void transformer(int token, int pos, modelinfo* mi, RunState* rs) {
 
 	// copy the token embedding into x
 	MODELWEIGHT_FLOATTYPE* content_row = &(w_token_embedding_table[token * dim]);
-	memcpy(x, content_row, dim*sizeof(*x));
+	memcpy(x, content_row, dim*sizeof(MODELWEIGHT_FLOATTYPE));
 
 	// pluck out the "pos" row of freq_cis_real and freq_cis_imag
 	MODELWEIGHT_FLOATTYPE* freq_cis_real_row = w_freq_cis_real + pos * head_size / 2;
@@ -975,7 +975,7 @@ void llama_runmodel(modelinfo* mi, RunState* rs, tokeninfo* ti, TokenState* ts)
 	//printf("<s>\n"); // explicit print the initial BOS token for stylistic symmetry reasons
 
 	float temperature = 1.0;
-	int steps = 256;
+	int steps = 4096;
 	while (pos < steps) {
 		//printf("pos=%d,steps=%d\n",pos,steps);
 
@@ -1028,7 +1028,7 @@ int getinputincludingcrlf(char* str, int len)
 	int ret = 0;
 	int off = 0;
 	do{
-		ret = input(str+off, 256-off);
+		ret = input(str+off, len-off);
 		if(1==ret)break;
 
 		if(off>1)str[off-1] = '\n';
@@ -1054,11 +1054,11 @@ void llama(int argc, char** argv)
 	llama_initprompt(&model, &tokenstate);
 
 	int ret;
-	char str[256];
+	char str[4096];
 	do{
 		printf("--------userinput--------\n");
 		printf(">>");
-		getinputincludingcrlf(str, 256);
+		getinputincludingcrlf(str, 4096);
 		printu8(str);
 		printf("\n");
 
