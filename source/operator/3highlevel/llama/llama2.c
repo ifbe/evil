@@ -557,7 +557,7 @@ void llama_initstate(modelinfo* mi, RunState* rs) {
 
 typedef struct{
 	unsigned int max_token_length;
-	MODELWEIGHT_FLOATTYPE* vocab_scores;
+	float* vocab_scores;
 	char** vocab;
 }tokeninfo;
 void llama_inittokenizer(char* tokenpath, modelinfo* mi, tokeninfo* ti)
@@ -572,7 +572,7 @@ void llama_inittokenizer(char* tokenpath, modelinfo* mi, tokeninfo* ti)
 	printf("max_token_length=%d\n",max_token_length);
 	ti->max_token_length = max_token_length;
 
-	MODELWEIGHT_FLOATTYPE* vocab_scores = (MODELWEIGHT_FLOATTYPE*)malloc(mi->vocab_size * sizeof(MODELWEIGHT_FLOATTYPE));
+	float* vocab_scores = (float*)malloc(mi->vocab_size * sizeof(float));
 	ti->vocab_scores = vocab_scores;
 
 	char** vocab = (char**)malloc(mi->vocab_size * sizeof(char*));
@@ -580,7 +580,7 @@ void llama_inittokenizer(char* tokenpath, modelinfo* mi, tokeninfo* ti)
 
 	int len;
 	for (int i = 0; i < mi->vocab_size; i++) {
-		if (fread(vocab_scores + i, sizeof(MODELWEIGHT_FLOATTYPE), 1, file) != 1) { printf("failed read\n"); return;}
+		if (fread(vocab_scores + i, sizeof(float), 1, file) != 1) { printf("failed read\n"); return;}
 		if (fread(&len, sizeof(int), 1, file) != 1) { printf("failed read\n"); return; }
 		vocab[i] = (char *)malloc(len + 1);
 		if (fread(vocab[i], len, 1, file) != 1) { printf("failed read\n"); return; }
@@ -618,7 +618,7 @@ int str_lookup(char *str, char **vocab, int vocab_size) {
 	}
 	return -1;
 }
-int bpe_encode(unsigned char *text, char **vocab, MODELWEIGHT_FLOATTYPE *vocab_scores, int vocab_size, unsigned int max_token_length, int *tokens, int *n_tokens) {
+int bpe_encode(unsigned char *text, char **vocab, float *vocab_scores, int vocab_size, unsigned int max_token_length, int *tokens, int *n_tokens) {
 	
 	// a temporary buffer to merge two consecutive tokens
 	unsigned char* str_buffer = malloc((max_token_length*2+1) * sizeof(char)); // *2 for concat, +1 for null terminator
@@ -655,7 +655,7 @@ int bpe_encode(unsigned char *text, char **vocab, MODELWEIGHT_FLOATTYPE *vocab_s
 
 	// merge the best consecutive pair each iteration, according the scores in vocab_scores
 	while (1) {
-		MODELWEIGHT_FLOATTYPE best_score = -1e10;
+		float best_score = -1e10;
 		int best_id = -1;
 		int best_idx = -1;
 
@@ -718,7 +718,7 @@ void accum(MODELWEIGHT_FLOATTYPE *a, MODELWEIGHT_FLOATTYPE *b, int size) {
 }
 void rmsnorm(MODELWEIGHT_FLOATTYPE* o, MODELWEIGHT_FLOATTYPE* x, MODELWEIGHT_FLOATTYPE* weight, int size) {
 	// calculate sum of squares
-	MODELWEIGHT_FLOATTYPE ss = 0.0f;
+	float ss = 0.0f;
 	for (int j = 0; j < size; j++) {
 		ss += x[j] * x[j];
 	}
@@ -732,14 +732,14 @@ void rmsnorm(MODELWEIGHT_FLOATTYPE* o, MODELWEIGHT_FLOATTYPE* x, MODELWEIGHT_FLO
 }
 void softmax(MODELWEIGHT_FLOATTYPE* x, int size) {
 	// find max value (for numerical stability)
-	MODELWEIGHT_FLOATTYPE max_val = x[0];
+	float max_val = x[0];
 	for (int i = 1; i < size; i++) {
 		if (x[i] > max_val) {
 			max_val = x[i];
 		}
 	}
 	// exp and sum
-	MODELWEIGHT_FLOATTYPE sum = 0.0f;
+	float sum = 0.0f;
 	for (int i = 0; i < size; i++) {
 		x[i] = expf(x[i] - max_val);
 		sum += x[i];
@@ -755,7 +755,7 @@ void matmul(MODELWEIGHT_FLOATTYPE* xout, MODELWEIGHT_FLOATTYPE* x, MODELWEIGHT_F
 	int i;
 	#pragma omp parallel for private(i)
 	for (i = 0; i < d; i++) {
-		MODELWEIGHT_FLOATTYPE val = 0.0f;
+		float val = 0.0f;
 		for (int j = 0; j < n; j++) {
 			val += w[i * n + j] * x[j];
 		}
@@ -856,7 +856,7 @@ void transformer(int token, int pos, modelinfo* mi, RunState* rs) {
 				// get the key vector for this head and at this timestep
 				MODELWEIGHT_FLOATTYPE* k = rs_key_cache + loff + t * dim + h * head_size;
 				// calculate the attention score as the dot product of q and k
-				MODELWEIGHT_FLOATTYPE score = 0.0f;
+				float score = 0.0f;
 				for (int i = 0; i < head_size; i++) {
 					score += q[i] * k[i];
 				}
@@ -875,7 +875,7 @@ void transformer(int token, int pos, modelinfo* mi, RunState* rs) {
 				// get the value vector for this head and at this timestep
 				MODELWEIGHT_FLOATTYPE* v = rs_value_cache + loff + t * dim + h * head_size;
 				// get the attention weight for this timestep
-				MODELWEIGHT_FLOATTYPE a = att[t];
+				float a = att[t];
 				// accumulate the weighted value into xb
 				for (int i = 0; i < head_size; i++) {
 					xb[i] += a * v[i];
@@ -940,8 +940,8 @@ float random_f32() { // random float32 in [0,1)
 }
 int sample(MODELWEIGHT_FLOATTYPE* probabilities, int n) {
 	// sample index from probabilities, they must sum to 1
-	MODELWEIGHT_FLOATTYPE r = random_f32();
-	MODELWEIGHT_FLOATTYPE cdf = 0.0f;
+	float r = random_f32();
+	float cdf = 0.0f;
 	for (int i = 0; i < n; i++) {
 		cdf += probabilities[i];
 		if (r < cdf) {
@@ -974,7 +974,7 @@ void llama_runmodel(modelinfo* mi, RunState* rs, tokeninfo* ti, TokenState* ts)
 	int pos = 0;     // position in the sequence
 	//printf("<s>\n"); // explicit print the initial BOS token for stylistic symmetry reasons
 
-	MODELWEIGHT_FLOATTYPE temperature = 1.0;
+	float temperature = 1.0;
 	int steps = 256;
 	while (pos < steps) {
 		//printf("pos=%d,steps=%d\n",pos,steps);
