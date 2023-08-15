@@ -106,6 +106,19 @@ void printu8(void* addr)
 	printf("uchar8:	");
 	for(j=0;j<16;j++)printf("%2x%c", p[j], j==15?'\n':',');
 }
+void printminmax(MODELWEIGHT_FLOATTYPE* buf, int len)
+{
+	float min = 1000*1000*1000.0;
+	float max =-1000*1000*1000.0;
+
+	int j;
+	len /= sizeof(MODELWEIGHT_FLOATTYPE);
+	for(j=0;j<len;j++){
+		if(min > buf[j])min = buf[j];
+		if(max < buf[j])max = buf[j];
+	}
+	printf("min=%f,max=%f\n", min, max);
+}
 s64 fullread(int fd, void* buf, u64 len)
 {
 #define eachread 0x1000000
@@ -182,6 +195,7 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	if(DEBUG_WEIGHT){
 		printu8(mi->token_embedding_table_data);
 		printfloat(mi->token_embedding_table_data);
+		printminmax(mi->token_embedding_table_data, mi->token_embedding_table_size);
 	}
 	offs = next;
 
@@ -196,6 +210,7 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	if(DEBUG_WEIGHT){
 		printu8(mi->rms_att_weight_data);
 		printfloat(mi->rms_att_weight_data);
+		printminmax(mi->rms_att_weight_data, mi->rms_att_weight_size);
 	}
 	offs = next;
 
@@ -210,6 +225,7 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	if(DEBUG_WEIGHT){
 		printu8(mi->wq_data);
 		printfloat(mi->wq_data);
+		printminmax(mi->wq_data, mi->wq_size);
 	}
 	offs = next;
 
@@ -224,6 +240,7 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	if(DEBUG_WEIGHT){
 		printu8(mi->wk_data);
 		printfloat(mi->wk_data);
+		printminmax(mi->wk_data, mi->wk_size);
 	}
 	offs = next;
 
@@ -238,6 +255,7 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	if(DEBUG_WEIGHT){
 		printu8(mi->wv_data);
 		printfloat(mi->wv_data);
+		printminmax(mi->wv_data, mi->wv_size);
 	}
 	offs = next;
 
@@ -252,6 +270,7 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	if(DEBUG_WEIGHT){
 		printu8(mi->wo_data);
 		printfloat(mi->wo_data);
+		printminmax(mi->wo_data, mi->wo_size);
 	}
 	offs = next;
 
@@ -266,6 +285,7 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	if(DEBUG_WEIGHT){
 		printu8(mi->rms_ffn_weight_data);
 		printfloat(mi->rms_ffn_weight_data);
+		printminmax(mi->rms_ffn_weight_data, mi->rms_ffn_weight_size);
 	}
 	offs = next;
 
@@ -280,6 +300,7 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	if(DEBUG_WEIGHT){
 		printu8(mi->w1_data);
 		printfloat(mi->w1_data);
+		printminmax(mi->w1_data, mi->w1_size);
 	}
 	offs = next;
 
@@ -294,6 +315,7 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	if(DEBUG_WEIGHT){
 		printu8(mi->w2_data);
 		printfloat(mi->w2_data);
+		printminmax(mi->w2_data, mi->w2_size);
 	}
 	offs = next;
 
@@ -308,6 +330,7 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	if(DEBUG_WEIGHT){
 		printu8(mi->w3_data);
 		printfloat(mi->w3_data);
+		printminmax(mi->w3_data, mi->w3_size);
 	}
 	offs = next;
 
@@ -322,6 +345,7 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	if(DEBUG_WEIGHT){
 		printu8(mi->rms_final_weight_data);
 		printfloat(mi->rms_final_weight_data);
+		printminmax(mi->rms_final_weight_data, mi->rms_final_weight_size);
 	}
 	offs = next;
 
@@ -337,6 +361,7 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	if(DEBUG_WEIGHT){
 		printu8(mi->freq_cis_real_data);
 		printfloat(mi->freq_cis_real_data);
+		printminmax(mi->freq_cis_real_data, mi->freq_cis_real_size);
 	}
 	offs = next;
 
@@ -351,6 +376,7 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	if(DEBUG_WEIGHT){
 		printu8(mi->freq_cis_imag_data);
 		printfloat(mi->freq_cis_imag_data);
+		printminmax(mi->freq_cis_imag_data, mi->freq_cis_imag_size);
 	}
 	offs = next;
 
@@ -370,6 +396,7 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 		if(DEBUG_WEIGHT){
 			printu8(mi->wcls_data);
 			printfloat(mi->wcls_data);
+			printminmax(mi->wcls_data, mi->wcls_size);
 		}
 		offs = next;
 	}
@@ -579,8 +606,10 @@ void llama_inittokenizer(char* tokenpath, modelinfo* mi, tokeninfo* ti)
 	ti->vocab = vocab;
 
 	int len;
+	float f32;
 	for (int i = 0; i < mi->vocab_size; i++) {
-		if (fread(vocab_scores + i, sizeof(float), 1, file) != 1) { printf("failed read\n"); return;}
+		if (fread(&f32, sizeof(float), 1, file) != 1) { printf("failed read\n"); return;}
+		vocab_scores[i] = f32;
 		if (fread(&len, sizeof(int), 1, file) != 1) { printf("failed read\n"); return; }
 		vocab[i] = (char *)malloc(len + 1);
 		if (fread(vocab[i], len, 1, file) != 1) { printf("failed read\n"); return; }
@@ -1018,7 +1047,7 @@ void llama_runmodel(modelinfo* mi, RunState* rs, tokeninfo* ti, TokenState* ts)
 	if (pos > 1) {
 		long end = time_in_ms();
 		printf("--------evaluate--------\n");
-		printf("achieved tok/s: %f\n", (pos-1) / (double)(end-start)*1000);
+		printf("token=%d, time=%f, t/s=%f\n", pos-1, (end-start)*0.001, (pos-1) / (double)(end-start)*1000);
 	}
 }
 

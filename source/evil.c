@@ -41,7 +41,6 @@ int compile(int argc,char** argv);
 //
 int conv(int argc,char** argv);
 int format(int argc,char** argv);
-int fp32tobf16(int argc,char** argv);
 //
 int create(int argc,char** argv);
 int delete(int argc,char** argv);
@@ -54,6 +53,7 @@ int route(int argc,char** argv);
 int serve(int argc,char** argv);
 int substr(int argc,char** argv);
 //
+int quantization(int argc,char** argv);
 int llama(int argc,char** argv);
 
 
@@ -70,7 +70,6 @@ void help(char* buf)
 	printf("easy operation\n");
 	printf("	a.exe conv ac2intel test.ac\n");
 	printf("	a.exe format test.c\n");
-	printf("	a.exe fp32tobf16 in.bin out.bin\n");
 	printf("mydb operation\n");
 	printf("	a.exe insert\n");
 	printf("	a.exe delete\n");
@@ -83,6 +82,7 @@ void help(char* buf)
 	printf("	a.exe serve\n");
 	printf("	a.exe substr\n");
 	printf("highlevel operation\n");
+	printf("	a.exe quantization in.bin out.bin\n");
 	printf("	OMP_NUM_THREADS=4 a.exe llama llama7b.bin tokenizer.bin\n");
 }
 int main(int argc, char** argv)
@@ -170,9 +170,6 @@ int main(int argc, char** argv)
 	else if(strcmp(argv[1], "format") == 0){
 		format(argc-1, argv+1);
 	}
-	else if(strncmp(argv[1], "fp32", 4) == 0){
-		fp32tobf16(argc-1, argv+1);
-	}
 
 	//operate database
 	else if(strcmp(argv[1], "create") == 0){
@@ -206,6 +203,9 @@ int main(int argc, char** argv)
 	}
 
 	//operate highlevel
+	else if(strncmp(argv[1], "quan", 4) == 0){
+		quantization(argc-1, argv+1);
+	}
 	else if(strncmp(argv[1], "llama", 5) == 0){
 		llama(argc-1, argv+1);
 	}

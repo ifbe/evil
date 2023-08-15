@@ -61,7 +61,6 @@ source/parser/2cfamily/learn/test/count.c \
 source/parser/2cfamily/learn/test/include.c \
 source/operator/0format/conv.c \
 source/operator/0format/format.c \
-source/operator/0format/fp32tobf16.c \
 source/operator/1easyop/create.c \
 source/operator/1easyop/delete.c \
 source/operator/1easyop/search.c \
@@ -71,6 +70,7 @@ source/operator/2indite/kirchhoff/kirchhoff.c \
 source/operator/2indite/route/route.c \
 source/operator/2indite/serve/serve.c \
 source/operator/2indite/substr/substr.c \
+source/operator/3highlevel/quanti/quanti.c \
 source/operator/3highlevel/llama/llama2.c \
 source/evil.c
 
@@ -86,6 +86,11 @@ clifast:
 	-Isource/libunit -Isource -lm
 cliomp:
 	gcc -Ofast -fopenmp -o a.exe $(SRC) \
+	source/operator/2indite/render/cli.c \
+	source/operator/2indite/serve/none.c \
+	-Isource/libunit -Isource -lm
+clinative:
+	gcc -march=native -Ofast -fopenmp -o a.exe $(SRC) \
 	source/operator/2indite/render/cli.c \
 	source/operator/2indite/serve/none.c \
 	-Isource/libunit -Isource -lm
