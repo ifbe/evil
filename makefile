@@ -70,7 +70,7 @@ source/operator/2indite/kirchhoff/kirchhoff.c \
 source/operator/2indite/route/route.c \
 source/operator/2indite/serve/serve.c \
 source/operator/2indite/substr/substr.c \
-source/operator/3highlevel/quanti/quanti.c \
+source/operator/3highlevel/llama/quanti.c \
 source/operator/3highlevel/llama/llama2.c \
 source/evil.c
 

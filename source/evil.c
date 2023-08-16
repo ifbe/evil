@@ -122,7 +122,6 @@ int main(int argc, char** argv)
 
 
 	//check
-	printf("argv1=%s\n", argv[1]);
 	if(argv[1][0] < 0x20){
 		help(0);
 		return 0;
