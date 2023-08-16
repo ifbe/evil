@@ -416,9 +416,9 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 		!mi->freq_cis_imag_data||
 		!mi->wcls_data)
 	{
-        fprintf(stderr, "malloc failed!\n");
-        exit(EXIT_FAILURE);
-    }
+		fprintf(stderr, "malloc failed!\n");
+		exit(EXIT_FAILURE);
+	}
 	else{
 		printf("malloc ok\n\n");
 	}
@@ -486,6 +486,7 @@ typedef struct {
 void llama_initstate(modelinfo* mi, RunState* rs) {
 	u64 offs = 0;
 	u64 next = 0;
+	int kv_dim = (mi->dim * mi->n_kv_heads) / mi->n_heads;
 	printf("--------state--------\n");
 
 	rs->x_size = mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
@@ -524,13 +525,13 @@ void llama_initstate(modelinfo* mi, RunState* rs) {
 	printf("[%16llx,%16llx)@%p:q\n", offs, next, rs->q_data);
 	offs = next;
 
-	rs->k_size = mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
+	rs->k_size = kv_dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	rs->k_data = malloc( rs->k_size);
 	next = offs + rs->k_size;
 	printf("[%16llx,%16llx)@%p:k\n", offs, next, rs->k_data);
 	offs = next;
 
-	rs->v_size = mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
+	rs->v_size = kv_dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	rs->v_data = malloc( rs->v_size);
 	next = offs + rs->v_size;
 	printf("[%16llx,%16llx)@%p:v\n", offs, next, rs->v_data);
@@ -548,19 +549,19 @@ void llama_initstate(modelinfo* mi, RunState* rs) {
 	printf("[%16llx,%16llx)@%p:logits\n", offs, next, rs->logits_data);
 	offs = next;
 
-	rs->key_cache_size = mi->n_layers * mi->seq_len * mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
+	rs->key_cache_size = mi->n_layers * mi->seq_len * kv_dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	rs->key_cache_data = malloc( rs->key_cache_size);
 	next = offs + rs->key_cache_size;
 	printf("[%16llx,%16llx)@%p:key_cache\n", offs, next, rs->key_cache_data);
 	offs = next;
 
-	rs->value_cache_size = mi->n_layers * mi->seq_len * mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
+	rs->value_cache_size = mi->n_layers * mi->seq_len * kv_dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	rs->value_cache_data = malloc( rs->value_cache_size);
 	next = offs + rs->value_cache_size;
 	printf("[%16llx,%16llx)@%p:value_cache\n", offs, next, rs->value_cache_data);
 	offs = next;
 
-    if(	!rs->x_data ||
+	if(	!rs->x_data ||
 		!rs->xb_data ||
 		!rs->xb2_data ||
 		!rs->hb_data ||
@@ -573,9 +574,9 @@ void llama_initstate(modelinfo* mi, RunState* rs) {
 		!rs->key_cache_data ||
 		!rs->value_cache_data)
 	{
-        fprintf(stderr, "malloc failed!\n");
-        exit(EXIT_FAILURE);
-    }
+		fprintf(stderr, "malloc failed!\n");
+		exit(EXIT_FAILURE);
+	}
 	else{
 		printf("malloc ok\n\n");
 	}
@@ -740,11 +741,6 @@ theend:
 }
 
 
-void accum(MODELWEIGHT_FLOATTYPE *a, MODELWEIGHT_FLOATTYPE *b, int size) {
-	for (int i = 0; i < size; i++) {
-		a[i] += b[i];
-	}
-}
 void rmsnorm(MODELWEIGHT_FLOATTYPE* o, MODELWEIGHT_FLOATTYPE* x, MODELWEIGHT_FLOATTYPE* weight, int size) {
 	// calculate sum of squares
 	float ss = 0.0f;
@@ -825,6 +821,8 @@ void transformer(int token, int pos, modelinfo* mi, RunState* rs) {
 	int dim = mi->dim;
 	int hidden_dim =  mi->hidden_dim;
 	int head_size = dim / mi->n_heads;
+	int kv_dim = (mi->dim * mi->n_kv_heads) / mi->n_heads;
+	int kv_mul = mi->n_heads / mi->n_kv_heads;
 
 	// copy the token embedding into x
 	MODELWEIGHT_FLOATTYPE* content_row = &(w_token_embedding_table[token * dim]);
@@ -842,35 +840,29 @@ void transformer(int token, int pos, modelinfo* mi, RunState* rs) {
 
 		// qkv matmuls for this position
 		matmul(rs_q, rs_xb, w_wq + l*dim*dim, dim, dim);
-		matmul(rs_k, rs_xb, w_wk + l*dim*dim, dim, dim);
-		matmul(rs_v, rs_xb, w_wv + l*dim*dim, dim, dim);
+		matmul(rs_k, rs_xb, w_wk + l*dim*kv_dim, dim, kv_dim);
+		matmul(rs_v, rs_xb, w_wv + l*dim*kv_dim, dim, kv_dim);
 
-		// apply RoPE rotation to the q and k vectors for each head
-		for (int h = 0; h < mi->n_heads; h++) {
-			// get the q and k vectors for this head
-			MODELWEIGHT_FLOATTYPE* q = rs_q + h * head_size;
-			MODELWEIGHT_FLOATTYPE* k = rs_k + h * head_size;
-			// rotate q and k by the freq_cis_real and freq_cis_imag
-			for (int i = 0; i < head_size; i+=2) {
-				MODELWEIGHT_FLOATTYPE q0 = q[i];
-				MODELWEIGHT_FLOATTYPE q1 = q[i+1];
-				MODELWEIGHT_FLOATTYPE k0 = k[i];
-				MODELWEIGHT_FLOATTYPE k1 = k[i+1];
-				MODELWEIGHT_FLOATTYPE fcr = freq_cis_real_row[i/2];
-				MODELWEIGHT_FLOATTYPE fci = freq_cis_imag_row[i/2];
-				q[i]   = q0 * fcr - q1 * fci;
-				q[i+1] = q0 * fci + q1 * fcr;
-				k[i]   = k0 * fcr - k1 * fci;
-				k[i+1] = k0 * fci + k1 * fcr;
+		// RoPE relative positional encoding: complex-valued rotate q and k by freq_cis in each head
+		for (int v = 0; v < 2; v++) {
+			MODELWEIGHT_FLOATTYPE* vec = (v == 0) ? rs_q : rs_k;    // the vector to rotate (query or key)
+			int vec_size = (v == 0) ? dim  : kv_dim;  // the size of the vector
+			for (int i = 0; i < vec_size; i+=2) {
+				float v0 = vec[i];
+				float v1 = vec[i+1];
+				float fcr = freq_cis_real_row[(i % head_size) / 2];
+				float fci = freq_cis_imag_row[(i % head_size) / 2];
+				vec[i]   = v0 * fcr - v1 * fci;
+				vec[i+1] = v0 * fci + v1 * fcr;
 			}
 		}
 
 		// save key,value at this time step (pos) to our kv cache
-		int loff = l * mi->seq_len * dim; // kv cache layer offset for convenience
-		MODELWEIGHT_FLOATTYPE* key_cache_row = rs_key_cache + loff + pos * dim;
-		MODELWEIGHT_FLOATTYPE* value_cache_row = rs_value_cache + loff + pos * dim;
-		memcpy(key_cache_row, rs_k, dim*sizeof(*key_cache_row));
-		memcpy(value_cache_row, rs_v, dim*sizeof(*value_cache_row));
+		int loff = l * mi->seq_len * kv_dim; // kv cache layer offset for convenience
+		MODELWEIGHT_FLOATTYPE* key_cache_row = rs_key_cache + loff + pos * kv_dim;
+		MODELWEIGHT_FLOATTYPE* value_cache_row = rs_value_cache + loff + pos * kv_dim;
+		memcpy(key_cache_row, rs_k, kv_dim*sizeof(*key_cache_row));
+		memcpy(value_cache_row, rs_v, kv_dim*sizeof(*value_cache_row));
 		
 		// multihead attention. iterate over all heads
 		int h;
@@ -883,7 +875,7 @@ void transformer(int token, int pos, modelinfo* mi, RunState* rs) {
 			// iterate over all timesteps, including the current one
 			for (int t = 0; t <= pos; t++) {
 				// get the key vector for this head and at this timestep
-				MODELWEIGHT_FLOATTYPE* k = rs_key_cache + loff + t * dim + h * head_size;
+				MODELWEIGHT_FLOATTYPE* k = rs_key_cache + loff + t * kv_dim + (h/kv_mul) * head_size;
 				// calculate the attention score as the dot product of q and k
 				float score = 0.0f;
 				for (int i = 0; i < head_size; i++) {
@@ -902,7 +894,7 @@ void transformer(int token, int pos, modelinfo* mi, RunState* rs) {
 			memset(xb, 0, head_size * sizeof(MODELWEIGHT_FLOATTYPE));
 			for (int t = 0; t <= pos; t++) {
 				// get the value vector for this head and at this timestep
-				MODELWEIGHT_FLOATTYPE* v = rs_value_cache + loff + t * dim + h * head_size;
+				MODELWEIGHT_FLOATTYPE* v = rs_value_cache + loff + t * kv_dim + (h/kv_mul) * head_size;
 				// get the attention weight for this timestep
 				float a = att[t];
 				// accumulate the weighted value into xb
@@ -916,7 +908,9 @@ void transformer(int token, int pos, modelinfo* mi, RunState* rs) {
 		matmul(rs_xb2, rs_xb, w_wo + l*dim*dim, dim, dim);
 
 		// residual connection back into x
-		accum(x, rs_xb2, dim);
+		for (int i = 0; i < dim; i++) {
+			x[i] += rs_xb2[i];
+		}
 
 		// ffn rmsnorm
 		rmsnorm(rs_xb, x, w_rms_ffn_weight + l*dim, dim);
@@ -940,7 +934,9 @@ void transformer(int token, int pos, modelinfo* mi, RunState* rs) {
 		matmul(rs_xb, rs_hb, w_w2 + l*dim*hidden_dim, hidden_dim, dim);
 
 		// residual connection
-		accum(x, rs_xb, dim);
+		for (int i = 0; i < dim; i++) {
+			x[i] += rs_xb[i];
+		}
 	}
 	//printf("111\n");
 	
@@ -1035,6 +1031,7 @@ void llama_runmodel(modelinfo* mi, RunState* rs, tokeninfo* ti, TokenState* ts)
 		// following BOS token (1), sentencepiece decoder strips any leading whitespace (see PR #89)
 		char *token_str = (token == 1 && ti->vocab[next][0] == ' ') ? ti->vocab[next]+1 : ti->vocab[next];
 		//printf("%s", token_str);
+		if(0 == strncmp(token_str, "<0x0A>", 6))token_str = "\n";
 		output(token_str, strlen(token_str));
 		fflush(stdout);
 		token = next;
