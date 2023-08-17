@@ -1,3 +1,4 @@
+CC:=gcc		#/usr/local/opt/llvm/bin/clang
 SRC = \
 source/libunit/load.c \
 source/libunit/rel/rel.c \
@@ -85,12 +86,12 @@ clifast:
 	source/operator/2indite/serve/none.c \
 	-Isource/libunit -Isource -lm
 cliomp:
-	gcc -Ofast -fopenmp -o a.exe $(SRC) \
+	$(CC) -Ofast -fopenmp -o a.exe $(SRC) \
 	source/operator/2indite/render/cli.c \
 	source/operator/2indite/serve/none.c \
 	-Isource/libunit -Isource -lm
 clinative:
-	gcc -march=native -Ofast -fopenmp -o a.exe $(SRC) \
+	$(CC) -march=native -Ofast -fopenmp -o a.exe $(SRC) \
 	source/operator/2indite/render/cli.c \
 	source/operator/2indite/serve/none.c \
 	-Isource/libunit -Isource -lm

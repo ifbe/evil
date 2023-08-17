@@ -371,8 +371,8 @@ void ac2att_line(char* buf, int len)
 {
 	int j,k;
 	char* opcode = 0;
-	char fmt1[32];
-	char fmt2[32];
+	char fmt1[64];
+	char fmt2[64];
 	for(j=0;j<len;j++)
 	{
 		if(	(buf[j] == '=') | (buf[j] == '?') |
