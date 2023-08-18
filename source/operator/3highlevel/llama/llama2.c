@@ -713,7 +713,7 @@ int bpe_encode(unsigned char *text, char **vocab, float *vocab_scores, int vocab
 			c += 1;
 		}
 		else if(*c == 0xa){
-			sprintf(str_buffer, "<0x0A>");
+			sprintf((void*)str_buffer, "<0x0A>");
 		}
 		else{
 			sprintf((char*)str_buffer, "%c", *c);
@@ -835,21 +835,24 @@ void dequantization(MODELWEIGHT_FLOATTYPE* dst, MODELWEIGHT_FLOATTYPE* src, int 
 {
 	memcpy(dst, src, cnt*sizeof(MODELWEIGHT_FLOATTYPE));
 }
-void transformer(int token, int pos, modelinfo* mi, RunState* rs) {
-	MODELWEIGHT_FLOATTYPE* w_token_embedding_table = mi->token_embedding_table_data;
-	MODELWEIGHT_FLOATTYPE* w_rms_att_weight = mi->rms_att_weight_data;
-	MODELWEIGHT_FLOATTYPE* w_rms_ffn_weight = mi->rms_ffn_weight_data;
-	MODELWEIGHT_FLOATTYPE* w_wq = mi->wq_data;
-	MODELWEIGHT_FLOATTYPE* w_wk = mi->wk_data;
-	MODELWEIGHT_FLOATTYPE* w_wv = mi->wv_data;
-	MODELWEIGHT_FLOATTYPE* w_wo = mi->wo_data;
-	MODELWEIGHT_FLOATTYPE* w_w1 = mi->w1_data;
-	MODELWEIGHT_FLOATTYPE* w_w2 = mi->w2_data;
-	MODELWEIGHT_FLOATTYPE* w_w3 = mi->w3_data;
-	MODELWEIGHT_FLOATTYPE* w_rms_final_weight = mi->rms_final_weight_data;
-	MODELWEIGHT_FLOATTYPE* w_wcls = mi->wcls_data;
+void transformer_eachlayer(MODELWEIGHT_FLOATTYPE* x, int pos, modelinfo* mi, RunState* rs, int layer)
+{
+	int dim = mi->dim;
+	int hidden_dim =  mi->hidden_dim;
+	int head_size = dim / mi->n_heads;
+	int kv_dim = (mi->dim * mi->n_kv_heads) / mi->n_heads;
+	int kv_mul = mi->n_heads / mi->n_kv_heads;
 
-	MODELWEIGHT_FLOATTYPE* rs_x = rs->x_data;
+	MODELWEIGHT_FLOATTYPE* w_rms_att_weight = mi->rms_att_weight_data + layer*dim;
+	MODELWEIGHT_FLOATTYPE* w_wq = mi->wq_data + layer*dim*dim;
+	MODELWEIGHT_FLOATTYPE* w_wk = mi->wk_data + layer*dim*kv_dim;
+	MODELWEIGHT_FLOATTYPE* w_wv = mi->wv_data + layer*dim*kv_dim;
+	MODELWEIGHT_FLOATTYPE* w_wo = mi->wo_data + layer*dim*dim;
+	MODELWEIGHT_FLOATTYPE* w_rms_ffn_weight = mi->rms_ffn_weight_data + layer*dim;
+	MODELWEIGHT_FLOATTYPE* w_w1 = mi->w1_data + layer*dim*hidden_dim;
+	MODELWEIGHT_FLOATTYPE* w_w2 = mi->w2_data + layer*dim*hidden_dim;
+	MODELWEIGHT_FLOATTYPE* w_w3 = mi->w3_data + layer*dim*hidden_dim;
+
 	MODELWEIGHT_FLOATTYPE* rs_xb = rs->xb_data;
 	MODELWEIGHT_FLOATTYPE* rs_xb2 = rs->xb2_data;
 	MODELWEIGHT_FLOATTYPE* rs_hb = rs->hb_data;
@@ -858,144 +861,137 @@ void transformer(int token, int pos, modelinfo* mi, RunState* rs) {
 	MODELWEIGHT_FLOATTYPE* rs_k = rs->k_data;
 	MODELWEIGHT_FLOATTYPE* rs_v = rs->v_data;
 	MODELWEIGHT_FLOATTYPE* rs_att = rs->att_data;
-	MODELWEIGHT_FLOATTYPE* rs_logits = rs->logits_data;
 	MODELWEIGHT_FLOATTYPE* rs_key_cache = rs->key_cache_data;
 	MODELWEIGHT_FLOATTYPE* rs_value_cache = rs->value_cache_data;
 
-	// a few convenience variables
-	MODELWEIGHT_FLOATTYPE *x = rs_x;
+	// attention rmsnorm
+	rmsnorm(rs_xb, x, w_rms_att_weight, dim);
+
+	// qkv matmuls for this position
+	matmul(rs_q, rs_xb, w_wq, dim, dim);
+	matmul(rs_k, rs_xb, w_wk, dim, kv_dim);
+	matmul(rs_v, rs_xb, w_wv, dim, kv_dim);
+
+	// RoPE relative positional encoding: complex-valued rotate q and k by freq_cis in each head
+	for (int i = 0; i < dim; i+=2) {
+		int head_dim = i % head_size;
+		float freq = 1.0f / powf(10000.0f, head_dim / (float)head_size);
+		float val = pos * freq;
+		float fcr = cosf(val);
+		float fci = sinf(val);
+		int rotn = i < kv_dim ? 2 : 1; // how many vectors? 2 = q & k, 1 = q only
+		for (int v = 0; v < rotn; v++) {
+			MODELWEIGHT_FLOATTYPE* vec = (v == 0) ? rs_q : rs_k; // the vector to rotate (query or key)
+			float v0 = vec[i];
+			float v1 = vec[i+1];
+			vec[i]   = v0 * fcr - v1 * fci;
+			vec[i+1] = v0 * fci + v1 * fcr;
+		}
+	}
+
+	// save key,value at this time step (pos) to our kv cache
+	int loff = layer * mi->seq_len * kv_dim; // kv cache layer offset for convenience
+	MODELWEIGHT_FLOATTYPE* key_cache_row = rs_key_cache + loff + pos * kv_dim;
+	MODELWEIGHT_FLOATTYPE* value_cache_row = rs_value_cache + loff + pos * kv_dim;
+	memcpy(key_cache_row, rs_k, kv_dim*sizeof(*key_cache_row));
+	memcpy(value_cache_row, rs_v, kv_dim*sizeof(*value_cache_row));
+
+	// multihead attention. iterate over all heads
+	int h;
+	#pragma omp parallel for private(h)
+	for (h = 0; h < mi->n_heads; h++) {
+		// get the query vector for this head
+		MODELWEIGHT_FLOATTYPE* q = rs_q + h * head_size;
+		// attention scores for this head
+		MODELWEIGHT_FLOATTYPE* att = rs_att + h * mi->seq_len;
+		// iterate over all timesteps, including the current one
+		for (int t = 0; t <= pos; t++) {
+			// get the key vector for this head and at this timestep
+			MODELWEIGHT_FLOATTYPE* k = rs_key_cache + loff + t * kv_dim + (h/kv_mul) * head_size;
+			// calculate the attention score as the dot product of q and k
+			float score = 0.0f;
+			for (int i = 0; i < head_size; i++) {
+				score += q[i] * k[i];
+			}
+			score /= sqrtf(head_size);
+			// save the score to the attention buffer
+			att[t] = score;
+		}
+
+		// softmax the scores to get attention weights, from 0..pos inclusively
+		softmax(att, pos + 1);
+
+		// weighted sum of the values, store back into xb
+		MODELWEIGHT_FLOATTYPE* xb = rs_xb + h * head_size;
+		memset(xb, 0, head_size * sizeof(MODELWEIGHT_FLOATTYPE));
+		for (int t = 0; t <= pos; t++) {
+			// get the value vector for this head and at this timestep
+			MODELWEIGHT_FLOATTYPE* v = rs_value_cache + loff + t * kv_dim + (h/kv_mul) * head_size;
+			// get the attention weight for this timestep
+			float a = att[t];
+			// accumulate the weighted value into xb
+			for (int i = 0; i < head_size; i++) {
+				xb[i] += a * v[i];
+			}
+		}
+	}
+
+	// final matmul to get the output of the attention
+	matmul(rs_xb2, rs_xb, w_wo, dim, dim);
+
+	// residual connection back into x
+	for (int i = 0; i < dim; i++) {
+		x[i] += rs_xb2[i];
+	}
+
+	// ffn rmsnorm
+	rmsnorm(rs_xb, x, w_rms_ffn_weight, dim);
+
+	// Now for FFN in PyTorch we have: self.w2(F.silu(self.w1(x)) * self.w3(x))
+	// first calculate self.w1(x) and self.w3(x)
+	matmul(rs_hb , rs_xb, w_w1, dim, hidden_dim);
+	matmul(rs_hb2, rs_xb, w_w3, dim, hidden_dim);
+
+	// F.silu; silu(x)=x*σ(x),where σ(x) is the logistic sigmoid
+	for (int i = 0; i < hidden_dim; i++) {
+		rs_hb[i] = rs_hb[i] * (1.0f / (1.0f + expf(-rs_hb[i])));
+	}
+
+	// elementwise multiply with w3(x)
+	for (int i = 0; i < hidden_dim; i++) {
+		rs_hb[i] = rs_hb[i] * rs_hb2[i];
+	}
+
+	// final matmul to get the output of the ffn
+	matmul(rs_xb, rs_hb, w_w2, hidden_dim, dim);
+
+	// residual connection
+	for (int i = 0; i < dim; i++) {
+		x[i] += rs_xb[i];
+	}
+}
+void transformer(int token, int pos, modelinfo* mi, RunState* rs) {
 	int dim = mi->dim;
-	int hidden_dim =  mi->hidden_dim;
-	int head_size = dim / mi->n_heads;
-	int kv_dim = (mi->dim * mi->n_kv_heads) / mi->n_heads;
-	int kv_mul = mi->n_heads / mi->n_kv_heads;
+	MODELWEIGHT_FLOATTYPE* w_token_embedding_table = mi->token_embedding_table_data;
+	MODELWEIGHT_FLOATTYPE* w_rms_final_weight = mi->rms_final_weight_data;
+	MODELWEIGHT_FLOATTYPE* w_wcls = mi->wcls_data;
+
+	MODELWEIGHT_FLOATTYPE* rs_x = rs->x_data;
+	MODELWEIGHT_FLOATTYPE* rs_logits = rs->logits_data;
 
 	// copy the token embedding into x
-	MODELWEIGHT_FLOATTYPE* content_row = &(w_token_embedding_table[token * dim]);
-	dequantization(x, content_row, dim);
+	dequantization(rs_x, &w_token_embedding_table[token * dim], dim);
 
 	// forward all the layers
 	for(int l = 0; l < mi->n_layers; l++) {
-
-		// attention rmsnorm
-		rmsnorm(rs_xb, x, w_rms_att_weight + l*dim, dim);
-
-		// qkv matmuls for this position
-		matmul(rs_q, rs_xb, w_wq + l*dim*dim, dim, dim);
-		matmul(rs_k, rs_xb, w_wk + l*dim*kv_dim, dim, kv_dim);
-		matmul(rs_v, rs_xb, w_wv + l*dim*kv_dim, dim, kv_dim);
-
-		// RoPE relative positional encoding: complex-valued rotate q and k by freq_cis in each head
-        for (int i = 0; i < dim; i+=2) {
-            int head_dim = i % head_size;
-            float freq = 1.0f / powf(10000.0f, head_dim / (float)head_size);
-            float val = pos * freq;
-            float fcr = cosf(val);
-            float fci = sinf(val);
-            int rotn = i < kv_dim ? 2 : 1; // how many vectors? 2 = q & k, 1 = q only
-            for (int v = 0; v < rotn; v++) {
-                MODELWEIGHT_FLOATTYPE* vec = (v == 0) ? rs_q : rs_k; // the vector to rotate (query or key)
-                float v0 = vec[i];
-                float v1 = vec[i+1];
-                vec[i]   = v0 * fcr - v1 * fci;
-                vec[i+1] = v0 * fci + v1 * fcr;
-            }
-        }
-
-		// save key,value at this time step (pos) to our kv cache
-		int loff = l * mi->seq_len * kv_dim; // kv cache layer offset for convenience
-		MODELWEIGHT_FLOATTYPE* key_cache_row = rs_key_cache + loff + pos * kv_dim;
-		MODELWEIGHT_FLOATTYPE* value_cache_row = rs_value_cache + loff + pos * kv_dim;
-		memcpy(key_cache_row, rs_k, kv_dim*sizeof(*key_cache_row));
-		memcpy(value_cache_row, rs_v, kv_dim*sizeof(*value_cache_row));
-		
-		// multihead attention. iterate over all heads
-		int h;
-		#pragma omp parallel for private(h)
-		for (h = 0; h < mi->n_heads; h++) {
-			// get the query vector for this head
-			MODELWEIGHT_FLOATTYPE* q = rs_q + h * head_size;
-			// attention scores for this head
-			MODELWEIGHT_FLOATTYPE* att = rs_att + h * mi->seq_len;
-			// iterate over all timesteps, including the current one
-			for (int t = 0; t <= pos; t++) {
-				// get the key vector for this head and at this timestep
-				MODELWEIGHT_FLOATTYPE* k = rs_key_cache + loff + t * kv_dim + (h/kv_mul) * head_size;
-				// calculate the attention score as the dot product of q and k
-				float score = 0.0f;
-				for (int i = 0; i < head_size; i++) {
-					score += q[i] * k[i];
-				}
-				score /= sqrtf(head_size);
-				// save the score to the attention buffer
-				att[t] = score;
-			}
-
-			// softmax the scores to get attention weights, from 0..pos inclusively
-			softmax(att, pos + 1);
-
-			// weighted sum of the values, store back into xb
-			MODELWEIGHT_FLOATTYPE* xb = rs_xb + h * head_size;
-			memset(xb, 0, head_size * sizeof(MODELWEIGHT_FLOATTYPE));
-			for (int t = 0; t <= pos; t++) {
-				// get the value vector for this head and at this timestep
-				MODELWEIGHT_FLOATTYPE* v = rs_value_cache + loff + t * kv_dim + (h/kv_mul) * head_size;
-				// get the attention weight for this timestep
-				float a = att[t];
-				// accumulate the weighted value into xb
-				for (int i = 0; i < head_size; i++) {
-					xb[i] += a * v[i];
-				}
-			}
-		}
-
-		// final matmul to get the output of the attention
-		matmul(rs_xb2, rs_xb, w_wo + l*dim*dim, dim, dim);
-
-		// residual connection back into x
-		for (int i = 0; i < dim; i++) {
-			x[i] += rs_xb2[i];
-		}
-
-		// ffn rmsnorm
-		rmsnorm(rs_xb, x, w_rms_ffn_weight + l*dim, dim);
-
-		// Now for FFN in PyTorch we have: self.w2(F.silu(self.w1(x)) * self.w3(x))
-		// first calculate self.w1(x) and self.w3(x)
-		matmul(rs_hb, rs_xb, w_w1 + l*dim*hidden_dim, dim, hidden_dim);
-		matmul(rs_hb2, rs_xb, w_w3 + l*dim*hidden_dim, dim, hidden_dim);
-		
-		// F.silu; silu(x)=x*σ(x),where σ(x) is the logistic sigmoid
-		for (int i = 0; i < hidden_dim; i++) {
-			rs_hb[i] = rs_hb[i] * (1.0f / (1.0f + expf(-rs_hb[i])));
-		}
-
-		// elementwise multiply with w3(x)
-		for (int i = 0; i < hidden_dim; i++) {
-			rs_hb[i] = rs_hb[i] * rs_hb2[i];
-		}
-
-		// final matmul to get the output of the ffn
-		matmul(rs_xb, rs_hb, w_w2 + l*dim*hidden_dim, hidden_dim, dim);
-
-		// residual connection
-		for (int i = 0; i < dim; i++) {
-			x[i] += rs_xb[i];
-		}
+		transformer_eachlayer(rs_x, pos, mi, rs, l);
 	}
-	//printf("111\n");
 	
 	// final rmsnorm
-	rmsnorm(x, x, w_rms_final_weight, dim);
-	//printf("222\n");
+	rmsnorm(rs_x, rs_x, w_rms_final_weight, dim);
 
 	// classifier into logits
-	//printf("%p,%p,%p,%d,%d\n",rs_logits, x, w_wcls, mi->dim, mi->vocab_size);
-	//printf("wcls=%p,offs=%x\n",w_wcls, (void*)w_wcls-mi->wholefile);
-	//matmul_debug=1;
-	matmul(rs_logits, x, w_wcls, mi->dim, mi->vocab_size);
-	//matmul_debug=0;
-	//printf("333\n");
+	matmul(rs_logits, rs_x, w_wcls, mi->dim, mi->vocab_size);
 }
 unsigned long long rng_seed = 0x8273478;
 unsigned int random_u32() {
