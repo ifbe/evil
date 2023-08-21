@@ -28,25 +28,57 @@ int output(void*, int);
 
 #ifdef _WIN32
 #include <windows.h>
-int clock_gettime(int clk_id, struct timespec *tp) {
-	u32 ticks = GetTickCount();
-	tp->tv_sec = ticks / 1000;
-	tp->tv_nsec = (ticks % 1000) * 1000000;
-	return 0;
+u64 time_in_ns()
+{
+	LARGE_INTEGER count,freq;
+	int ret = QueryPerformanceFrequency(&freq);
+	if(ret && freq.QuadPart){
+		ret = QueryPerformanceCounter(&count);
+		//say("count=%lld,freq=%lld,time=%lld\n", count.QuadPart, freq.QuadPart, (u64)count.QuadPart*1000*1000 / (freq.QuadPart/1000));
+		if(ret && count.QuadPart)return (u64)count.QuadPart*1000*1000 / (freq.QuadPart/1000);		//without (u64)=overflow, 10^9*count/freq = overflow
+	}
+
+	return 1000 * 1000 * GetTickCount64();
 }
 #elif __APPLE__
+#include <mach/mach_time.h>
 #define lseek64 lseek
+u64 time_in_ns()
+{
+	return mach_absolute_time();
+}
+#else
+u64 time_in_ns()
+{
+	struct timespec t;
+	clock_gettime(CLOCK_MONOTONIC, &t);
+	return (u64)t.tv_sec*1000*1000*1000 + t.tv_nsec;
+}
 #endif
-long time_in_ms() {
-	// return time in milliseconds, for benchmarking the model speed
-	struct timespec time;
-	clock_gettime(CLOCK_REALTIME, &time);
-	return time.tv_sec * 1000 + time.tv_nsec / 1000000;
+static long long t0tot1 = 0;
+static long long t1tot2 = 0;
+static long long t2tot3 = 0;
+static long long tatotb = 0;
+static long long tbtotc = 0;
+static long long tctotd = 0;
+static long long tdtote = 0;
+
+
+unsigned long long rng_seed = 0x8273478;
+unsigned int random_u32() {
+	// xorshift rng: https://en.wikipedia.org/wiki/Xorshift#xorshift.2A
+	rng_seed ^= rng_seed >> 12;
+	rng_seed ^= rng_seed << 25;
+	rng_seed ^= rng_seed >> 27;
+	return (rng_seed * 0x2545F4914F6CDD1Dull) >> 32;
+}
+float random_f32() { // random float32 in [0,1)
+	return (random_u32() >> 8) / 16777216.0f;
 }
 
 
 #define MODELWEIGHT_HEADSIZE 0x1c
-#define MODELWEIGHT_FLOATTYPE float
+#define MODELWEIGHT_FLOATTYPE __bf16
 typedef struct{
 	int dim; // transformer dimension
 	int hidden_dim; // for ffn layers
@@ -184,68 +216,68 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 
 	mi->token_embedding_table_size = mi->vocab_size * mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	next = offs + mi->token_embedding_table_size;
-	printf("[%16llx,%16llx)token_embedding_table\n", offs, next);
+	printf("[%16llx,%16llx)%16lldMB        token_embedding_table\n", offs, next, mi->token_embedding_table_size>>20);
 	offs = next;
 
 	mi->rms_att_weight_size = mi->n_layers * mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	next += mi->rms_att_weight_size;
-	printf("[%16llx,%16llx)rms_att_weight\n", offs, next);
+	printf("[%16llx,%16llx)%16lldMB        rms_att_weight\n", offs, next, mi->rms_att_weight_size>>20);
 	offs = next;
 
 	mi->wq_size = (u64)mi->n_layers * mi->dim * mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	next += mi->wq_size;
-	printf("[%16llx,%16llx)wq\n", offs, next);
+	printf("[%16llx,%16llx)%16lldMB        wq\n", offs, next, mi->wq_size>>20);
 	offs = next;
 
 	mi->wk_size = (u64)mi->n_layers * mi->dim * mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	next += mi->wk_size;
-	printf("[%16llx,%16llx)wk\n", offs, next);
+	printf("[%16llx,%16llx)%16lldMB        wk\n", offs, next, mi->wk_size>>20);
 	offs = next;
 
 	mi->wv_size = (u64)mi->n_layers * mi->dim * mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	next += mi->wv_size;
-	printf("[%16llx,%16llx)wv\n", offs, next);
+	printf("[%16llx,%16llx)%16lldMB        wv\n", offs, next, mi->wv_size>>20);
 	offs = next;
 
 	mi->wo_size = (u64)mi->n_layers * mi->dim * mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	next += mi->wo_size;
-	printf("[%16llx,%16llx)wo\n", offs, next);
+	printf("[%16llx,%16llx)%16lldMB        wo\n", offs, next, mi->wo_size>>20);
 	offs = next;
 
 	mi->rms_ffn_weight_size = (u64)mi->n_layers * mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	next += mi->rms_ffn_weight_size;
-	printf("[%16llx,%16llx)rms_ffn_weight\n", offs, next);
+	printf("[%16llx,%16llx)%16lldMB        rms_ffn_weight\n", offs, next, mi->rms_ffn_weight_size>>20);
 	offs = next;
 
 	mi->w1_size = (u64)mi->n_layers * mi->dim * mi->hidden_dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	next += mi->w1_size;
-	printf("[%16llx,%16llx)w1\n", offs, next);
+	printf("[%16llx,%16llx)%16lldMB        w1\n", offs, next, mi->w1_size>>20);
 	offs = next;
 
 	mi->w2_size = (u64)mi->n_layers * mi->hidden_dim * mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	next += mi->w2_size;
-	printf("[%16llx,%16llx)w2\n", offs, next);
+	printf("[%16llx,%16llx)%16lldMB        w2\n", offs, next, mi->w2_size>>20);
 	offs = next;
 
 	mi->w3_size = (u64)mi->n_layers * mi->dim * mi->hidden_dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	next += mi->w3_size;
-	printf("[%16llx,%16llx)w3\n", offs, next);
+	printf("[%16llx,%16llx)%16lldMB        w3\n", offs, next, mi->w3_size>>20);
 	offs = next;
 
 	mi->rms_final_weight_size = (u64)mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	next += mi->rms_final_weight_size;
-	printf("[%16llx,%16llx)rms_final_weight\n", offs, next);
+	printf("[%16llx,%16llx)%16lldMB        rms_final_weight\n", offs, next, mi->rms_final_weight_size>>20);
 	offs = next;
 
 	int head_size = mi->dim / mi->n_heads;
 	mi->freq_cis_real_size = (u64)mi->seq_len * head_size / 2 * sizeof(MODELWEIGHT_FLOATTYPE);
 	next += mi->freq_cis_real_size;
-	printf("[%16llx,%16llx)freq_cis_real\n", offs, next);
+	printf("[%16llx,%16llx)%16lldMB        freq_cis_real\n", offs, next, mi->freq_cis_real_size>>20);
 	offs = next;
 
 	mi->freq_cis_imag_size = (u64)mi->seq_len * head_size / 2 * sizeof(MODELWEIGHT_FLOATTYPE);
 	next += mi->freq_cis_imag_size;
-	printf("[%16llx,%16llx)freq_cis_imag\n", offs, next);
+	printf("[%16llx,%16llx)%16lldMB        freq_cis_imag\n", offs, next, mi->freq_cis_imag_size>>20);
 	offs = next;
 
 	if(shared_weights){
@@ -255,7 +287,7 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	else{
 		mi->wcls_size = (u64)mi->vocab_size * mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
 		next += mi->wcls_size;
-		printf("[%16llx,%16llx)wcls\n", offs, next);
+		printf("[%16llx,%16llx)%16lldMB        wcls\n", offs, next, mi->wcls_size>>20);
 		offs = next;
 	}
 
@@ -471,54 +503,55 @@ theend:
 }
 
 
+#define RUNSTATE_FLOATTYPE float
 typedef struct {
 	// activation at current time stamp (dim,)
 	u64 x_size;
-	MODELWEIGHT_FLOATTYPE *x_data;
+	RUNSTATE_FLOATTYPE *x_data;
 
 	// same, but inside a residual branch (dim,)
 	u64 xb_size;
-	MODELWEIGHT_FLOATTYPE *xb_data;
+	RUNSTATE_FLOATTYPE *xb_data;
 
 	// an additional buffer just for convenience (dim,)
 	u64 xb2_size;
-	MODELWEIGHT_FLOATTYPE *xb2_data;
+	RUNSTATE_FLOATTYPE *xb2_data;
 
 	// buffer for hidden dimension in the ffn (hidden_dim,)
 	u64 hb_size;
-	MODELWEIGHT_FLOATTYPE *hb_data;
+	RUNSTATE_FLOATTYPE *hb_data;
 
 	// buffer for hidden dimension in the ffn (hidden_dim,)
 	u64 hb2_size;
-	MODELWEIGHT_FLOATTYPE *hb2_data;
+	RUNSTATE_FLOATTYPE *hb2_data;
 
 	// query (dim,)
 	u64 q_size;
-	MODELWEIGHT_FLOATTYPE *q_data;
+	RUNSTATE_FLOATTYPE *q_data;
 
 	// key (dim,)
 	u64 k_size;
-	MODELWEIGHT_FLOATTYPE *k_data;
+	RUNSTATE_FLOATTYPE *k_data;
 
 	// value (dim,)
 	u64 v_size;
-	MODELWEIGHT_FLOATTYPE *v_data;
+	RUNSTATE_FLOATTYPE *v_data;
 
 	// buffer for scores/attention values (n_heads, seq_len)
 	u64 att_size;
-	MODELWEIGHT_FLOATTYPE *att_data;
+	RUNSTATE_FLOATTYPE *att_data;
 
 	// output logits
 	u64 logits_size;
-	MODELWEIGHT_FLOATTYPE *logits_data;
+	RUNSTATE_FLOATTYPE *logits_data;
 
 	// kv cache// (layer, seq_len, dim)
 	u64 key_cache_size;
-	MODELWEIGHT_FLOATTYPE* key_cache_data;
+	RUNSTATE_FLOATTYPE* key_cache_data;
 
 	// (layer, seq_len, dim)
 	u64 value_cache_size;
-	MODELWEIGHT_FLOATTYPE* value_cache_data;
+	RUNSTATE_FLOATTYPE* value_cache_data;
 } RunState;
 void llama_initstate(modelinfo* mi, RunState* rs) {
 	u64 offs = 0;
@@ -526,64 +559,64 @@ void llama_initstate(modelinfo* mi, RunState* rs) {
 	int kv_dim = (mi->dim * mi->n_kv_heads) / mi->n_heads;
 	printf("--------state parsing--------\n");
 
-	rs->x_size = mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
+	rs->x_size = mi->dim * sizeof(RUNSTATE_FLOATTYPE);
 	next = offs + rs->x_size;
-	printf("[%16llx,%16llx)x\n", offs, next);
+	printf("[%16llx,%16llx)%16lldMB        x\n", offs, next, rs->x_size>>20);
 	offs = next;
 
-	rs->xb_size = mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
+	rs->xb_size = mi->dim * sizeof(RUNSTATE_FLOATTYPE);
 	next = offs + rs->xb_size;
-	printf("[%16llx,%16llx)xb\n", offs, next);
+	printf("[%16llx,%16llx)%16lldMB        xb\n", offs, next, rs->xb_size>>20);
 	offs = next;
 
-	rs->xb2_size = mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
+	rs->xb2_size = mi->dim * sizeof(RUNSTATE_FLOATTYPE);
 	next = offs + rs->xb2_size;
-	printf("[%16llx,%16llx)xb2\n", offs, next);
+	printf("[%16llx,%16llx)%16lldMB        xb2\n", offs, next, rs->xb2_size>>20);
 	offs = next;
 
-	rs->hb_size = mi->hidden_dim * sizeof(MODELWEIGHT_FLOATTYPE);
+	rs->hb_size = mi->hidden_dim * sizeof(RUNSTATE_FLOATTYPE);
 	next = offs + rs->hb_size;
-	printf("[%16llx,%16llx)hb\n", offs, next);
+	printf("[%16llx,%16llx)%16lldMB        hb\n", offs, next, rs->hb_size>>20);
 	offs = next;
 
-	rs->hb2_size = mi->hidden_dim * sizeof(MODELWEIGHT_FLOATTYPE);
+	rs->hb2_size = mi->hidden_dim * sizeof(RUNSTATE_FLOATTYPE);
 	next = offs + rs->hb2_size;
-	printf("[%16llx,%16llx)hb2\n", offs, next);
+	printf("[%16llx,%16llx)%16lldMB        hb2\n", offs, next, rs->hb2_size>>20);
 	offs = next;
 
-	rs->q_size = mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
+	rs->q_size = mi->dim * sizeof(RUNSTATE_FLOATTYPE);
 	next = offs + rs->q_size;
-	printf("[%16llx,%16llx)q\n", offs, next);
+	printf("[%16llx,%16llx)%16lldMB        q\n", offs, next, rs->q_size>>20);
 	offs = next;
 
-	rs->k_size = kv_dim * sizeof(MODELWEIGHT_FLOATTYPE);
+	rs->k_size = kv_dim * sizeof(RUNSTATE_FLOATTYPE);
 	next = offs + rs->k_size;
-	printf("[%16llx,%16llx)k\n", offs, next);
+	printf("[%16llx,%16llx)%16lldMB        k\n", offs, next, rs->k_size>>20);
 	offs = next;
 
-	rs->v_size = kv_dim * sizeof(MODELWEIGHT_FLOATTYPE);
+	rs->v_size = kv_dim * sizeof(RUNSTATE_FLOATTYPE);
 	next = offs + rs->v_size;
-	printf("[%16llx,%16llx)v\n", offs, next);
+	printf("[%16llx,%16llx)%16lldMB        v\n", offs, next, rs->v_size>>20);
 	offs = next;
 
-	rs->att_size = mi->n_heads * mi->seq_len * sizeof(MODELWEIGHT_FLOATTYPE);
+	rs->att_size = mi->n_heads * mi->seq_len * sizeof(RUNSTATE_FLOATTYPE);
 	next = offs + rs->att_size;
-	printf("[%16llx,%16llx)att\n", offs, next);
+	printf("[%16llx,%16llx)%16lldMB        att\n", offs, next, rs->att_size>>20);
 	offs = next;
 
-	rs->logits_size = mi->vocab_size * sizeof(MODELWEIGHT_FLOATTYPE);
+	rs->logits_size = mi->vocab_size * sizeof(RUNSTATE_FLOATTYPE);
 	next = offs + rs->logits_size;
-	printf("[%16llx,%16llx)logits\n", offs, next);
+	printf("[%16llx,%16llx)%16lldMB        logits\n", offs, next, rs->logits_size>>20);
 	offs = next;
 
-	rs->key_cache_size = mi->n_layers * mi->seq_len * kv_dim * sizeof(MODELWEIGHT_FLOATTYPE);
+	rs->key_cache_size = mi->n_layers * mi->seq_len * kv_dim * sizeof(RUNSTATE_FLOATTYPE);
 	next = offs + rs->key_cache_size;
-	printf("[%16llx,%16llx)key_cache\n", offs, next);
+	printf("[%16llx,%16llx)%16lldMB        key_cache\n", offs, next, rs->key_cache_size>>20);
 	offs = next;
 
-	rs->value_cache_size = mi->n_layers * mi->seq_len * kv_dim * sizeof(MODELWEIGHT_FLOATTYPE);
+	rs->value_cache_size = mi->n_layers * mi->seq_len * kv_dim * sizeof(RUNSTATE_FLOATTYPE);
 	next = offs + rs->value_cache_size;
-	printf("[%16llx,%16llx)value_cache\n", offs, next);
+	printf("[%16llx,%16llx)%16lldMB        value_cache\n", offs, next, rs->value_cache_size>>20);
 	offs = next;
 
 	printf("\n");
@@ -785,7 +818,7 @@ theend:
 }
 
 
-void rmsnorm(MODELWEIGHT_FLOATTYPE* o, MODELWEIGHT_FLOATTYPE* x, MODELWEIGHT_FLOATTYPE* weight, int size) {
+void rmsnorm(RUNSTATE_FLOATTYPE* o, RUNSTATE_FLOATTYPE* x, MODELWEIGHT_FLOATTYPE* weight, int size) {
 	// calculate sum of squares
 	float ss = 0.0f;
 	for (int j = 0; j < size; j++) {
@@ -796,10 +829,10 @@ void rmsnorm(MODELWEIGHT_FLOATTYPE* o, MODELWEIGHT_FLOATTYPE* x, MODELWEIGHT_FLO
 	ss = 1.0f / sqrtf(ss);
 	// normalize and scale
 	for (int j = 0; j < size; j++) {
-		o[j] = (weight[j] * x[j]) * ss;
+		o[j] = weight[j] * x[j] * ss;
 	}
 }
-void softmax(MODELWEIGHT_FLOATTYPE* x, int size) {
+void softmax(RUNSTATE_FLOATTYPE* x, int size) {
 	// find max value (for numerical stability)
 	float max_val = x[0];
 	for (int i = 1; i < size; i++) {
@@ -818,7 +851,7 @@ void softmax(MODELWEIGHT_FLOATTYPE* x, int size) {
 		x[i] /= sum;
 	}
 }
-void matmul(MODELWEIGHT_FLOATTYPE* xout, MODELWEIGHT_FLOATTYPE* x, MODELWEIGHT_FLOATTYPE* w, int n, int d) {
+void matmul(RUNSTATE_FLOATTYPE* xout, RUNSTATE_FLOATTYPE* x, MODELWEIGHT_FLOATTYPE* w, int n, int d) {
 	// W (d,n) @ x (n,) -> xout (d,)
 	// by far the most amount of time is spent inside this little function
 	int i;
@@ -831,11 +864,12 @@ void matmul(MODELWEIGHT_FLOATTYPE* xout, MODELWEIGHT_FLOATTYPE* x, MODELWEIGHT_F
 		xout[i] = val;
 	}
 }
-void dequantization(MODELWEIGHT_FLOATTYPE* dst, MODELWEIGHT_FLOATTYPE* src, int cnt)
+void dequantization(RUNSTATE_FLOATTYPE* dst, MODELWEIGHT_FLOATTYPE* src, int cnt)
 {
-	memcpy(dst, src, cnt*sizeof(MODELWEIGHT_FLOATTYPE));
+	int j;
+	for(j=0;j<cnt;j++)dst[j] = src[j];
 }
-void transformer_eachlayer(MODELWEIGHT_FLOATTYPE* x, int pos, modelinfo* mi, RunState* rs, int layer)
+void transformer_eachlayer1(RUNSTATE_FLOATTYPE* x, int pos, modelinfo* mi, RunState* rs, int layer)
 {
 	int dim = mi->dim;
 	int hidden_dim =  mi->hidden_dim;
@@ -848,21 +882,17 @@ void transformer_eachlayer(MODELWEIGHT_FLOATTYPE* x, int pos, modelinfo* mi, Run
 	MODELWEIGHT_FLOATTYPE* w_wk = mi->wk_data + layer*dim*kv_dim;
 	MODELWEIGHT_FLOATTYPE* w_wv = mi->wv_data + layer*dim*kv_dim;
 	MODELWEIGHT_FLOATTYPE* w_wo = mi->wo_data + layer*dim*dim;
-	MODELWEIGHT_FLOATTYPE* w_rms_ffn_weight = mi->rms_ffn_weight_data + layer*dim;
-	MODELWEIGHT_FLOATTYPE* w_w1 = mi->w1_data + layer*dim*hidden_dim;
-	MODELWEIGHT_FLOATTYPE* w_w2 = mi->w2_data + layer*dim*hidden_dim;
-	MODELWEIGHT_FLOATTYPE* w_w3 = mi->w3_data + layer*dim*hidden_dim;
 
-	MODELWEIGHT_FLOATTYPE* rs_xb = rs->xb_data;
-	MODELWEIGHT_FLOATTYPE* rs_xb2 = rs->xb2_data;
-	MODELWEIGHT_FLOATTYPE* rs_hb = rs->hb_data;
-	MODELWEIGHT_FLOATTYPE* rs_hb2 = rs->hb2_data;
-	MODELWEIGHT_FLOATTYPE* rs_q = rs->q_data;
-	MODELWEIGHT_FLOATTYPE* rs_k = rs->k_data;
-	MODELWEIGHT_FLOATTYPE* rs_v = rs->v_data;
-	MODELWEIGHT_FLOATTYPE* rs_att = rs->att_data;
-	MODELWEIGHT_FLOATTYPE* rs_key_cache = rs->key_cache_data;
-	MODELWEIGHT_FLOATTYPE* rs_value_cache = rs->value_cache_data;
+	RUNSTATE_FLOATTYPE* rs_xb = rs->xb_data;
+	RUNSTATE_FLOATTYPE* rs_xb2 = rs->xb2_data;
+	RUNSTATE_FLOATTYPE* rs_q = rs->q_data;
+	RUNSTATE_FLOATTYPE* rs_k = rs->k_data;
+	RUNSTATE_FLOATTYPE* rs_v = rs->v_data;
+	RUNSTATE_FLOATTYPE* rs_att = rs->att_data;
+	RUNSTATE_FLOATTYPE* rs_key_cache = rs->key_cache_data;
+	RUNSTATE_FLOATTYPE* rs_value_cache = rs->value_cache_data;
+
+	u64 ta = time_in_ns();
 
 	// attention rmsnorm
 	rmsnorm(rs_xb, x, w_rms_att_weight, dim);
@@ -871,6 +901,9 @@ void transformer_eachlayer(MODELWEIGHT_FLOATTYPE* x, int pos, modelinfo* mi, Run
 	matmul(rs_q, rs_xb, w_wq, dim, dim);
 	matmul(rs_k, rs_xb, w_wk, dim, kv_dim);
 	matmul(rs_v, rs_xb, w_wv, dim, kv_dim);
+
+	u64 tb = time_in_ns();
+	tatotb += tb-ta;
 
 	// RoPE relative positional encoding: complex-valued rotate q and k by freq_cis in each head
 	for (int i = 0; i < dim; i+=2) {
@@ -881,7 +914,7 @@ void transformer_eachlayer(MODELWEIGHT_FLOATTYPE* x, int pos, modelinfo* mi, Run
 		float fci = sinf(val);
 		int rotn = i < kv_dim ? 2 : 1; // how many vectors? 2 = q & k, 1 = q only
 		for (int v = 0; v < rotn; v++) {
-			MODELWEIGHT_FLOATTYPE* vec = (v == 0) ? rs_q : rs_k; // the vector to rotate (query or key)
+			RUNSTATE_FLOATTYPE* vec = (v == 0) ? rs_q : rs_k; // the vector to rotate (query or key)
 			float v0 = vec[i];
 			float v1 = vec[i+1];
 			vec[i]   = v0 * fcr - v1 * fci;
@@ -891,23 +924,26 @@ void transformer_eachlayer(MODELWEIGHT_FLOATTYPE* x, int pos, modelinfo* mi, Run
 
 	// save key,value at this time step (pos) to our kv cache
 	int loff = layer * mi->seq_len * kv_dim; // kv cache layer offset for convenience
-	MODELWEIGHT_FLOATTYPE* key_cache_row = rs_key_cache + loff + pos * kv_dim;
-	MODELWEIGHT_FLOATTYPE* value_cache_row = rs_value_cache + loff + pos * kv_dim;
+	RUNSTATE_FLOATTYPE* key_cache_row = rs_key_cache + loff + pos * kv_dim;
+	RUNSTATE_FLOATTYPE* value_cache_row = rs_value_cache + loff + pos * kv_dim;
 	memcpy(key_cache_row, rs_k, kv_dim*sizeof(*key_cache_row));
 	memcpy(value_cache_row, rs_v, kv_dim*sizeof(*value_cache_row));
+
+	u64 tc = time_in_ns();
+	tbtotc += tc-tb;
 
 	// multihead attention. iterate over all heads
 	int h;
 	#pragma omp parallel for private(h)
 	for (h = 0; h < mi->n_heads; h++) {
 		// get the query vector for this head
-		MODELWEIGHT_FLOATTYPE* q = rs_q + h * head_size;
+		RUNSTATE_FLOATTYPE* q = rs_q + h * head_size;
 		// attention scores for this head
-		MODELWEIGHT_FLOATTYPE* att = rs_att + h * mi->seq_len;
+		RUNSTATE_FLOATTYPE* att = rs_att + h * mi->seq_len;
 		// iterate over all timesteps, including the current one
 		for (int t = 0; t <= pos; t++) {
 			// get the key vector for this head and at this timestep
-			MODELWEIGHT_FLOATTYPE* k = rs_key_cache + loff + t * kv_dim + (h/kv_mul) * head_size;
+			RUNSTATE_FLOATTYPE* k = rs_key_cache + loff + t * kv_dim + (h/kv_mul) * head_size;
 			// calculate the attention score as the dot product of q and k
 			float score = 0.0f;
 			for (int i = 0; i < head_size; i++) {
@@ -922,11 +958,11 @@ void transformer_eachlayer(MODELWEIGHT_FLOATTYPE* x, int pos, modelinfo* mi, Run
 		softmax(att, pos + 1);
 
 		// weighted sum of the values, store back into xb
-		MODELWEIGHT_FLOATTYPE* xb = rs_xb + h * head_size;
-		memset(xb, 0, head_size * sizeof(MODELWEIGHT_FLOATTYPE));
+		RUNSTATE_FLOATTYPE* xb = rs_xb + h * head_size;
+		memset(xb, 0, head_size * sizeof(RUNSTATE_FLOATTYPE));
 		for (int t = 0; t <= pos; t++) {
 			// get the value vector for this head and at this timestep
-			MODELWEIGHT_FLOATTYPE* v = rs_value_cache + loff + t * kv_dim + (h/kv_mul) * head_size;
+			RUNSTATE_FLOATTYPE* v = rs_value_cache + loff + t * kv_dim + (h/kv_mul) * head_size;
 			// get the attention weight for this timestep
 			float a = att[t];
 			// accumulate the weighted value into xb
@@ -943,6 +979,25 @@ void transformer_eachlayer(MODELWEIGHT_FLOATTYPE* x, int pos, modelinfo* mi, Run
 	for (int i = 0; i < dim; i++) {
 		x[i] += rs_xb2[i];
 	}
+
+	u64 td = time_in_ns();
+	tctotd += td-tc;
+}
+void transformer_eachlayer2(RUNSTATE_FLOATTYPE* x, int pos, modelinfo* mi, RunState* rs, int layer)
+{
+	int dim = mi->dim;
+	int hidden_dim =  mi->hidden_dim;
+
+	MODELWEIGHT_FLOATTYPE* w_rms_ffn_weight = mi->rms_ffn_weight_data + layer*dim;
+	MODELWEIGHT_FLOATTYPE* w_w1 = mi->w1_data + layer*dim*hidden_dim;
+	MODELWEIGHT_FLOATTYPE* w_w2 = mi->w2_data + layer*dim*hidden_dim;
+	MODELWEIGHT_FLOATTYPE* w_w3 = mi->w3_data + layer*dim*hidden_dim;
+
+	RUNSTATE_FLOATTYPE* rs_xb = rs->xb_data;
+	RUNSTATE_FLOATTYPE* rs_hb = rs->hb_data;
+	RUNSTATE_FLOATTYPE* rs_hb2 = rs->hb2_data;
+
+	u64 td = time_in_ns();
 
 	// ffn rmsnorm
 	rmsnorm(rs_xb, x, w_rms_ffn_weight, dim);
@@ -969,42 +1024,46 @@ void transformer_eachlayer(MODELWEIGHT_FLOATTYPE* x, int pos, modelinfo* mi, Run
 	for (int i = 0; i < dim; i++) {
 		x[i] += rs_xb[i];
 	}
+
+	u64 te = time_in_ns();
+	tdtote += te-td;
 }
 void transformer(int token, int pos, modelinfo* mi, RunState* rs) {
+	u64 t0 = time_in_ns();
+
 	int dim = mi->dim;
 	MODELWEIGHT_FLOATTYPE* w_token_embedding_table = mi->token_embedding_table_data;
 	MODELWEIGHT_FLOATTYPE* w_rms_final_weight = mi->rms_final_weight_data;
 	MODELWEIGHT_FLOATTYPE* w_wcls = mi->wcls_data;
 
-	MODELWEIGHT_FLOATTYPE* rs_x = rs->x_data;
-	MODELWEIGHT_FLOATTYPE* rs_logits = rs->logits_data;
+	RUNSTATE_FLOATTYPE* rs_x = rs->x_data;
+	RUNSTATE_FLOATTYPE* rs_logits = rs->logits_data;
 
 	// copy the token embedding into x
 	dequantization(rs_x, &w_token_embedding_table[token * dim], dim);
 
+	u64 t1 = time_in_ns();
+	t0tot1 += t1-t0;
+
 	// forward all the layers
 	for(int l = 0; l < mi->n_layers; l++) {
-		transformer_eachlayer(rs_x, pos, mi, rs, l);
+		transformer_eachlayer1(rs_x, pos, mi, rs, l);
+		transformer_eachlayer2(rs_x, pos, mi, rs, l);
 	}
-	
+
+	u64 t2 = time_in_ns();
+	t1tot2 += t2-t1;
+
 	// final rmsnorm
 	rmsnorm(rs_x, rs_x, w_rms_final_weight, dim);
 
 	// classifier into logits
 	matmul(rs_logits, rs_x, w_wcls, mi->dim, mi->vocab_size);
+
+	u64 t3 = time_in_ns();
+	t2tot3 += t3-t2;
 }
-unsigned long long rng_seed = 0x8273478;
-unsigned int random_u32() {
-	// xorshift rng: https://en.wikipedia.org/wiki/Xorshift#xorshift.2A
-	rng_seed ^= rng_seed >> 12;
-	rng_seed ^= rng_seed << 25;
-	rng_seed ^= rng_seed >> 27;
-	return (rng_seed * 0x2545F4914F6CDD1Dull) >> 32;
-}
-float random_f32() { // random float32 in [0,1)
-	return (random_u32() >> 8) / 16777216.0f;
-}
-int sample(MODELWEIGHT_FLOATTYPE* probabilities, int n) {
+int sample(RUNSTATE_FLOATTYPE* probabilities, int n) {
 	// sample index from probabilities, they must sum to 1
 	float r = random_f32();
 	float cdf = 0.0f;
@@ -1016,7 +1075,7 @@ int sample(MODELWEIGHT_FLOATTYPE* probabilities, int n) {
 	}
 	return n - 1; // in case of rounding errors
 }
-int argmax(MODELWEIGHT_FLOATTYPE* v, int n) {
+int argmax(RUNSTATE_FLOATTYPE* v, int n) {
 	// return argmax of v in elements 0..n
 	int max_i = 0;
 	MODELWEIGHT_FLOATTYPE max_p = v[0];
@@ -1031,10 +1090,19 @@ int argmax(MODELWEIGHT_FLOATTYPE* v, int n) {
 void llama_runmodel(modelinfo* mi, RunState* rs, tokeninfo* ti, TokenState* ts)
 {
 	printf("--------runmodel--------\n");
-	MODELWEIGHT_FLOATTYPE* rs_logits = rs->logits_data;
+	RUNSTATE_FLOATTYPE* rs_logits = rs->logits_data;
+
+	//time
+	u64 start = 0;  // used to time our code, only initialized after first iteration
+	t0tot1 = 0;
+	t1tot2 = 0;
+	t2tot3 = 0;
+	tatotb = 0;
+	tbtotc = 0;
+	tctotd = 0;
+	tdtote = 0;
 
 	// start the main loop
-	long start = 0;  // used to time our code, only initialized after first iteration
 	int next;        // will store the next token in the sequence
 	int token = 1;   // init with token 1 (=BOS), as done in Llama-2 sentencepiece tokenizer
 	int pos = 0;     // position in the sequence
@@ -1078,14 +1146,16 @@ void llama_runmodel(modelinfo* mi, RunState* rs, tokeninfo* ti, TokenState* ts)
 		token = next;
 
 		// init our timer here because the first iteration is slow due to memmap
-		if (start == 0) { start = time_in_ms(); }
+		if (start == 0) { start = time_in_ns(); }
 	}
 	printf("\n\n");
 
 	if (pos > 1) {
-		long end = time_in_ms();
+		u64 end = time_in_ns();
 		printf("--------evaluate--------\n");
-		printf("token=%d, time=%f, t/s=%f\n", pos-1, (end-start)*0.001, (pos-1) / (double)(end-start)*1000);
+		printf("token=%d, time=%f, t/s=%f\n", pos-1, (end-start)*1e-9, 1e9 * (pos-1) / (end-start));
+		printf("t0tot1=%f, t1tot2=%f, t2tot3=%f\n", t0tot1*1e-9, t1tot2*1e-9, t2tot3*1e-9);
+		printf("tatotb=%f, tbtotc=%f, tctotd=%f, tdtote=%f\n", tatotb*1e-9, tbtotc*1e-9, tctotd*1e-9, tdtote*1e-9);
 	}
 }
 
