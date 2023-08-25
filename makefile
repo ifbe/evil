@@ -1,4 +1,6 @@
 CC:=gcc		#/usr/local/opt/llvm/bin/clang
+CF:=
+
 SRC = \
 source/libunit/load.c \
 source/libunit/rel/rel.c \
@@ -76,25 +78,18 @@ source/operator/3highlevel/llama/llama2.c \
 source/evil.c
 
 cli:
-	gcc -o a.exe $(SRC) \
+	$(CC) $(CF) -o a.exe $(SRC) \
 	source/operator/2indite/render/cli.c \
 	source/operator/2indite/serve/none.c \
 	-Isource/libunit -Isource -lm
-clifast:
-	gcc -Ofast -o a.exe $(SRC) \
-	source/operator/2indite/render/cli.c \
-	source/operator/2indite/serve/none.c \
-	-Isource/libunit -Isource -lm
-cliomp:
-	$(CC) -Ofast -fopenmp -o a.exe $(SRC) \
-	source/operator/2indite/render/cli.c \
-	source/operator/2indite/serve/none.c \
-	-Isource/libunit -Isource -lm
-clinative:
-	$(CC) -march=native -Ofast -fopenmp -o a.exe $(SRC) \
-	source/operator/2indite/render/cli.c \
-	source/operator/2indite/serve/none.c \
-	-Isource/libunit -Isource -lm
+cli-fast:
+	make -s cli CF="-Ofast"
+cli-native:
+	make -s cli CF="-march=native -Ofast"
+cli-fastomp:
+	make -s cli CF="-Ofast -fopenmp"
+cli-nativeomp:
+	make -s cli CF="-march=native -Ofast -fopenmp"
 
 win:
 	gcc -o a.exe $(SRC) \

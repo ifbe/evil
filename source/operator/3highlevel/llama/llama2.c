@@ -105,9 +105,6 @@ typedef struct{
 	unsigned long long w3_size; // (layer, hidden_dim, dim)
 	// final rmsnorm
 	unsigned long long rms_final_weight_size; // (dim,)
-	// freq_cis for RoPE relatively positional embeddings
-	unsigned long long freq_cis_real_size; // (seq_len, dim/2)
-	unsigned long long freq_cis_imag_size; // (seq_len, dim/2)
 	// (optional) classifier weights for the logits, on the last layer
 	unsigned long long wcls_size;
 
@@ -270,14 +267,14 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	offs = next;
 
 	int head_size = mi->dim / mi->n_heads;
-	mi->freq_cis_real_size = (u64)mi->seq_len * head_size / 2 * sizeof(MODELWEIGHT_FLOATTYPE);
-	next += mi->freq_cis_real_size;
-	printf("[%16llx,%16llx)%16lldMB        freq_cis_real\n", offs, next, mi->freq_cis_real_size>>20);
+	u64 freq_cis_real_size = (u64)mi->seq_len * head_size / 2 * sizeof(MODELWEIGHT_FLOATTYPE);
+	next += freq_cis_real_size;
+	printf("[%16llx,%16llx)%16lldMB        freq_cis_real\n", offs, next, freq_cis_real_size>>20);
 	offs = next;
 
-	mi->freq_cis_imag_size = (u64)mi->seq_len * head_size / 2 * sizeof(MODELWEIGHT_FLOATTYPE);
-	next += mi->freq_cis_imag_size;
-	printf("[%16llx,%16llx)%16lldMB        freq_cis_imag\n", offs, next, mi->freq_cis_imag_size>>20);
+	u64 freq_cis_imag_size = (u64)mi->seq_len * head_size / 2 * sizeof(MODELWEIGHT_FLOATTYPE);
+	next += freq_cis_imag_size;
+	printf("[%16llx,%16llx)%16lldMB        freq_cis_imag\n", offs, next, freq_cis_imag_size>>20);
 	offs = next;
 
 	if(shared_weights){
@@ -429,32 +426,8 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	}
 	offs += mi->rms_final_weight_size;
 
-	//freq_cis_real
-	/*
-	mi->freq_cis_real_data = malloc(mi->freq_cis_real_size);
-	lseek64(fd, offs, SEEK_SET);
-	ret = fullread(fd, mi->freq_cis_real_data, mi->freq_cis_real_size);
-	printf("read:	%llx / %llx\n", ret, mi->freq_cis_real_size);
-	if(DEBUG_WEIGHT){
-		printu8(mi->freq_cis_real_data);
-		printfloat(mi->freq_cis_real_data);
-		printminmax(mi->freq_cis_real_data, mi->freq_cis_real_size);
-	}*/
-	offs += mi->freq_cis_real_size;
-
-	//freq_cis_imag
-	/*
-	mi->freq_cis_imag_data = malloc(mi->freq_cis_imag_size);
-	lseek64(fd, offs, SEEK_SET);
-	ret = fullread(fd, mi->freq_cis_imag_data, mi->freq_cis_imag_size);
-	printf("read:	%llx / %llx\n", ret, mi->freq_cis_imag_size);
-	if(DEBUG_WEIGHT){
-		printu8(mi->freq_cis_imag_data);
-		printfloat(mi->freq_cis_imag_data);
-		printminmax(mi->freq_cis_imag_data, mi->freq_cis_imag_size);
-	}
-	*/
-	offs += mi->freq_cis_imag_size;
+	offs += freq_cis_real_size;
+	offs += freq_cis_imag_size;
 
 	if(shared_weights){
 		mi->wcls_data = mi->token_embedding_table_data;
@@ -1007,14 +980,14 @@ void transformer_eachlayer2(RUNSTATE_FLOATTYPE* x, int pos, modelinfo* mi, RunSt
 	matmul(rs_hb , rs_xb, w_w1, dim, hidden_dim);
 	matmul(rs_hb2, rs_xb, w_w3, dim, hidden_dim);
 
-	// F.silu; silu(x)=x*σ(x),where σ(x) is the logistic sigmoid
+	// SwiGLU non-linearity
 	for (int i = 0; i < hidden_dim; i++) {
-		rs_hb[i] = rs_hb[i] * (1.0f / (1.0f + expf(-rs_hb[i])));
-	}
-
-	// elementwise multiply with w3(x)
-	for (int i = 0; i < hidden_dim; i++) {
-		rs_hb[i] = rs_hb[i] * rs_hb2[i];
+		float val = rs_hb[i];
+		// silu(x)=x*σ(x), where σ(x) is the logistic sigmoid
+		val *= (1.0f / (1.0f + expf(-val)));
+		// elementwise multiply with w3(x)
+		val *= rs_hb2[i];
+		rs_hb[i] = val;
 	}
 
 	// final matmul to get the output of the ffn
@@ -1109,7 +1082,7 @@ void llama_runmodel(modelinfo* mi, RunState* rs, tokeninfo* ti, TokenState* ts)
 	//printf("<s>\n"); // explicit print the initial BOS token for stylistic symmetry reasons
 
 	float temperature = 1.0;
-	int steps = 4096;
+	int steps = mi->seq_len;
 	while (pos < steps) {
 		//printf("pos=%d,steps=%d\n",pos,steps);
 
