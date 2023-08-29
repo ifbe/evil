@@ -90,6 +90,14 @@ cli-fastomp:
 	make -s cli CF="-Ofast -fopenmp"
 cli-nativeomp:
 	make -s cli CF="-march=native -Ofast -fopenmp"
+cli-vulkan:
+	C:\VulkanSDK\1.3.250.1\Bin\glslc.exe shader.comp -o shader.comp.spv
+	$(CC) -march=native -Ofast -fopenmp $(SRC) \
+	source/operator/3highlevel/llama/vulkan.c \
+	source/operator/2indite/render/cli.c \
+	source/operator/2indite/serve/none.c \
+	-lvulkan-1 -IC:\VulkanSDK\1.3.250.1\Include -LC:\VulkanSDK\1.3.250.1\Lib \
+	-Isource/libunit -Isource -lm
 
 win:
 	gcc -o a.exe $(SRC) \

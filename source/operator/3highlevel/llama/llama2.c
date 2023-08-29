@@ -25,6 +25,11 @@
 #endif
 int input(void*, int);
 int output(void*, int);
+//
+void* vulkan_init(void*, void*);
+void vulkan_exit();
+void vulkan_myctx_create(void*, void*);
+void vulkan_myctx_delete();
 
 #ifdef _WIN32
 #include <windows.h>
@@ -824,7 +829,11 @@ void softmax(RUNSTATE_FLOATTYPE* x, int size) {
 		x[i] /= sum;
 	}
 }
+void vulkan_muladd(RUNSTATE_FLOATTYPE* xout, RUNSTATE_FLOATTYPE* x, MODELWEIGHT_FLOATTYPE* w, int n, int d);
 void matmul(RUNSTATE_FLOATTYPE* xout, RUNSTATE_FLOATTYPE* x, MODELWEIGHT_FLOATTYPE* w, int n, int d) {
+	vulkan_muladd(xout, x, w, n, d);
+	return;
+
 	// W (d,n) @ x (n,) -> xout (d,)
 	// by far the most amount of time is spent inside this little function
 	int i;
@@ -836,6 +845,7 @@ void matmul(RUNSTATE_FLOATTYPE* xout, RUNSTATE_FLOATTYPE* x, MODELWEIGHT_FLOATTY
 		}
 		xout[i] = val;
 	}
+	//printf("%f,%f,%f\n",xout[0], xout[767], xout[d-1]);
 }
 void dequantization(RUNSTATE_FLOATTYPE* dst, MODELWEIGHT_FLOATTYPE* src, int cnt)
 {
@@ -1163,6 +1173,13 @@ void llama(int argc, char** argv)
 	TokenState tokenstate;
 	llama_initprompt(&model, &tokenstate);
 
+        //init
+        void* ins = vulkan_init(0, 0);
+        if(0 == ins)return;
+
+        //vulkan: things
+        vulkan_myctx_create(0, 0);
+
 	int ret;
 	char str[4096];
 	do{
@@ -1178,6 +1195,12 @@ void llama(int argc, char** argv)
 		llama_runmodel(&model, &modelstate, &token, &tokenstate);
 		printf("\n");
 	}while(1);
+
+        //vulkan
+        vulkan_myctx_delete();
+
+        //exit
+        vulkan_exit();
 
 	//llama_exitprompt();
 	//llama_exittokenizer();
