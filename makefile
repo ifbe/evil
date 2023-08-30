@@ -91,12 +91,20 @@ cli-fastomp:
 cli-nativeomp:
 	make -s cli CF="-march=native -Ofast -fopenmp"
 cli-vulkan:
-	C:\VulkanSDK\1.3.250.1\Bin\glslc.exe shader.comp -o shader.comp.spv
+	C:\VulkanSDK\1.3.261.1\Bin\glslc.exe shader.comp -o shader.comp.spv
 	$(CC) -march=native -Ofast -fopenmp $(SRC) \
 	source/operator/3highlevel/llama/vulkan.c \
 	source/operator/2indite/render/cli.c \
 	source/operator/2indite/serve/none.c \
-	-lvulkan-1 -IC:\VulkanSDK\1.3.250.1\Include -LC:\VulkanSDK\1.3.250.1\Lib \
+	-IC:\VulkanSDK\1.3.261.1\Include -LC:\VulkanSDK\1.3.261.1\Lib -lvulkan-1 \
+	-Isource/libunit -Isource -lm
+maccli-vulkan:
+	glslangValidator --target-env vulkan1.2 shader.comp -o shader.comp.spv
+	$(CC) -march=native -Ofast -fopenmp $(SRC) \
+	source/operator/3highlevel/llama/vulkan.c \
+	source/operator/2indite/render/cli.c \
+	source/operator/2indite/serve/none.c \
+	-I/Users/ifbe/VulkanSDK/1.3.261.0/macOS/include -L/Users/ifbe/VulkanSDK/1.3.261.0/macOS/lib -lvulkan \
 	-Isource/libunit -Isource -lm
 
 win:

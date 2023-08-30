@@ -2,6 +2,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <vulkan/vulkan.h>
+typedef unsigned int u32;
+typedef unsigned short u16;
+
+
 const char* validationLayers[] = {
     "VK_LAYER_KHRONOS_validation"
 };
@@ -790,7 +794,7 @@ VkDeviceMemory hostMemory[3];
 VkBuffer deviceBuffer[3];
 VkDeviceMemory deviceMemory[3];
 //
-int xdim = 16384;
+int xdim = 16384;		//11008
 int ydim = 32000;
 int outputbuffersize = 0;
 int vectorbuffersize = 0;
@@ -1076,7 +1080,7 @@ void vulkan_myctx_create()
 			physicaldevice,
 			logicaldevice,
 			VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 			size,
 			0
 		);
@@ -1128,7 +1132,6 @@ void vulkan_myctx_delete()
 void gpu_compute()
 {
 	int x,y;
-	unsigned long long t0 = time_in_ns();
 
 	//compute work
 	VkCommandBufferBeginInfo cmdBufbeginInfo = {};
@@ -1215,8 +1218,6 @@ void gpu_compute()
 
 	ret = vkEndCommandBuffer(commandBuffer);
 
-	unsigned long long t1 = time_in_ns();
-
 	// Submit compute work
 	vkResetFences(logicaldevice, 1, &computefence);
 	const VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
@@ -1226,24 +1227,29 @@ void gpu_compute()
 	computeSubmitInfo.commandBufferCount = 1;
 	computeSubmitInfo.pCommandBuffers = &commandBuffer;
 	vkQueueSubmit(computeQueue, 1, &computeSubmitInfo, computefence);
-
-	vkWaitForFences(logicaldevice, 1, &computefence, VK_TRUE, UINT64_MAX);
-
-	unsigned long long t2 = time_in_ns();
 }
 void cpu_compute(float* tmp0, float* tmp1, float* tmp2)
 {
-        int x,y;
-        for(y=0;y<ydim;y++){
-                float tmp = 0.0;
-                for(x=0;x<xdim;x++){
-                tmp += tmp2[y*xdim+x] * tmp1[x];
-                }
-                tmp0[y] = tmp;
-        }
+	int x,y;
+	for(y=0;y<ydim;y++){
+		float tmp = 0.0;
+		for(x=0;x<xdim;x++){
+		tmp += tmp2[y*xdim+x] * tmp1[x];
+		}
+		tmp0[y] = tmp;
+	}
+}
+void vulkan_bf16tofloat(u32* out, u16* in, int cnt)
+{
+	int x;
+	for(x=0;x<cnt;x++){
+		out[x] = (u32)in[x]<<16;
+	}
 }
 void vulkan_muladd(float* xout, float* xin, __bf16* w, int n, int d)
 {
+	unsigned long long t0 = time_in_ns();
+
 	xdim = n;
 	ydim = d;
 	outputbuffersize = 4*ydim;
@@ -1268,18 +1274,23 @@ void vulkan_muladd(float* xout, float* xin, __bf16* w, int n, int d)
 	mappedRange[1].size = VK_WHOLE_SIZE;
 	vkInvalidateMappedMemoryRanges(logicaldevice, 2, mappedRange);
 
+	unsigned long long t1 = time_in_ns();
+
 	int x,y;
-	for(x=0;x<xdim*ydim;x++){
-		tmp2[x] = w[x];
-	}
 	for(x=0;x<xdim;x++){
 		tmp1[x] = xin[x];
 	}
+	vulkan_bf16tofloat((void*)tmp2, (void*)w, xdim*ydim);
 
-	vkUnmapMemory(logicaldevice, hostMemory[2]);
-	vkUnmapMemory(logicaldevice, hostMemory[1]);
+	unsigned long long t2 = time_in_ns();
 
 	gpu_compute();
+
+	unsigned long long t3 = time_in_ns();
+
+	vkWaitForFences(logicaldevice, 1, &computefence, VK_TRUE, UINT64_MAX);
+
+	unsigned long long t4 = time_in_ns();
 
 	float* tmp0;
 	vkMapMemory(logicaldevice, hostMemory[0], 0, VK_WHOLE_SIZE, 0, (void*)&tmp0);
@@ -1296,7 +1307,13 @@ void vulkan_muladd(float* xout, float* xin, __bf16* w, int n, int d)
 	for(y=0;y<ydim;y++)xout[y] = tmp0[y];
 	//printf("gpu_compute:xdim=%d,ydim=%d,first=%f,767=%f,last=%f\n",xdim,ydim,xout[0],xout[767],xout[ydim-1]);
 
+	vkUnmapMemory(logicaldevice, hostMemory[2]);
+	vkUnmapMemory(logicaldevice, hostMemory[1]);
 	vkUnmapMemory(logicaldevice, hostMemory[0]);
+
+	unsigned long long t5 = time_in_ns();
+
+	//printf("%f,%f,%f,%f,%f\n", (t1-t0)*1e-9, (t2-t1)*1e-9, (t3-t2)*1e-9, (t4-t3)*1e-9, (t5-t4)*1e-9);
 }
 /*
 int main()
