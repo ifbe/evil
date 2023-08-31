@@ -97,7 +97,7 @@ typedef struct{
 	unsigned long long token_embedding_table_size;    // (vocab_size, dim)
 	// weights for rmsnorms
 	unsigned long long rms_att_weight_size; // (layer, dim) rmsnorm weights
-	// weights for matmuls
+	// weights for muladds
 	unsigned long long wq_size; // (layer, dim, dim)
 	unsigned long long wk_size; // (layer, dim, dim)
 	unsigned long long wv_size; // (layer, dim, dim)
@@ -829,11 +829,18 @@ void softmax(RUNSTATE_FLOATTYPE* x, int size) {
 		x[i] /= sum;
 	}
 }
-void vulkan_muladd(RUNSTATE_FLOATTYPE* xout, RUNSTATE_FLOATTYPE* x, MODELWEIGHT_FLOATTYPE* w, int n, int d);
-void matmul(RUNSTATE_FLOATTYPE* xout, RUNSTATE_FLOATTYPE* x, MODELWEIGHT_FLOATTYPE* w, int n, int d) {
-	vulkan_muladd(xout, x, w, n, d);
-	return;
 
+#define BACKEND_VULKAN 1
+#ifdef BACKEND_VULKAN
+void vulkan_muladd(RUNSTATE_FLOATTYPE* xout, RUNSTATE_FLOATTYPE* x, MODELWEIGHT_FLOATTYPE* w, int n, int d);
+void vulkan_muladd2(
+	RUNSTATE_FLOATTYPE* xout0, RUNSTATE_FLOATTYPE* x0, MODELWEIGHT_FLOATTYPE* w0, int n0, int d0,
+	RUNSTATE_FLOATTYPE* xout1, RUNSTATE_FLOATTYPE* x1, MODELWEIGHT_FLOATTYPE* w1, int n1, int d1);
+#define muladd vulkan_muladd
+#define muladd2 vulkan_muladd2
+#else
+void muladd(RUNSTATE_FLOATTYPE* xout, RUNSTATE_FLOATTYPE* x, MODELWEIGHT_FLOATTYPE* w, int n, int d)
+{
 	// W (d,n) @ x (n,) -> xout (d,)
 	// by far the most amount of time is spent inside this little function
 	int i;
@@ -847,6 +854,14 @@ void matmul(RUNSTATE_FLOATTYPE* xout, RUNSTATE_FLOATTYPE* x, MODELWEIGHT_FLOATTY
 	}
 	//printf("%f,%f,%f\n",xout[0], xout[767], xout[d-1]);
 }
+void muladd2(
+	RUNSTATE_FLOATTYPE* xout0, RUNSTATE_FLOATTYPE* x0, MODELWEIGHT_FLOATTYPE* w0, int n0, int d0,
+	RUNSTATE_FLOATTYPE* xout1, RUNSTATE_FLOATTYPE* x1, MODELWEIGHT_FLOATTYPE* w1, int n1, int d1)
+{
+	muladd(xout0, x0, w0, n0, d0);
+	muladd(xout0, x1, w1, n1, d1);
+}
+#endif
 void dequantization(RUNSTATE_FLOATTYPE* dst, MODELWEIGHT_FLOATTYPE* src, int cnt)
 {
 	int j;
@@ -880,10 +895,10 @@ void transformer_eachlayer1(RUNSTATE_FLOATTYPE* x, int pos, modelinfo* mi, RunSt
 	// attention rmsnorm
 	rmsnorm(rs_xb, x, w_rms_att_weight, dim);
 
-	// qkv matmuls for this position
-	matmul(rs_q, rs_xb, w_wq, dim, dim);
-	matmul(rs_k, rs_xb, w_wk, dim, kv_dim);
-	matmul(rs_v, rs_xb, w_wv, dim, kv_dim);
+	// qkv muladds for this position
+	muladd(rs_q, rs_xb, w_wq, dim, dim);
+	muladd(rs_k, rs_xb, w_wk, dim, kv_dim);
+	muladd(rs_v, rs_xb, w_wv, dim, kv_dim);
 
 	u64 tb = time_in_ns();
 	tatotb += tb-ta;
@@ -955,8 +970,8 @@ void transformer_eachlayer1(RUNSTATE_FLOATTYPE* x, int pos, modelinfo* mi, RunSt
 		}
 	}
 
-	// final matmul to get the output of the attention
-	matmul(rs_xb2, rs_xb, w_wo, dim, dim);
+	// final muladd to get the output of the attention
+	muladd(rs_xb2, rs_xb, w_wo, dim, dim);
 
 	// residual connection back into x
 	for (int i = 0; i < dim; i++) {
@@ -987,8 +1002,9 @@ void transformer_eachlayer2(RUNSTATE_FLOATTYPE* x, int pos, modelinfo* mi, RunSt
 
 	// Now for FFN in PyTorch we have: self.w2(F.silu(self.w1(x)) * self.w3(x))
 	// first calculate self.w1(x) and self.w3(x)
-	matmul(rs_hb , rs_xb, w_w1, dim, hidden_dim);
-	matmul(rs_hb2, rs_xb, w_w3, dim, hidden_dim);
+	muladd2(
+		rs_hb , rs_xb, w_w1, dim, hidden_dim,
+		rs_hb2, rs_xb, w_w3, dim, hidden_dim);
 
 	// SwiGLU non-linearity
 	for (int i = 0; i < hidden_dim; i++) {
@@ -1000,8 +1016,8 @@ void transformer_eachlayer2(RUNSTATE_FLOATTYPE* x, int pos, modelinfo* mi, RunSt
 		rs_hb[i] = val;
 	}
 
-	// final matmul to get the output of the ffn
-	matmul(rs_xb, rs_hb, w_w2, hidden_dim, dim);
+	// final muladd to get the output of the ffn
+	muladd(rs_xb, rs_hb, w_w2, hidden_dim, dim);
 
 	// residual connection
 	for (int i = 0; i < dim; i++) {
@@ -1041,7 +1057,7 @@ void transformer(int token, int pos, modelinfo* mi, RunState* rs) {
 	rmsnorm(rs_x, rs_x, w_rms_final_weight, dim);
 
 	// classifier into logits
-	matmul(rs_logits, rs_x, w_wcls, mi->dim, mi->vocab_size);
+	muladd(rs_logits, rs_x, w_wcls, mi->dim, mi->vocab_size);
 
 	u64 t3 = time_in_ns();
 	t2tot3 += t3-t2;

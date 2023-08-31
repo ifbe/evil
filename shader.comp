@@ -8,20 +8,23 @@ layout(binding = 0) buffer outdat {
 	float _o[ ];
 };
 layout(binding = 1) buffer indat {
-	float _x[ ];
+	vec4 _x[ ];
 };
 layout(binding = 2) buffer weight {
-	float _w[ ];
+	vec4 _w[ ];
 };
 
 void main(){
 	uint ix = gl_GlobalInvocationID.x;
 	uint iy = gl_GlobalInvocationID.y;
 	uint id = iy*32 + ix;
-	uint id2= id*xx;
-	float tmp = 0.0;
-	for(int j=0;j<xx;j++){
-		tmp += _w[id2 + j]*_x[j];
+
+	uint count = xx/4;
+	uint offset = id*count;
+
+	vec4 tmp = vec4(0.0);
+	for(int j=0;j<count;j++){
+		tmp += _w[offset + j]*_x[j];
 	}
-	_o[id] = tmp;
+	_o[id] = tmp[0]+tmp[1]+tmp[2]+tmp[3];
 }

@@ -90,7 +90,8 @@ cli-fastomp:
 	make -s cli CF="-Ofast -fopenmp"
 cli-nativeomp:
 	make -s cli CF="-march=native -Ofast -fopenmp"
-cli-vulkan:
+
+wincli-vulkan:
 	C:\VulkanSDK\1.3.261.1\Bin\glslc.exe shader.comp -o shader.comp.spv
 	$(CC) -march=native -Ofast -fopenmp $(SRC) \
 	source/operator/3highlevel/llama/vulkan.c \
@@ -104,7 +105,15 @@ maccli-vulkan:
 	source/operator/3highlevel/llama/vulkan.c \
 	source/operator/2indite/render/cli.c \
 	source/operator/2indite/serve/none.c \
-	-I/Users/ifbe/VulkanSDK/1.3.261.0/macOS/include -L/Users/ifbe/VulkanSDK/1.3.261.0/macOS/lib -lvulkan \
+	-I/Users/ifbe/VulkanSDK/1.3.261.1/macOS/include -L/Users/ifbe/VulkanSDK/1.3.261.1/macOS/lib -lvulkan \
+	-Isource/libunit -Isource -lm
+linuxcli-vulkan:
+	/opt/vulkansdk/1.3.261.1/x86_64/bin/glslc shader.comp -o shader.comp.spv
+	$(CC) -march=native -Ofast -fopenmp $(SRC) \
+	source/operator/3highlevel/llama/vulkan.c \
+	source/operator/2indite/render/cli.c \
+	source/operator/2indite/serve/none.c \
+	-I/opt/vulkansdk/1.3.261.1/x86_64/include -L/opt/vulkansdk/1.3.261.1/x86_64/lib -lvulkan \
 	-Isource/libunit -Isource -lm
 
 win:
