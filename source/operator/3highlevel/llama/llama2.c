@@ -830,7 +830,6 @@ void softmax(RUNSTATE_FLOATTYPE* x, int size) {
 	}
 }
 
-#define BACKEND_VULKAN 1
 #ifdef BACKEND_VULKAN
 void vulkan_muladd(RUNSTATE_FLOATTYPE* xout, RUNSTATE_FLOATTYPE* x, MODELWEIGHT_FLOATTYPE* w, int n, int d);
 void vulkan_muladd2(
@@ -859,7 +858,7 @@ void muladd2(
 	RUNSTATE_FLOATTYPE* xout1, RUNSTATE_FLOATTYPE* x1, MODELWEIGHT_FLOATTYPE* w1, int n1, int d1)
 {
 	muladd(xout0, x0, w0, n0, d0);
-	muladd(xout0, x1, w1, n1, d1);
+	muladd(xout1, x1, w1, n1, d1);
 }
 #endif
 void dequantization(RUNSTATE_FLOATTYPE* dst, MODELWEIGHT_FLOATTYPE* src, int cnt)
@@ -1189,12 +1188,14 @@ void llama(int argc, char** argv)
 	TokenState tokenstate;
 	llama_initprompt(&model, &tokenstate);
 
+#ifdef BACKEND_VULKAN
         //init
         void* ins = vulkan_init(0, 0);
         if(0 == ins)return;
 
         //vulkan: things
         vulkan_myctx_create(0, 0);
+#endif
 
 	int ret;
 	char str[4096];
@@ -1211,13 +1212,13 @@ void llama(int argc, char** argv)
 		llama_runmodel(&model, &modelstate, &token, &tokenstate);
 		printf("\n");
 	}while(1);
-
+#ifdef BACKEND_VULKAN
         //vulkan
         vulkan_myctx_delete();
 
         //exit
         vulkan_exit();
-
+#endif
 	//llama_exitprompt();
 	//llama_exittokenizer();
 	//llama_exitstate();

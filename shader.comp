@@ -8,10 +8,10 @@ layout(binding = 0) buffer outdat {
 	float _o[ ];
 };
 layout(binding = 1) buffer indat {
-	vec4 _x[ ];
+	mat4 _x[ ];
 };
 layout(binding = 2) buffer weight {
-	vec4 _w[ ];
+	mat4 _w[ ];
 };
 
 void main(){
@@ -19,12 +19,16 @@ void main(){
 	uint iy = gl_GlobalInvocationID.y;
 	uint id = iy*32 + ix;
 
-	uint count = xx/4;
+	uint count = xx/4/4;
 	uint offset = id*count;
 
-	vec4 tmp = vec4(0.0);
+	mat4 tmp = mat4(0.0);
 	for(int j=0;j<count;j++){
-		tmp += _w[offset + j]*_x[j];
+		tmp += matrixCompMult(_w[offset + j], _x[j]);
 	}
-	_o[id] = tmp[0]+tmp[1]+tmp[2]+tmp[3];
+	_o[id] =
+	tmp[0][0]+tmp[0][1]+tmp[0][2]+tmp[0][3] +
+	tmp[1][0]+tmp[1][1]+tmp[1][2]+tmp[1][3] +
+	tmp[2][0]+tmp[2][1]+tmp[2][2]+tmp[2][3] +
+	tmp[3][0]+tmp[3][1]+tmp[3][2]+tmp[3][3];
 }

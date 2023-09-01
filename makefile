@@ -91,25 +91,28 @@ cli-fastomp:
 cli-nativeomp:
 	make -s cli CF="-march=native -Ofast -fopenmp"
 
-wincli-vulkan:
+cli-nativeomp-winvulkan:
 	C:\VulkanSDK\1.3.261.1\Bin\glslc.exe shader.comp -o shader.comp.spv
-	$(CC) -march=native -Ofast -fopenmp $(SRC) \
+	$(CC) -march=native -Ofast -fopenmp -DBACKEND_VULKAN \
+	$(SRC) \
 	source/operator/3highlevel/llama/vulkan.c \
 	source/operator/2indite/render/cli.c \
 	source/operator/2indite/serve/none.c \
 	-IC:\VulkanSDK\1.3.261.1\Include -LC:\VulkanSDK\1.3.261.1\Lib -lvulkan-1 \
 	-Isource/libunit -Isource -lm
-maccli-vulkan:
+cli-nativeomp-macvulkan:
 	glslangValidator --target-env vulkan1.2 shader.comp -o shader.comp.spv
-	$(CC) -march=native -Ofast -fopenmp $(SRC) \
+	$(CC) -march=native -Ofast -fopenmp -DBACKEND_VULKAN \
+	$(SRC) \
 	source/operator/3highlevel/llama/vulkan.c \
 	source/operator/2indite/render/cli.c \
 	source/operator/2indite/serve/none.c \
 	-I/Users/ifbe/VulkanSDK/1.3.261.1/macOS/include -L/Users/ifbe/VulkanSDK/1.3.261.1/macOS/lib -lvulkan \
 	-Isource/libunit -Isource -lm
-linuxcli-vulkan:
+cli-nativeomp-linuxvulkan:
 	/opt/vulkansdk/1.3.261.1/x86_64/bin/glslc shader.comp -o shader.comp.spv
-	$(CC) -march=native -Ofast -fopenmp $(SRC) \
+	$(CC) -march=native -Ofast -fopenmp -DBACKEND_VULKAN \
+	$(SRC) \
 	source/operator/3highlevel/llama/vulkan.c \
 	source/operator/2indite/render/cli.c \
 	source/operator/2indite/serve/none.c \
