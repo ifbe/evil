@@ -63,10 +63,18 @@ u64 time_in_ns()
 static long long t0tot1 = 0;
 static long long t1tot2 = 0;
 static long long t2tot3 = 0;
+//
 static long long tatotb = 0;
 static long long tbtotc = 0;
 static long long tctotd = 0;
 static long long tdtote = 0;
+static long long tetotf = 0;
+//
+static long long tAtotB = 0;
+static long long tBtotC = 0;
+static long long tCtotD = 0;
+static long long tDtotE = 0;
+static long long tEtotF = 0;
 
 
 unsigned long long rng_seed = 0x8273478;
@@ -835,8 +843,13 @@ void vulkan_muladd(RUNSTATE_FLOATTYPE* xout, RUNSTATE_FLOATTYPE* x, MODELWEIGHT_
 void vulkan_muladd2(
 	RUNSTATE_FLOATTYPE* xout0, RUNSTATE_FLOATTYPE* x0, MODELWEIGHT_FLOATTYPE* w0, int n0, int d0,
 	RUNSTATE_FLOATTYPE* xout1, RUNSTATE_FLOATTYPE* x1, MODELWEIGHT_FLOATTYPE* w1, int n1, int d1);
+void vulkan_muladd3(
+	RUNSTATE_FLOATTYPE* xout0, RUNSTATE_FLOATTYPE* x0, MODELWEIGHT_FLOATTYPE* w0, int n0, int d0,
+	RUNSTATE_FLOATTYPE* xout1, RUNSTATE_FLOATTYPE* x1, MODELWEIGHT_FLOATTYPE* w1, int n1, int d1,
+	RUNSTATE_FLOATTYPE* xout2, RUNSTATE_FLOATTYPE* x2, MODELWEIGHT_FLOATTYPE* w2, int n2, int d2);
 #define muladd vulkan_muladd
 #define muladd2 vulkan_muladd2
+#define muladd3 vulkan_muladd3
 #else
 void muladd(RUNSTATE_FLOATTYPE* xout, RUNSTATE_FLOATTYPE* x, MODELWEIGHT_FLOATTYPE* w, int n, int d)
 {
@@ -860,6 +873,15 @@ void muladd2(
 	muladd(xout0, x0, w0, n0, d0);
 	muladd(xout1, x1, w1, n1, d1);
 }
+void muladd3(
+	RUNSTATE_FLOATTYPE* xout0, RUNSTATE_FLOATTYPE* x0, MODELWEIGHT_FLOATTYPE* w0, int n0, int d0,
+	RUNSTATE_FLOATTYPE* xout1, RUNSTATE_FLOATTYPE* x1, MODELWEIGHT_FLOATTYPE* w1, int n1, int d1,
+	RUNSTATE_FLOATTYPE* xout2, RUNSTATE_FLOATTYPE* x2, MODELWEIGHT_FLOATTYPE* w2, int n2, int d2)
+{
+	muladd(xout0, x0, w0, n0, d0);
+	muladd(xout1, x1, w1, n1, d1);
+	muladd(xout2, x2, w2, n2, d2);
+}
 #endif
 void dequantization(RUNSTATE_FLOATTYPE* dst, MODELWEIGHT_FLOATTYPE* src, int cnt)
 {
@@ -868,6 +890,8 @@ void dequantization(RUNSTATE_FLOATTYPE* dst, MODELWEIGHT_FLOATTYPE* src, int cnt
 }
 void transformer_eachlayer1(RUNSTATE_FLOATTYPE* x, int pos, modelinfo* mi, RunState* rs, int layer)
 {
+	u64 ta = time_in_ns();
+
 	int dim = mi->dim;
 	int hidden_dim =  mi->hidden_dim;
 	int head_size = dim / mi->n_heads;
@@ -889,18 +913,20 @@ void transformer_eachlayer1(RUNSTATE_FLOATTYPE* x, int pos, modelinfo* mi, RunSt
 	RUNSTATE_FLOATTYPE* rs_key_cache = rs->key_cache_data;
 	RUNSTATE_FLOATTYPE* rs_value_cache = rs->value_cache_data;
 
-	u64 ta = time_in_ns();
-
 	// attention rmsnorm
 	rmsnorm(rs_xb, x, w_rms_att_weight, dim);
 
-	// qkv muladds for this position
-	muladd(rs_q, rs_xb, w_wq, dim, dim);
-	muladd(rs_k, rs_xb, w_wk, dim, kv_dim);
-	muladd(rs_v, rs_xb, w_wv, dim, kv_dim);
-
 	u64 tb = time_in_ns();
 	tatotb += tb-ta;
+
+	// qkv muladds for this position
+	muladd3(
+		rs_q, rs_xb, w_wq, dim, dim,
+		rs_k, rs_xb, w_wk, dim, kv_dim,
+		rs_v, rs_xb, w_wv, dim, kv_dim);
+
+	u64 tc = time_in_ns();
+	tbtotc += tc-tb;
 
 	// RoPE relative positional encoding: complex-valued rotate q and k by freq_cis in each head
 	for (int i = 0; i < dim; i+=2) {
@@ -925,9 +951,6 @@ void transformer_eachlayer1(RUNSTATE_FLOATTYPE* x, int pos, modelinfo* mi, RunSt
 	RUNSTATE_FLOATTYPE* value_cache_row = rs_value_cache + loff + pos * kv_dim;
 	memcpy(key_cache_row, rs_k, kv_dim*sizeof(*key_cache_row));
 	memcpy(value_cache_row, rs_v, kv_dim*sizeof(*value_cache_row));
-
-	u64 tc = time_in_ns();
-	tbtotc += tc-tb;
 
 	// multihead attention. iterate over all heads
 	int h;
@@ -969,19 +992,27 @@ void transformer_eachlayer1(RUNSTATE_FLOATTYPE* x, int pos, modelinfo* mi, RunSt
 		}
 	}
 
+	u64 td = time_in_ns();
+	tctotd += td-tc;
+
 	// final muladd to get the output of the attention
 	muladd(rs_xb2, rs_xb, w_wo, dim, dim);
+
+	u64 te = time_in_ns();
+	tdtote += te-td;
 
 	// residual connection back into x
 	for (int i = 0; i < dim; i++) {
 		x[i] += rs_xb2[i];
 	}
 
-	u64 td = time_in_ns();
-	tctotd += td-tc;
+	u64 tf = time_in_ns();
+	tetotf += tf-te;
 }
 void transformer_eachlayer2(RUNSTATE_FLOATTYPE* x, int pos, modelinfo* mi, RunState* rs, int layer)
 {
+	u64 tA = time_in_ns();
+
 	int dim = mi->dim;
 	int hidden_dim =  mi->hidden_dim;
 
@@ -994,16 +1025,20 @@ void transformer_eachlayer2(RUNSTATE_FLOATTYPE* x, int pos, modelinfo* mi, RunSt
 	RUNSTATE_FLOATTYPE* rs_hb = rs->hb_data;
 	RUNSTATE_FLOATTYPE* rs_hb2 = rs->hb2_data;
 
-	u64 td = time_in_ns();
-
 	// ffn rmsnorm
 	rmsnorm(rs_xb, x, w_rms_ffn_weight, dim);
+
+	u64 tB = time_in_ns();
+	tAtotB += tB-tA;
 
 	// Now for FFN in PyTorch we have: self.w2(F.silu(self.w1(x)) * self.w3(x))
 	// first calculate self.w1(x) and self.w3(x)
 	muladd2(
 		rs_hb , rs_xb, w_w1, dim, hidden_dim,
 		rs_hb2, rs_xb, w_w3, dim, hidden_dim);
+
+	u64 tC = time_in_ns();
+	tBtotC += tC-tB;
 
 	// SwiGLU non-linearity
 	for (int i = 0; i < hidden_dim; i++) {
@@ -1015,16 +1050,22 @@ void transformer_eachlayer2(RUNSTATE_FLOATTYPE* x, int pos, modelinfo* mi, RunSt
 		rs_hb[i] = val;
 	}
 
+	u64 tD = time_in_ns();
+	tCtotD += tD-tC;
+
 	// final muladd to get the output of the ffn
 	muladd(rs_xb, rs_hb, w_w2, hidden_dim, dim);
+
+	u64 tE = time_in_ns();
+	tDtotE += tE-tD;
 
 	// residual connection
 	for (int i = 0; i < dim; i++) {
 		x[i] += rs_xb[i];
 	}
 
-	u64 te = time_in_ns();
-	tdtote += te-td;
+	u64 tF = time_in_ns();
+	tEtotF += tF-tE;
 }
 void transformer(int token, int pos, modelinfo* mi, RunState* rs) {
 	u64 t0 = time_in_ns();
@@ -1092,13 +1133,9 @@ void llama_runmodel(modelinfo* mi, RunState* rs, tokeninfo* ti, TokenState* ts)
 
 	//time
 	u64 start = 0;  // used to time our code, only initialized after first iteration
-	t0tot1 = 0;
-	t1tot2 = 0;
-	t2tot3 = 0;
-	tatotb = 0;
-	tbtotc = 0;
-	tctotd = 0;
-	tdtote = 0;
+	t0tot1 = t1tot2 = t2tot3 = 0;
+	tatotb = tbtotc = tctotd = tdtote = tetotf = 0;
+	tAtotB = tBtotC = tCtotD = tDtotE = tEtotF = 0;
 
 	// start the main loop
 	int next;        // will store the next token in the sequence
@@ -1153,7 +1190,8 @@ void llama_runmodel(modelinfo* mi, RunState* rs, tokeninfo* ti, TokenState* ts)
 		printf("--------evaluate--------\n");
 		printf("token=%d, time=%f, t/s=%f\n", pos-1, (end-start)*1e-9, 1e9 * (pos-1) / (end-start));
 		printf("t0tot1=%f, t1tot2=%f, t2tot3=%f\n", t0tot1*1e-9, t1tot2*1e-9, t2tot3*1e-9);
-		printf("tatotb=%f, tbtotc=%f, tctotd=%f, tdtote=%f\n", tatotb*1e-9, tbtotc*1e-9, tctotd*1e-9, tdtote*1e-9);
+		printf("tatotb=%f, tbtotc=%f, tctotd=%f, tdtote=%f, tetotf=%f\n", tatotb*1e-9, tbtotc*1e-9, tctotd*1e-9, tdtote*1e-9, tetotf*1e-9);
+		printf("tAtotB=%f, tBtotC=%f, tCtotD=%f, tDtotE=%f, tEtotF=%f\n", tAtotB*1e-9, tBtotC*1e-9, tCtotD*1e-9, tDtotE*1e-9, tEtotF*1e-9);
 	}
 }
 

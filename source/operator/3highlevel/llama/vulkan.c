@@ -1322,7 +1322,7 @@ void vulkan_muladd2(
 {
 	unsigned long long t0 = time_in_ns();
 
-	xdim = n0;
+	xdim = n0;		//must ensure n0=n1=n2
 	ydim = d0+d1;
 	outputbuffersize = 4*ydim;
 	vectorbuffersize = 4*xdim;
@@ -1378,6 +1378,82 @@ void vulkan_muladd2(
 
 	for(y=0;y<d0;y++)xout0[y] = tmp0[y];
 	for(y=0;y<d1;y++)xout1[y] = tmp0[d0+y];
+	//printf("gpu_compute:xdim=%d,ydim=%d,first=%f,767=%f,last=%f\n",xdim,ydim,xout[0],xout[767],xout[ydim-1]);
+
+	vkUnmapMemory(logicaldevice, hostMemory[2]);
+	vkUnmapMemory(logicaldevice, hostMemory[1]);
+	vkUnmapMemory(logicaldevice, hostMemory[0]);
+
+	unsigned long long t5 = time_in_ns();
+
+	//printf("%f,%f,%f,%f,%f\n", (t1-t0)*1e-9, (t2-t1)*1e-9, (t3-t2)*1e-9, (t4-t3)*1e-9, (t5-t4)*1e-9);
+}
+void vulkan_muladd3(
+	float* xout0, float* xin0, __bf16* w0, int n0, int d0,
+	float* xout1, float* xin1, __bf16* w1, int n1, int d1,
+	float* xout2, float* xin2, __bf16* w2, int n2, int d2)
+{
+	unsigned long long t0 = time_in_ns();
+
+	xdim = n0;		//must ensure n0=n1=n2
+	ydim = d0+d1+d2;
+	outputbuffersize = 4*ydim;
+	vectorbuffersize = 4*xdim;
+	matrixbuffersize = 4*xdim*ydim;
+	pushconst[0] = xdim;
+	pushconst[1] = ydim;
+
+	float* tmp1;
+	float* tmp2;
+	vkMapMemory(logicaldevice, hostMemory[1], 0, VK_WHOLE_SIZE, 0, (void*)&tmp1);
+	vkMapMemory(logicaldevice, hostMemory[2], 0, VK_WHOLE_SIZE, 0, (void*)&tmp2);
+
+	VkMappedMemoryRange mappedRange[3] = {};
+	mappedRange[0].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+	mappedRange[0].memory = hostMemory[1];
+	mappedRange[0].offset = 0;
+	mappedRange[0].size = VK_WHOLE_SIZE;
+	mappedRange[1].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+	mappedRange[1].memory = hostMemory[2];
+	mappedRange[1].offset = 0;
+	mappedRange[1].size = VK_WHOLE_SIZE;
+	vkInvalidateMappedMemoryRanges(logicaldevice, 2, mappedRange);
+
+	unsigned long long t1 = time_in_ns();
+
+	int x,y;
+	for(x=0;x<n0;x++)tmp1[x      ] = xin0[x];
+	for(x=0;x<n1;x++)tmp1[n0+x   ] = xin1[x];
+	for(x=0;x<n2;x++)tmp1[n0+n1+x] = xin2[x];
+	vulkan_bf16tofloat((void*)tmp2, (void*)w0, n0*d0);
+	vulkan_bf16tofloat((void*)&tmp2[n0*d0], (void*)w1, n1*d1);
+	vulkan_bf16tofloat((void*)&tmp2[n0*d0+n1*d1], (void*)w2, n2*d2);
+
+	unsigned long long t2 = time_in_ns();
+
+	gpu_compute();
+
+	unsigned long long t3 = time_in_ns();
+
+	vkWaitForFences(logicaldevice, 1, &computefence, VK_TRUE, UINT64_MAX);
+
+	unsigned long long t4 = time_in_ns();
+
+	float* tmp0;
+	vkMapMemory(logicaldevice, hostMemory[0], 0, VK_WHOLE_SIZE, 0, (void*)&tmp0);
+
+	mappedRange[0].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+	mappedRange[0].memory = hostMemory[0];
+	mappedRange[0].offset = 0;
+	mappedRange[0].size = VK_WHOLE_SIZE;
+	vkInvalidateMappedMemoryRanges(logicaldevice, 1, mappedRange);
+
+	//cpu_compute(tmp0,tmp1,tmp2);
+	//printf("cpu_compute:xdim=%d,ydim=%d,first=%f,last=%f\n",xdim,ydim,xout[0],xout[ydim-1]);
+
+	for(y=0;y<d0;y++)xout0[y] = tmp0[y      ];
+	for(y=0;y<d1;y++)xout1[y] = tmp0[d0+y   ];
+	for(y=0;y<d2;y++)xout2[y] = tmp0[d0+d1+y];
 	//printf("gpu_compute:xdim=%d,ydim=%d,first=%f,767=%f,last=%f\n",xdim,ydim,xout[0],xout[767],xout[ydim-1]);
 
 	vkUnmapMemory(logicaldevice, hostMemory[2]);
