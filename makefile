@@ -93,7 +93,7 @@ cli-nativeomp:
 
 cli-nativeomp-winvulkan:
 	C:\VulkanSDK\1.3.261.1\Bin\glslc.exe shader.comp -o shader.comp.spv
-	$(CC) -march=native -Ofast -fopenmp -DBACKEND_VULKAN \
+	$(CC) -march=native -Ofast -fopenmp -DBACKEND_VULKAN -o a.exe \
 	$(SRC) \
 	source/operator/3highlevel/llama/vulkan.c \
 	source/operator/2indite/render/cli.c \
@@ -102,7 +102,7 @@ cli-nativeomp-winvulkan:
 	-Isource/libunit -Isource -lm
 cli-nativeomp-macvulkan:
 	glslangValidator --target-env vulkan1.2 shader.comp -o shader.comp.spv
-	$(CC) -march=native -Ofast -fopenmp -DBACKEND_VULKAN \
+	$(CC) -march=native -Ofast -fopenmp -DBACKEND_VULKAN -o a.exe \
 	$(SRC) \
 	source/operator/3highlevel/llama/vulkan.c \
 	source/operator/2indite/render/cli.c \
@@ -111,7 +111,7 @@ cli-nativeomp-macvulkan:
 	-Isource/libunit -Isource -lm
 cli-nativeomp-linuxvulkan:
 	/opt/vulkansdk/1.3.261.1/x86_64/bin/glslc shader.comp -o shader.comp.spv
-	$(CC) -march=native -Ofast -fopenmp -DBACKEND_VULKAN \
+	$(CC) -march=native -Ofast -fopenmp -DBACKEND_VULKAN -o a.exe \
 	$(SRC) \
 	source/operator/3highlevel/llama/vulkan.c \
 	source/operator/2indite/render/cli.c \

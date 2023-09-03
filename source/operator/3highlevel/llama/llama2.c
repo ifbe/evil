@@ -63,6 +63,7 @@ u64 time_in_ns()
 static long long t0tot1 = 0;
 static long long t1tot2 = 0;
 static long long t2tot3 = 0;
+static long long t3tot4 = 0;
 //
 static long long tatotb = 0;
 static long long tbtotc = 0;
@@ -1096,11 +1097,14 @@ void transformer(int token, int pos, modelinfo* mi, RunState* rs) {
 	// final rmsnorm
 	rmsnorm(rs_x, rs_x, w_rms_final_weight, dim);
 
+	u64 t3 = time_in_ns();
+	t2tot3 += t3-t2;
+
 	// classifier into logits
 	muladd(rs_logits, rs_x, w_wcls, mi->dim, mi->vocab_size);
 
-	u64 t3 = time_in_ns();
-	t2tot3 += t3-t2;
+	u64 t4 = time_in_ns();
+	t3tot4 += t4-t3;
 }
 int sample(RUNSTATE_FLOATTYPE* probabilities, int n) {
 	// sample index from probabilities, they must sum to 1
@@ -1133,7 +1137,7 @@ void llama_runmodel(modelinfo* mi, RunState* rs, tokeninfo* ti, TokenState* ts)
 
 	//time
 	u64 start = 0;  // used to time our code, only initialized after first iteration
-	t0tot1 = t1tot2 = t2tot3 = 0;
+	t0tot1 = t1tot2 = t2tot3 = t3tot4 = 0;
 	tatotb = tbtotc = tctotd = tdtote = tetotf = 0;
 	tAtotB = tBtotC = tCtotD = tDtotE = tEtotF = 0;
 
@@ -1189,7 +1193,7 @@ void llama_runmodel(modelinfo* mi, RunState* rs, tokeninfo* ti, TokenState* ts)
 		u64 end = time_in_ns();
 		printf("--------evaluate--------\n");
 		printf("token=%d, time=%f, t/s=%f\n", pos-1, (end-start)*1e-9, 1e9 * (pos-1) / (end-start));
-		printf("t0tot1=%f, t1tot2=%f, t2tot3=%f\n", t0tot1*1e-9, t1tot2*1e-9, t2tot3*1e-9);
+		printf("t0tot1=%f, t1tot2=%f, t2tot3=%f, t3tot4=%f\n", t0tot1*1e-9, t1tot2*1e-9, t2tot3*1e-9, t3tot4*1e-9);
 		printf("tatotb=%f, tbtotc=%f, tctotd=%f, tdtote=%f, tetotf=%f\n", tatotb*1e-9, tbtotc*1e-9, tctotd*1e-9, tdtote*1e-9, tetotf*1e-9);
 		printf("tAtotB=%f, tBtotC=%f, tCtotD=%f, tDtotE=%f, tEtotF=%f\n", tAtotB*1e-9, tBtotC*1e-9, tCtotD*1e-9, tDtotE*1e-9, tEtotF*1e-9);
 	}
