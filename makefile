@@ -76,6 +76,7 @@ source/operator/2indite/substr/substr.c \
 source/operator/3highlevel/llama/quanti.c \
 source/operator/3highlevel/llama/llama2.c \
 source/evil.c
+OBJ:=$(patsubst %.c,%.o,$(SRC))
 
 cli:
 	$(CC) $(CF) -o a.exe $(SRC) \
@@ -90,6 +91,14 @@ cli-fastomp:
 	make -s cli CF="-Ofast -fopenmp"
 cli-nativeomp:
 	make -s cli CF="-march=native -Ofast -fopenmp"
+
+cli-nativeomp-wincuda:
+	nvcc --shared source/operator/3highlevel/llama/cuda.cu -o cuda.dll
+	$(CC) -march=native -Ofast -fopenmp -DBACKEND_CUDA -o a.exe \
+	source/operator/2indite/render/cli.c \
+	source/operator/2indite/serve/none.c \
+	$(SRC) cuda.dll \
+	-Isource/libunit -Isource -lm
 
 cli-nativeomp-winvulkan:
 	C:\VulkanSDK\1.3.261.1\Bin\glslc.exe shader.comp -o shader.comp.spv
@@ -201,6 +210,13 @@ linuxglfw:
 	-Isource/libunit -Isource \
 	-lgdi32 -lglu32 -lws2_32 -lglfw3 -lglew32 -lopengl32 -lpthread -lm
 
+%.o: %.c
+	if [ $(notdir $@) -nt $< ]; then \
+		true;\
+	else \
+		echo libuser1/$<;\
+		$(CC) $(CF) -c -Isource/libunit -Isource -o $(notdir $@) $<;\
+	fi
 clean:
 	rm -f *.exe *.out
 	rm -rf .42

@@ -30,6 +30,9 @@ void* vulkan_init(void*, void*);
 void vulkan_exit();
 void vulkan_myctx_create(void*, void*);
 void vulkan_myctx_delete();
+//
+void cudamath_init();
+void cudamath_exit();
 
 #ifdef _WIN32
 #include <windows.h>
@@ -851,6 +854,20 @@ void vulkan_muladd3(
 #define muladd vulkan_muladd
 #define muladd2 vulkan_muladd2
 #define muladd3 vulkan_muladd3
+
+#elif BACKEND_CUDA
+void cudamath_muladd(RUNSTATE_FLOATTYPE* xout, RUNSTATE_FLOATTYPE* x, MODELWEIGHT_FLOATTYPE* w, int n, int d);
+void cudamath_muladd2(
+	RUNSTATE_FLOATTYPE* xout0, RUNSTATE_FLOATTYPE* x0, MODELWEIGHT_FLOATTYPE* w0, int n0, int d0,
+	RUNSTATE_FLOATTYPE* xout1, RUNSTATE_FLOATTYPE* x1, MODELWEIGHT_FLOATTYPE* w1, int n1, int d1);
+void cudamath_muladd3(
+	RUNSTATE_FLOATTYPE* xout0, RUNSTATE_FLOATTYPE* x0, MODELWEIGHT_FLOATTYPE* w0, int n0, int d0,
+	RUNSTATE_FLOATTYPE* xout1, RUNSTATE_FLOATTYPE* x1, MODELWEIGHT_FLOATTYPE* w1, int n1, int d1,
+	RUNSTATE_FLOATTYPE* xout2, RUNSTATE_FLOATTYPE* x2, MODELWEIGHT_FLOATTYPE* w2, int n2, int d2);
+#define muladd cudamath_muladd
+#define muladd2 cudamath_muladd2
+#define muladd3 cudamath_muladd3
+
 #else
 void muladd(RUNSTATE_FLOATTYPE* xout, RUNSTATE_FLOATTYPE* x, MODELWEIGHT_FLOATTYPE* w, int n, int d)
 {
@@ -884,6 +901,7 @@ void muladd3(
 	muladd(xout2, x2, w2, n2, d2);
 }
 #endif
+
 void dequantization(RUNSTATE_FLOATTYPE* dst, MODELWEIGHT_FLOATTYPE* src, int cnt)
 {
 	int j;
@@ -1231,12 +1249,11 @@ void llama(int argc, char** argv)
 	llama_initprompt(&model, &tokenstate);
 
 #ifdef BACKEND_VULKAN
-        //init
-        void* ins = vulkan_init(0, 0);
-        if(0 == ins)return;
-
-        //vulkan: things
-        vulkan_myctx_create(0, 0);
+	void* ins = vulkan_init(0, 0);
+	if(0 == ins)return;
+	vulkan_myctx_create(0, 0);
+#elif BACKEND_CUDA
+	cudamath_init();
 #endif
 
 	int ret;
@@ -1255,11 +1272,10 @@ void llama(int argc, char** argv)
 		printf("\n");
 	}while(1);
 #ifdef BACKEND_VULKAN
-        //vulkan
-        vulkan_myctx_delete();
-
-        //exit
-        vulkan_exit();
+	vulkan_myctx_delete();
+	vulkan_exit();
+#elif BACKEND_CUDA
+	cudamath_exit();
 #endif
 	//llama_exitprompt();
 	//llama_exittokenizer();
