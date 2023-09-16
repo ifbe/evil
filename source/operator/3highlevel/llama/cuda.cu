@@ -39,11 +39,24 @@ __global__ void muladd_kernel(float* out, float* vec, __nv_bfloat16* mat, int xd
 	int idx = blockIdx.x * blockDim.x + threadIdx.x;
 	int x;
 	float f = 0.0;
+#pragma unroll
 	for(x=0;x<xdim;x+=4){
-		f +=(float)mat[idx*xdim + x+0] * vec[x+0]+
-			(float)mat[idx*xdim + x+1] * vec[x+1]+
-			(float)mat[idx*xdim + x+2] * vec[x+2]+
-			(float)mat[idx*xdim + x+3] * vec[x+3];
+		float2 w0w1 = __bfloat1622float2(*(reinterpret_cast<__nv_bfloat162*>(&mat[idx*xdim + x+0])));
+		float2 w2w3 = __bfloat1622float2(*(reinterpret_cast<__nv_bfloat162*>(&mat[idx*xdim + x+2])));
+		float4 weight = make_float4(w0w1.x, w0w1.y, w2w3.x, w2w3.y);
+		float4 xyzw = *(reinterpret_cast<float4*>(&vec[x+0]));
+		f += weight.x*xyzw.x + weight.y*xyzw.y + weight.z*xyzw.z + weight.w*xyzw.w;
+	}
+	out[idx] = f;
+}
+__global__ void muladd_kernel_transposed(float* out, float* vec, __nv_bfloat16* mat, int xdim, int ydim)
+{
+	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+	int x;
+	float f = 0.0;
+#pragma unroll
+	for(x=0;x<xdim;x+=1){
+		f +=(float)mat[x*ydim + idx+0] * vec[x+0];
 	}
 	out[idx] = f;
 }
@@ -67,6 +80,13 @@ void cudamath_bf16copy(unsigned short* out, unsigned short* in, int cnt)
 	int x;
 	for(x=0;x<cnt;x++)out[x] = in[x];
 }
+void cudamath_bf16transpose(unsigned short* out, unsigned short* in, int w, int h, int wadd, int hnew)
+{
+	int x,y;
+	for(y=0;y<h;y++){
+		for(x=0;x<w;x++)out[hnew*x+wadd+y] = in[w*y+x];
+	}
+}
 
 
 extern "C"{
@@ -74,15 +94,28 @@ extern "C"{
 
 static int xdim = 16384;
 static int ydim = 32000;
+//
 static int outbyte = ydim * sizeof(float);
 static int vecbyte = xdim * sizeof(float);
 static int matbyte = xdim * ydim * 2;	//sizeof(float);
+//
 static float *cpuout = 0;
 static float *cpuvec = 0;
-static __nv_bfloat16 *cpumat = 0;
+static __nv_bfloat16* cpumat[5] = {};
+//
 static float *gpuout = 0;
 static float *gpuvec = 0;
-static __nv_bfloat16 *gpumat = 0;
+static __nv_bfloat16* gpumat[5] = {};
+static int gpumat_filled[5] = {};
+//
+#define WQWKWV 0
+#define WO 1
+#define W1W3 2
+#define W2 3
+#define LOGITS 4
+static cudaEvent_t event[4];
+static cudaEvent_t copyevent[4];
+
 void cuda_cpu_compute(float* tmp0, float* tmp1, float* tmp2)
 {
 	int x,y;
@@ -94,7 +127,7 @@ void cuda_cpu_compute(float* tmp0, float* tmp1, float* tmp2)
 		tmp0[y] = tmp;
 	}
 }
-void cuda_compute()
+void cuda_compute(int handle)
 {
 	u64 time[5];
 	time[0] = time_in_ns();
@@ -105,21 +138,44 @@ void cuda_compute()
 	dim3 threads = dim3(tx, 1, 1);
 	dim3 blocks  = dim3(ydim/tx, 1, 1);
 
-	cudaEvent_t event[4];
-	for(int i=0;i<4;i++)cudaEventCreate(&event[i]);
-
-	cudaDeviceSynchronize();
-
-	// asynchronously issue work to the GPU (all to stream 0)
 	time[1] = time_in_ns();
 	cudaEventRecord(event[0], 0);
+
+	__nv_bfloat16* themat = 0;
+	if(32000 == handle){
+		themat = gpumat[LOGITS];
+		if(gpumat_filled[LOGITS] < 2){
+			cudaMemcpyAsync(themat, cpumat[LOGITS], matbyte, cudaMemcpyHostToDevice, 0);
+			gpumat_filled[LOGITS] = 2;
+		}
+	}
+	else{
+		themat = gpumat[handle];
+		if(0){
+			cudaMemcpyAsync(themat, cpumat[handle], matbyte, cudaMemcpyHostToDevice, 0);
+		}
+		else{
+			while(cudaEventQuery(copyevent[handle]) == cudaErrorNotReady);
+		}
+	}
 	cudaMemcpyAsync(gpuvec, cpuvec, vecbyte, cudaMemcpyHostToDevice, 0);
-	cudaMemcpyAsync(gpumat, cpumat, matbyte, cudaMemcpyHostToDevice, 0);
+
 	cudaEventRecord(event[1], 0);
-	muladd_kernel<<<blocks, threads, 0, 0>>>(gpuout, gpuvec, gpumat, xdim, ydim);
+
+	// asynchronously issue work to the GPU (all to stream 0)
+	if(0){
+		muladd_kernel_transposed<<<blocks, threads, 0, 0>>>(gpuout, gpuvec, themat, xdim, ydim);
+	}
+	else{
+		muladd_kernel<<<blocks, threads, 0, 0>>>(gpuout, gpuvec, themat, xdim, ydim);
+	}
+
 	cudaEventRecord(event[2], 0);
+
 	cudaMemcpyAsync(cpuout, gpuout, outbyte, cudaMemcpyDeviceToHost, 0);
+
 	cudaEventRecord(event[3], 0);
+
 	time[2] = time_in_ns();
 
 	// have CPU do some work while waiting for stage 1 to finish
@@ -133,13 +189,55 @@ void cuda_compute()
 	float gputime[3] = {};
 	for(int i=0;i<3;i++)cudaEventElapsedTime(&gputime[i], event[i], event[i+1]);
 
-	for(int i=0;i<4;i++)cudaEventDestroy(event[i]);
-
 	time[4] = time_in_ns();
 	//printf("gpu %d %d: %f, %f, %f\n", xdim, ydim, gputime[0]*1e-3, gputime[1]*1e-3, gputime[2]*1e-3);
 	//printf("cpu %d %d: %f, %f, %f, %f\n", xdim, ydim, (time[1]-time[0])*1e-9, (time[2]-time[1])*1e-9, (time[3]-time[2])*1e-9, (time[4]-time[3])*1e-9);
 }
-__declspec(dllexport) void cudamath_muladd(float* xout, float* xin, unsigned short* w, int n, int d)
+__declspec(dllexport) void cudamath_upload(unsigned short* w, int n, int d, int handle)
+{
+	if(0){
+	cudamath_bf16transpose((unsigned short*)cpumat[handle], w, n, d, 0, d);
+	}
+	else{
+	cudamath_bf16copy((unsigned short*)cpumat[handle], w, n*d);
+	}
+	cudaMemcpyAsync(gpumat[handle], cpumat[handle], n*d*2, cudaMemcpyHostToDevice, 0);
+	cudaEventRecord(copyevent[handle], 0);
+}
+__declspec(dllexport) void cudamath_upload2(
+	unsigned short* w0, int n0, int d0, int handle0,
+	unsigned short* w1, int n1, int d1, int handle1)
+{
+	if(0){
+	cudamath_bf16transpose((unsigned short*)&cpumat[handle0][0], w0, n0, d0,  0, d0+d1);
+	cudamath_bf16transpose((unsigned short*)&cpumat[handle0][0], w1, n1, d1, n0, d0+d1);
+	}
+	else{
+	cudamath_bf16copy((unsigned short*)&cpumat[handle0][    0], w0, n0*d0);
+	cudamath_bf16copy((unsigned short*)&cpumat[handle0][n0*d0], w1, n1*d1);
+	}
+	cudaMemcpyAsync(gpumat[handle0], cpumat[handle0], n0*(d0+d1)*2, cudaMemcpyHostToDevice, 0);
+	cudaEventRecord(copyevent[handle0], 0);
+}
+__declspec(dllexport) void cudamath_upload3(
+	unsigned short* w0, int n0, int d0, int handle0,
+	unsigned short* w1, int n1, int d1, int handle1,
+	unsigned short* w2, int n2, int d2, int handle2)
+{
+	if(0){
+	cudamath_bf16transpose((unsigned short*)&cpumat[handle0][0], w0, n0, d0,     0, d0+d1+d2);
+	cudamath_bf16transpose((unsigned short*)&cpumat[handle0][0], w1, n1, d1,    n0, d0+d1+d2);
+	cudamath_bf16transpose((unsigned short*)&cpumat[handle0][0], w2, n2, d2, n0+n1, d0+d1+d2);
+	}
+	else{
+	cudamath_bf16copy((unsigned short*)&cpumat[handle0][          0], w0, n0*d0);
+	cudamath_bf16copy((unsigned short*)&cpumat[handle0][      n0*d0], w1, n1*d1);
+	cudamath_bf16copy((unsigned short*)&cpumat[handle0][n0*d0+n1*d1], w2, n2*d2);
+	}
+	cudaMemcpyAsync(gpumat[handle0], cpumat[handle0], n0*(d0+d1+d2)*2, cudaMemcpyHostToDevice, 0);
+	cudaEventRecord(copyevent[handle0], 0);
+}
+__declspec(dllexport) void cudamath_muladd(float* xout, float* xin, unsigned short* w, int n, int d, int handle)
 {
 	xdim = n;
 	ydim = d;
@@ -149,10 +247,24 @@ __declspec(dllexport) void cudamath_muladd(float* xout, float* xin, unsigned sho
 
 	int x;
 	for(x=0;x<xdim;x++)cpuvec[x] = xin[x];
-	//cudamath_bf16tofloat((unsigned int*)cpumat, w, xdim*ydim);
-	cudamath_bf16copy((unsigned short*)cpumat, w, xdim*ydim);
+	if(32000 == handle){
+		if(gpumat_filled[LOGITS] < 1){
+			if(0){
+				cudamath_bf16transpose((unsigned short*)cpumat[LOGITS], w, xdim, ydim, 0, ydim);
+			}
+			else{
+				cudamath_bf16copy((unsigned short*)cpumat[LOGITS], w, xdim*ydim);
+			}
+			gpumat_filled[LOGITS] = 1;
+		}
+	}
+	else{
+		if(0){
+		cudamath_bf16copy((unsigned short*)cpumat[handle], w, xdim*ydim);
+		}
+	}
 
-	cuda_compute();
+	cuda_compute(handle);
 
 	for(x=0;x<ydim;x++)xout[x] = cpuout[x];
 /*
@@ -165,8 +277,8 @@ __declspec(dllexport) void cudamath_muladd(float* xout, float* xin, unsigned sho
 */
 }
 __declspec(dllexport) void cudamath_muladd2(
-	float* xout0, float* xin0, unsigned short* w0, int n0, int d0,
-	float* xout1, float* xin1, unsigned short* w1, int n1, int d1)
+	float* xout0, float* xin0, unsigned short* w0, int n0, int d0, int handle0,
+	float* xout1, float* xin1, unsigned short* w1, int n1, int d1, int handle1)
 {
 	xdim = n0;
 	ydim = d0+d1;
@@ -177,20 +289,21 @@ __declspec(dllexport) void cudamath_muladd2(
 	int x,y;
 	for(x=0;x<n0;x++)cpuvec[x] = xin0[x];
 	for(x=0;x<n1;x++)cpuvec[n0+x] = xin1[x];
-	//cudamath_bf16tofloat((unsigned int*)cpumat, w0, n0*d0);
-	//cudamath_bf16tofloat((unsigned int*)&cpumat[n0*d0], w1, n1*d1);
-	cudamath_bf16copy((unsigned short*)cpumat, w0, n0*d0);
-	cudamath_bf16copy((unsigned short*)&cpumat[n0*d0], w1, n1*d1);
 
-	cuda_compute();
+	if(0){
+	cudamath_bf16copy((unsigned short*)&cpumat[handle0][0], w0, n0*d0);
+	cudamath_bf16copy((unsigned short*)&cpumat[handle0][n0*d0], w1, n1*d1);
+	}
+
+	cuda_compute(handle0);
 
 	for(y=0;y<d0;y++)xout0[y] = cpuout[y];
 	for(y=0;y<d1;y++)xout1[y] = cpuout[d0+y];
 }
 __declspec(dllexport) void cudamath_muladd3(
-	float* xout0, float* xin0, unsigned short* w0, int n0, int d0,
-	float* xout1, float* xin1, unsigned short* w1, int n1, int d1,
-	float* xout2, float* xin2, unsigned short* w2, int n2, int d2)
+	float* xout0, float* xin0, unsigned short* w0, int n0, int d0, int handle0,
+	float* xout1, float* xin1, unsigned short* w1, int n1, int d1, int handle1,
+	float* xout2, float* xin2, unsigned short* w2, int n2, int d2, int handle2)
 {
 	xdim = n0;
 	ydim = d0+d1+d2;
@@ -202,14 +315,14 @@ __declspec(dllexport) void cudamath_muladd3(
 	for(x=0;x<n0;x++)cpuvec[x] = xin0[x];
 	for(x=0;x<n1;x++)cpuvec[n0+x] = xin1[x];
 	for(x=0;x<n2;x++)cpuvec[n0+n1+x] = xin2[x];
-	//cudamath_bf16tofloat((unsigned int*)cpumat, w0, n0*d0);
-	//cudamath_bf16tofloat((unsigned int*)&cpumat[n0*d0], w1, n1*d1);
-	//cudamath_bf16tofloat((unsigned int*)&cpumat[n0*d0+n1*d1], w2, n2*d2);
-	cudamath_bf16copy((unsigned short*)cpumat, w0, n0*d0);
-	cudamath_bf16copy((unsigned short*)&cpumat[n0*d0], w1, n1*d1);
-	cudamath_bf16copy((unsigned short*)&cpumat[n0*d0+n1*d1], w2, n2*d2);
 
-	cuda_compute();
+	if(0){
+	cudamath_bf16copy((unsigned short*)&cpumat[handle0][0], w0, n0*d0);
+	cudamath_bf16copy((unsigned short*)&cpumat[handle0][n0*d0], w1, n1*d1);
+	cudamath_bf16copy((unsigned short*)&cpumat[handle0][n0*d0+n1*d1], w2, n2*d2);
+	}
+
+	cuda_compute(handle0);
 
 	for(y=0;y<d0;y++)xout0[y] = cpuout[y      ];
 	for(y=0;y<d1;y++)xout1[y] = cpuout[d0+y   ];
@@ -226,13 +339,17 @@ __declspec(dllexport) void cudamath_init()
 	// allocate host memory
 	cudaMallocHost((void **)&cpuout, outbyte);
 	cudaMallocHost((void **)&cpuvec, vecbyte);
-	cudaMallocHost((void **)&cpumat, matbyte);
+	for(int j=0;j<5;j++)cudaMallocHost((void **)&cpumat[j], matbyte);
 
 	// allocate device memory
 	cudaMalloc((void **)&gpuout, outbyte);
 	cudaMalloc((void **)&gpuvec, vecbyte);
-	cudaMalloc((void **)&gpumat, matbyte);
+	for(int j=0;j<5;j++)cudaMalloc((void **)&gpumat[j], matbyte);
 	//cudaMemset(gpumem, 255, nbytes);
+
+	for(int i=0;i<4;i++)cudaEventCreate(&event[i]);
+	for(int i=0;i<4;i++)cudaEventCreate(&copyevent[i]);
+	cudaDeviceSynchronize();
 
 	u64 t1 = time_in_ns();
 	printf("backend_init costtime: %f\n", (t1-t0)*1e-9);
@@ -241,10 +358,14 @@ __declspec(dllexport) void cudamath_exit()
 {
 	u64 t0 = time_in_ns();
 
-	cudaFree(gpumat);
+	for(int i=0;i<4;i++)cudaEventDestroy(event[i]);
+	for(int i=0;i<4;i++)cudaEventDestroy(copyevent[i]);
+
+	for(int j=0;j<5;j++)cudaFree(gpumat[j]);
 	cudaFree(gpuvec);
 	cudaFree(gpuout);
-	cudaFreeHost(cpumat);
+
+	for(int j=0;j<5;j++)cudaFreeHost(cpumat[j]);
 	cudaFreeHost(cpuvec);
 	cudaFreeHost(cpuout);
 

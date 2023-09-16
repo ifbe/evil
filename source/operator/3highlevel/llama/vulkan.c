@@ -1247,7 +1247,7 @@ void vulkan_bf16tofloat(u32* out, u16* in, int cnt)
 		out[x] = (u32)in[x]<<16;
 	}
 }
-void vulkan_muladd(float* xout, float* xin, __bf16* w, int n, int d)
+void vulkan_muladd(float* xout, float* xin, __bf16* w, int n, int d, int handle)
 {
 	unsigned long long t0 = time_in_ns();
 
@@ -1317,8 +1317,8 @@ void vulkan_muladd(float* xout, float* xin, __bf16* w, int n, int d)
 	//printf("%f,%f,%f,%f,%f\n", (t1-t0)*1e-9, (t2-t1)*1e-9, (t3-t2)*1e-9, (t4-t3)*1e-9, (t5-t4)*1e-9);
 }
 void vulkan_muladd2(
-	float* xout0, float* xin0, __bf16* w0, int n0, int d0,
-	float* xout1, float* xin1, __bf16* w1, int n1, int d1)
+	float* xout0, float* xin0, __bf16* w0, int n0, int d0, int handle0,
+	float* xout1, float* xin1, __bf16* w1, int n1, int d1, int handle1)
 {
 	unsigned long long t0 = time_in_ns();
 
@@ -1389,9 +1389,9 @@ void vulkan_muladd2(
 	//printf("%f,%f,%f,%f,%f\n", (t1-t0)*1e-9, (t2-t1)*1e-9, (t3-t2)*1e-9, (t4-t3)*1e-9, (t5-t4)*1e-9);
 }
 void vulkan_muladd3(
-	float* xout0, float* xin0, __bf16* w0, int n0, int d0,
-	float* xout1, float* xin1, __bf16* w1, int n1, int d1,
-	float* xout2, float* xin2, __bf16* w2, int n2, int d2)
+	float* xout0, float* xin0, __bf16* w0, int n0, int d0, int handle0,
+	float* xout1, float* xin1, __bf16* w1, int n1, int d1, int handle1,
+	float* xout2, float* xin2, __bf16* w2, int n2, int d2, int handle2)
 {
 	unsigned long long t0 = time_in_ns();
 

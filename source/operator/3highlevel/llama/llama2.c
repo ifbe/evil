@@ -843,33 +843,44 @@ void softmax(RUNSTATE_FLOATTYPE* x, int size) {
 }
 
 #ifdef BACKEND_VULKAN
-void vulkan_muladd(RUNSTATE_FLOATTYPE* xout, RUNSTATE_FLOATTYPE* x, MODELWEIGHT_FLOATTYPE* w, int n, int d);
+void vulkan_muladd(RUNSTATE_FLOATTYPE* xout, RUNSTATE_FLOATTYPE* x, MODELWEIGHT_FLOATTYPE* w, int n, int d, int handle);
 void vulkan_muladd2(
-	RUNSTATE_FLOATTYPE* xout0, RUNSTATE_FLOATTYPE* x0, MODELWEIGHT_FLOATTYPE* w0, int n0, int d0,
-	RUNSTATE_FLOATTYPE* xout1, RUNSTATE_FLOATTYPE* x1, MODELWEIGHT_FLOATTYPE* w1, int n1, int d1);
+	RUNSTATE_FLOATTYPE* xout0, RUNSTATE_FLOATTYPE* x0, MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
+	RUNSTATE_FLOATTYPE* xout1, RUNSTATE_FLOATTYPE* x1, MODELWEIGHT_FLOATTYPE* w1, int n1, int d1, int handle1);
 void vulkan_muladd3(
-	RUNSTATE_FLOATTYPE* xout0, RUNSTATE_FLOATTYPE* x0, MODELWEIGHT_FLOATTYPE* w0, int n0, int d0,
-	RUNSTATE_FLOATTYPE* xout1, RUNSTATE_FLOATTYPE* x1, MODELWEIGHT_FLOATTYPE* w1, int n1, int d1,
-	RUNSTATE_FLOATTYPE* xout2, RUNSTATE_FLOATTYPE* x2, MODELWEIGHT_FLOATTYPE* w2, int n2, int d2);
+	RUNSTATE_FLOATTYPE* xout0, RUNSTATE_FLOATTYPE* x0, MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
+	RUNSTATE_FLOATTYPE* xout1, RUNSTATE_FLOATTYPE* x1, MODELWEIGHT_FLOATTYPE* w1, int n1, int d1, int handle1,
+	RUNSTATE_FLOATTYPE* xout2, RUNSTATE_FLOATTYPE* x2, MODELWEIGHT_FLOATTYPE* w2, int n2, int d2, int handle2);
 #define muladd vulkan_muladd
 #define muladd2 vulkan_muladd2
 #define muladd3 vulkan_muladd3
 
 #elif BACKEND_CUDA
-void cudamath_muladd(RUNSTATE_FLOATTYPE* xout, RUNSTATE_FLOATTYPE* x, MODELWEIGHT_FLOATTYPE* w, int n, int d);
+void cudamath_upload(MODELWEIGHT_FLOATTYPE* w, int n, int d, int handle);
+void cudamath_upload2(
+	MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
+	MODELWEIGHT_FLOATTYPE* w1, int n1, int d1, int handle2);
+void cudamath_upload3(
+	MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
+	MODELWEIGHT_FLOATTYPE* w1, int n1, int d1, int handle1,
+	MODELWEIGHT_FLOATTYPE* w2, int n2, int d2, int handle2);
+void cudamath_muladd(RUNSTATE_FLOATTYPE* xout, RUNSTATE_FLOATTYPE* x, MODELWEIGHT_FLOATTYPE* w, int n, int d, int handle);
 void cudamath_muladd2(
-	RUNSTATE_FLOATTYPE* xout0, RUNSTATE_FLOATTYPE* x0, MODELWEIGHT_FLOATTYPE* w0, int n0, int d0,
-	RUNSTATE_FLOATTYPE* xout1, RUNSTATE_FLOATTYPE* x1, MODELWEIGHT_FLOATTYPE* w1, int n1, int d1);
+	RUNSTATE_FLOATTYPE* xout0, RUNSTATE_FLOATTYPE* x0, MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
+	RUNSTATE_FLOATTYPE* xout1, RUNSTATE_FLOATTYPE* x1, MODELWEIGHT_FLOATTYPE* w1, int n1, int d1, int handle2);
 void cudamath_muladd3(
-	RUNSTATE_FLOATTYPE* xout0, RUNSTATE_FLOATTYPE* x0, MODELWEIGHT_FLOATTYPE* w0, int n0, int d0,
-	RUNSTATE_FLOATTYPE* xout1, RUNSTATE_FLOATTYPE* x1, MODELWEIGHT_FLOATTYPE* w1, int n1, int d1,
-	RUNSTATE_FLOATTYPE* xout2, RUNSTATE_FLOATTYPE* x2, MODELWEIGHT_FLOATTYPE* w2, int n2, int d2);
+	RUNSTATE_FLOATTYPE* xout0, RUNSTATE_FLOATTYPE* x0, MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
+	RUNSTATE_FLOATTYPE* xout1, RUNSTATE_FLOATTYPE* x1, MODELWEIGHT_FLOATTYPE* w1, int n1, int d1, int handle1,
+	RUNSTATE_FLOATTYPE* xout2, RUNSTATE_FLOATTYPE* x2, MODELWEIGHT_FLOATTYPE* w2, int n2, int d2, int handle2);
 #define muladd cudamath_muladd
 #define muladd2 cudamath_muladd2
 #define muladd3 cudamath_muladd3
+#define upload cudamath_upload
+#define upload2 cudamath_upload2
+#define upload3 cudamath_upload3
 
 #else
-void muladd(RUNSTATE_FLOATTYPE* xout, RUNSTATE_FLOATTYPE* x, MODELWEIGHT_FLOATTYPE* w, int n, int d)
+void muladd(RUNSTATE_FLOATTYPE* xout, RUNSTATE_FLOATTYPE* x, MODELWEIGHT_FLOATTYPE* w, int n, int d, int handle)
 {
 	// W (d,n) @ x (n,) -> xout (d,)
 	// by far the most amount of time is spent inside this little function
@@ -885,20 +896,20 @@ void muladd(RUNSTATE_FLOATTYPE* xout, RUNSTATE_FLOATTYPE* x, MODELWEIGHT_FLOATTY
 	//printf("%f,%f,%f\n",xout[0], xout[767], xout[d-1]);
 }
 void muladd2(
-	RUNSTATE_FLOATTYPE* xout0, RUNSTATE_FLOATTYPE* x0, MODELWEIGHT_FLOATTYPE* w0, int n0, int d0,
-	RUNSTATE_FLOATTYPE* xout1, RUNSTATE_FLOATTYPE* x1, MODELWEIGHT_FLOATTYPE* w1, int n1, int d1)
+	RUNSTATE_FLOATTYPE* xout0, RUNSTATE_FLOATTYPE* x0, MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
+	RUNSTATE_FLOATTYPE* xout1, RUNSTATE_FLOATTYPE* x1, MODELWEIGHT_FLOATTYPE* w1, int n1, int d1, int handle1)
 {
-	muladd(xout0, x0, w0, n0, d0);
-	muladd(xout1, x1, w1, n1, d1);
+	muladd(xout0, x0, w0, n0, d0, handle0);
+	muladd(xout1, x1, w1, n1, d1, handle1);
 }
 void muladd3(
-	RUNSTATE_FLOATTYPE* xout0, RUNSTATE_FLOATTYPE* x0, MODELWEIGHT_FLOATTYPE* w0, int n0, int d0,
-	RUNSTATE_FLOATTYPE* xout1, RUNSTATE_FLOATTYPE* x1, MODELWEIGHT_FLOATTYPE* w1, int n1, int d1,
-	RUNSTATE_FLOATTYPE* xout2, RUNSTATE_FLOATTYPE* x2, MODELWEIGHT_FLOATTYPE* w2, int n2, int d2)
+	RUNSTATE_FLOATTYPE* xout0, RUNSTATE_FLOATTYPE* x0, MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
+	RUNSTATE_FLOATTYPE* xout1, RUNSTATE_FLOATTYPE* x1, MODELWEIGHT_FLOATTYPE* w1, int n1, int d1, int handle1,
+	RUNSTATE_FLOATTYPE* xout2, RUNSTATE_FLOATTYPE* x2, MODELWEIGHT_FLOATTYPE* w2, int n2, int d2, int handle2)
 {
-	muladd(xout0, x0, w0, n0, d0);
-	muladd(xout1, x1, w1, n1, d1);
-	muladd(xout2, x2, w2, n2, d2);
+	muladd(xout0, x0, w0, n0, d0, handle0);
+	muladd(xout1, x1, w1, n1, d1, handle1);
+	muladd(xout2, x2, w2, n2, d2, handle2);
 }
 #endif
 
@@ -907,12 +918,10 @@ void dequantization(RUNSTATE_FLOATTYPE* dst, MODELWEIGHT_FLOATTYPE* src, int cnt
 	int j;
 	for(j=0;j<cnt;j++)dst[j] = src[j];
 }
-void transformer_eachlayer1(RUNSTATE_FLOATTYPE* x, int pos, modelinfo* mi, RunState* rs, int layer)
+void transformer_eachlayer(RUNSTATE_FLOATTYPE* x, int pos, modelinfo* mi, RunState* rs, int layer)
 {
-	u64 ta = time_in_ns();
-
+//----------------first stage----------------
 	int dim = mi->dim;
-	int hidden_dim =  mi->hidden_dim;
 	int head_size = dim / mi->n_heads;
 	int kv_dim = (mi->dim * mi->n_kv_heads) / mi->n_heads;
 	int kv_mul = mi->n_heads / mi->n_kv_heads;
@@ -932,6 +941,37 @@ void transformer_eachlayer1(RUNSTATE_FLOATTYPE* x, int pos, modelinfo* mi, RunSt
 	RUNSTATE_FLOATTYPE* rs_key_cache = rs->key_cache_data;
 	RUNSTATE_FLOATTYPE* rs_value_cache = rs->value_cache_data;
 
+//----------------second stage----------------
+	//int dim = mi->dim;	//redefinition
+	int hidden_dim =  mi->hidden_dim;
+
+	MODELWEIGHT_FLOATTYPE* w_rms_ffn_weight = mi->rms_ffn_weight_data + layer*dim;
+	MODELWEIGHT_FLOATTYPE* w_w1 = mi->w1_data + layer*dim*hidden_dim;
+	MODELWEIGHT_FLOATTYPE* w_w2 = mi->w2_data + layer*dim*hidden_dim;
+	MODELWEIGHT_FLOATTYPE* w_w3 = mi->w3_data + layer*dim*hidden_dim;
+
+	//RUNSTATE_FLOATTYPE* rs_xb = rs->xb_data;	//redefinition
+	RUNSTATE_FLOATTYPE* rs_hb = rs->hb_data;
+	RUNSTATE_FLOATTYPE* rs_hb2 = rs->hb2_data;
+
+//----------------upload data----------------
+#ifdef BACKEND_CUDA
+	upload3(
+		w_wq, dim,    dim, 0,
+		w_wk, dim, kv_dim, 0,
+		w_wv, dim, kv_dim, 0);
+	upload(w_wo, dim, dim, 1);
+	upload2(
+		w_w1, dim, hidden_dim, 2,
+		w_w3, dim, hidden_dim, 0);
+	upload(w_w2, hidden_dim, dim, 3);
+#endif
+
+
+
+//----------------first stage----------------
+	u64 ta = time_in_ns();
+
 	// attention rmsnorm
 	rmsnorm(rs_xb, x, w_rms_att_weight, dim);
 
@@ -940,9 +980,9 @@ void transformer_eachlayer1(RUNSTATE_FLOATTYPE* x, int pos, modelinfo* mi, RunSt
 
 	// qkv muladds for this position
 	muladd3(
-		rs_q, rs_xb, w_wq, dim, dim,
-		rs_k, rs_xb, w_wk, dim, kv_dim,
-		rs_v, rs_xb, w_wv, dim, kv_dim);
+		rs_q, rs_xb, w_wq, dim,    dim, 0,
+		rs_k, rs_xb, w_wk, dim, kv_dim, 0,
+		rs_v, rs_xb, w_wv, dim, kv_dim, 0);
 
 	u64 tc = time_in_ns();
 	tbtotc += tc-tb;
@@ -1015,7 +1055,7 @@ void transformer_eachlayer1(RUNSTATE_FLOATTYPE* x, int pos, modelinfo* mi, RunSt
 	tctotd += td-tc;
 
 	// final muladd to get the output of the attention
-	muladd(rs_xb2, rs_xb, w_wo, dim, dim);
+	muladd(rs_xb2, rs_xb, w_wo, dim, dim, 1);
 
 	u64 te = time_in_ns();
 	tdtote += te-td;
@@ -1027,22 +1067,12 @@ void transformer_eachlayer1(RUNSTATE_FLOATTYPE* x, int pos, modelinfo* mi, RunSt
 
 	u64 tf = time_in_ns();
 	tetotf += tf-te;
-}
-void transformer_eachlayer2(RUNSTATE_FLOATTYPE* x, int pos, modelinfo* mi, RunState* rs, int layer)
-{
+
+
+
+
+//----------------second stage----------------
 	u64 tA = time_in_ns();
-
-	int dim = mi->dim;
-	int hidden_dim =  mi->hidden_dim;
-
-	MODELWEIGHT_FLOATTYPE* w_rms_ffn_weight = mi->rms_ffn_weight_data + layer*dim;
-	MODELWEIGHT_FLOATTYPE* w_w1 = mi->w1_data + layer*dim*hidden_dim;
-	MODELWEIGHT_FLOATTYPE* w_w2 = mi->w2_data + layer*dim*hidden_dim;
-	MODELWEIGHT_FLOATTYPE* w_w3 = mi->w3_data + layer*dim*hidden_dim;
-
-	RUNSTATE_FLOATTYPE* rs_xb = rs->xb_data;
-	RUNSTATE_FLOATTYPE* rs_hb = rs->hb_data;
-	RUNSTATE_FLOATTYPE* rs_hb2 = rs->hb2_data;
 
 	// ffn rmsnorm
 	rmsnorm(rs_xb, x, w_rms_ffn_weight, dim);
@@ -1053,8 +1083,8 @@ void transformer_eachlayer2(RUNSTATE_FLOATTYPE* x, int pos, modelinfo* mi, RunSt
 	// Now for FFN in PyTorch we have: self.w2(F.silu(self.w1(x)) * self.w3(x))
 	// first calculate self.w1(x) and self.w3(x)
 	muladd2(
-		rs_hb , rs_xb, w_w1, dim, hidden_dim,
-		rs_hb2, rs_xb, w_w3, dim, hidden_dim);
+		rs_hb , rs_xb, w_w1, dim, hidden_dim, 2,
+		rs_hb2, rs_xb, w_w3, dim, hidden_dim, 0);
 
 	u64 tC = time_in_ns();
 	tBtotC += tC-tB;
@@ -1073,7 +1103,7 @@ void transformer_eachlayer2(RUNSTATE_FLOATTYPE* x, int pos, modelinfo* mi, RunSt
 	tCtotD += tD-tC;
 
 	// final muladd to get the output of the ffn
-	muladd(rs_xb, rs_hb, w_w2, hidden_dim, dim);
+	muladd(rs_xb, rs_hb, w_w2, hidden_dim, dim, 3);
 
 	u64 tE = time_in_ns();
 	tDtotE += tE-tD;
@@ -1105,8 +1135,7 @@ void transformer(int token, int pos, modelinfo* mi, RunState* rs) {
 
 	// forward all the layers
 	for(int l = 0; l < mi->n_layers; l++) {
-		transformer_eachlayer1(rs_x, pos, mi, rs, l);
-		transformer_eachlayer2(rs_x, pos, mi, rs, l);
+		transformer_eachlayer(rs_x, pos, mi, rs, l);
 	}
 
 	u64 t2 = time_in_ns();
@@ -1119,7 +1148,7 @@ void transformer(int token, int pos, modelinfo* mi, RunState* rs) {
 	t2tot3 += t3-t2;
 
 	// classifier into logits
-	muladd(rs_logits, rs_x, w_wcls, mi->dim, mi->vocab_size);
+	muladd(rs_logits, rs_x, w_wcls, mi->dim, mi->vocab_size, 32000);
 
 	u64 t4 = time_in_ns();
 	t3tot4 += t4-t3;
