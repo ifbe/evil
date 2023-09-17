@@ -735,6 +735,12 @@ void vulkan_widthheight_imagecount_attachcolor(VkExtent2D* wh, uint32_t* cnt, st
 
 
 
+
+
+
+
+
+//----------------context----------------
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -790,10 +796,11 @@ VkDescriptorPool descriptorPool;
 VkDescriptorSet descriptorSet;
 VkDescriptorSetLayout descriptorSetLayout;
 //
-VkBuffer hostBuffer[3];
-VkDeviceMemory hostMemory[3];
-VkBuffer deviceBuffer[3];
-VkDeviceMemory deviceMemory[3];
+VkBuffer hostBuffer[4];
+VkDeviceMemory hostMemory[4];
+VkBuffer deviceBuffer[4];
+VkDeviceMemory deviceMemory[4];
+static int logitstatus = 0;
 //
 int xdim = 16384;		//11008
 int ydim = 32000;
@@ -1053,11 +1060,12 @@ void vulkan_myctx_create()
 	//compute pipeline
 	createcomputepipeline();
 
-	for(int j=0;j<3;j++){
+	for(int j=0;j<4;j++){
 		int size = 0;
 		if(j==0)size = outputbuffersize;
 		if(j==1)size = vectorbuffersize;
 		if(j==2)size = matrixbuffersize;
+		if(j==3)size = matrixbuffersize;
 
 		//gpu mem
 		printf("gpumem%d: allocing\n", j);
@@ -1087,24 +1095,6 @@ void vulkan_myctx_create()
 		);
 		printf("cpumem%d: fd=%p,mem=%p\n", j, hostBuffer[j], hostMemory[j]);
 	}
-
-	//update data
-	VkDescriptorBufferInfo bufferDescriptor[3] = {};
-	VkWriteDescriptorSet descriptorWrites[3] = {};
-	for(int j=0;j<3;j++){
-		bufferDescriptor[j].buffer = deviceBuffer[j];
-		bufferDescriptor[j].offset = 0;
-		bufferDescriptor[j].range = VK_WHOLE_SIZE;
-
-		descriptorWrites[j].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites[j].dstSet = descriptorSet;
-		descriptorWrites[j].dstBinding = j;
-		descriptorWrites[j].dstArrayElement = 0;
-		descriptorWrites[j].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-		descriptorWrites[j].descriptorCount = 1;
-		descriptorWrites[j].pBufferInfo = &bufferDescriptor[j];
-	}
-	vkUpdateDescriptorSets(logicaldevice, 3, descriptorWrites, 0, NULL);
 }
 void vulkan_myctx_delete()
 {
@@ -1130,9 +1120,28 @@ void vulkan_myctx_delete()
 
 
 
-void gpu_compute()
+void gpu_compute(int handle)
 {
 	int x,y;
+
+	//update data
+	VkDescriptorBufferInfo bufferDescriptor[3] = {};
+	VkWriteDescriptorSet descriptorWrites[3] = {};
+	for(int j=0;j<3;j++){
+		bufferDescriptor[j].buffer = deviceBuffer[j];
+		bufferDescriptor[j].offset = 0;
+		bufferDescriptor[j].range = VK_WHOLE_SIZE;
+
+		descriptorWrites[j].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrites[j].dstSet = descriptorSet;
+		descriptorWrites[j].dstBinding = j;
+		descriptorWrites[j].dstArrayElement = 0;
+		descriptorWrites[j].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		descriptorWrites[j].descriptorCount = 1;
+		descriptorWrites[j].pBufferInfo = &bufferDescriptor[j];
+	}
+	if(32000 == handle)bufferDescriptor[2].buffer = deviceBuffer[3];
+	vkUpdateDescriptorSets(logicaldevice, 3, descriptorWrites, 0, NULL);
 
 	//compute work
 	VkCommandBufferBeginInfo cmdBufbeginInfo = {};
@@ -1146,7 +1155,16 @@ void gpu_compute()
 
 	VkBufferCopy matrixcopyregion = {};
 	matrixcopyregion.size = matrixbuffersize;
-	vkCmdCopyBuffer(commandBuffer, hostBuffer[2], deviceBuffer[2], 1, &matrixcopyregion);
+	if(32000 == handle){
+		if(logitstatus < 2){
+			printf("upload logits to gpumem\n");
+			vkCmdCopyBuffer(commandBuffer, hostBuffer[3], deviceBuffer[3], 1, &matrixcopyregion);
+			logitstatus = 2;
+		}
+	}
+	else{
+		vkCmdCopyBuffer(commandBuffer, hostBuffer[2], deviceBuffer[2], 1, &matrixcopyregion);
+	}
 
 	// Barrier to ensure that input buffer transfer is finished before compute shader reads from it
 	VkBufferMemoryBarrier bufferBarrier[2] = {};
@@ -1162,6 +1180,7 @@ void gpu_compute()
 	bufferBarrier[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 	bufferBarrier[1].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	bufferBarrier[1].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	if(32000 == handle)bufferBarrier[1].buffer = deviceBuffer[3];
 
 	vkCmdPipelineBarrier(
 		commandBuffer,
@@ -1260,9 +1279,7 @@ void vulkan_muladd(float* xout, float* xin, __bf16* w, int n, int d, int handle)
 	pushconst[1] = ydim;
 
 	float* tmp1;
-	float* tmp2;
 	vkMapMemory(logicaldevice, hostMemory[1], 0, VK_WHOLE_SIZE, 0, (void*)&tmp1);
-	vkMapMemory(logicaldevice, hostMemory[2], 0, VK_WHOLE_SIZE, 0, (void*)&tmp2);
 
 	VkMappedMemoryRange mappedRange[3] = {};
 	mappedRange[0].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
@@ -1273,6 +1290,15 @@ void vulkan_muladd(float* xout, float* xin, __bf16* w, int n, int d, int handle)
 	mappedRange[1].memory = hostMemory[2];
 	mappedRange[1].offset = 0;
 	mappedRange[1].size = VK_WHOLE_SIZE;
+
+	float* tmp2;
+	if(32000 == handle){
+		mappedRange[1].memory = hostMemory[3];
+		vkMapMemory(logicaldevice, hostMemory[3], 0, VK_WHOLE_SIZE, 0, (void*)&tmp2);
+	}
+	else{
+		vkMapMemory(logicaldevice, hostMemory[2], 0, VK_WHOLE_SIZE, 0, (void*)&tmp2);
+	}
 	vkInvalidateMappedMemoryRanges(logicaldevice, 2, mappedRange);
 
 	unsigned long long t1 = time_in_ns();
@@ -1281,11 +1307,20 @@ void vulkan_muladd(float* xout, float* xin, __bf16* w, int n, int d, int handle)
 	for(x=0;x<xdim;x++){
 		tmp1[x] = xin[x];
 	}
-	vulkan_bf16tofloat((void*)tmp2, (void*)w, xdim*ydim);
+	if(32000 == handle){
+		if(logitstatus <= 1){
+			printf("upload logits to cpumem\n");
+			vulkan_bf16tofloat((void*)tmp2, (void*)w, xdim*ydim);
+			logitstatus = 1;
+		}
+	}
+	else{
+		vulkan_bf16tofloat((void*)tmp2, (void*)w, xdim*ydim);
+	}
 
 	unsigned long long t2 = time_in_ns();
 
-	gpu_compute();
+	gpu_compute(handle);
 
 	unsigned long long t3 = time_in_ns();
 
@@ -1356,7 +1391,7 @@ void vulkan_muladd2(
 
 	unsigned long long t2 = time_in_ns();
 
-	gpu_compute();
+	gpu_compute(handle0);
 
 	unsigned long long t3 = time_in_ns();
 
@@ -1431,7 +1466,7 @@ void vulkan_muladd3(
 
 	unsigned long long t2 = time_in_ns();
 
-	gpu_compute();
+	gpu_compute(handle0);
 
 	unsigned long long t3 = time_in_ns();
 

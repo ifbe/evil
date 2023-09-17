@@ -80,11 +80,11 @@ void cudamath_bf16copy(unsigned short* out, unsigned short* in, int cnt)
 	int x;
 	for(x=0;x<cnt;x++)out[x] = in[x];
 }
-void cudamath_bf16transpose(unsigned short* out, unsigned short* in, int w, int h, int wadd, int hnew)
+void cudamath_bf16transpose(unsigned short* out, unsigned short* in, int w, int h, int offset, int stride)
 {
 	int x,y;
 	for(y=0;y<h;y++){
-		for(x=0;x<w;x++)out[hnew*x+wadd+y] = in[w*y+x];
+		for(x=0;x<w;x++)out[stride*x + offset+y] = in[w*y+x];
 	}
 }
 
@@ -108,6 +108,8 @@ static float *gpuvec = 0;
 static __nv_bfloat16* gpumat[5] = {};
 static int gpumat_filled[5] = {};
 //
+#define MATRIXCOPY_EARLY 1
+#define OPTIMISE_TRANSPOSE 0
 #define WQWKWV 0
 #define WO 1
 #define W1W3 2
@@ -145,13 +147,14 @@ void cuda_compute(int handle)
 	if(32000 == handle){
 		themat = gpumat[LOGITS];
 		if(gpumat_filled[LOGITS] < 2){
+			printf("upload logits to gpumem\n");
 			cudaMemcpyAsync(themat, cpumat[LOGITS], matbyte, cudaMemcpyHostToDevice, 0);
 			gpumat_filled[LOGITS] = 2;
 		}
 	}
 	else{
 		themat = gpumat[handle];
-		if(0){
+		if(!MATRIXCOPY_EARLY){
 			cudaMemcpyAsync(themat, cpumat[handle], matbyte, cudaMemcpyHostToDevice, 0);
 		}
 		else{
@@ -163,7 +166,7 @@ void cuda_compute(int handle)
 	cudaEventRecord(event[1], 0);
 
 	// asynchronously issue work to the GPU (all to stream 0)
-	if(0){
+	if(OPTIMISE_TRANSPOSE){
 		muladd_kernel_transposed<<<blocks, threads, 0, 0>>>(gpuout, gpuvec, themat, xdim, ydim);
 	}
 	else{
@@ -193,13 +196,15 @@ void cuda_compute(int handle)
 	//printf("gpu %d %d: %f, %f, %f\n", xdim, ydim, gputime[0]*1e-3, gputime[1]*1e-3, gputime[2]*1e-3);
 	//printf("cpu %d %d: %f, %f, %f, %f\n", xdim, ydim, (time[1]-time[0])*1e-9, (time[2]-time[1])*1e-9, (time[3]-time[2])*1e-9, (time[4]-time[3])*1e-9);
 }
-__declspec(dllexport) void cudamath_upload(unsigned short* w, int n, int d, int handle)
+__declspec(dllexport) void cudamath_upload(unsigned short* wbuf, int n, int d, int handle)
 {
-	if(0){
-	cudamath_bf16transpose((unsigned short*)cpumat[handle], w, n, d, 0, d);
+	if(!MATRIXCOPY_EARLY)return;
+
+	if(OPTIMISE_TRANSPOSE){
+	cudamath_bf16transpose((unsigned short*)cpumat[handle], wbuf, n, d, 0, d);
 	}
 	else{
-	cudamath_bf16copy((unsigned short*)cpumat[handle], w, n*d);
+	cudamath_bf16copy((unsigned short*)cpumat[handle], wbuf, n*d);
 	}
 	cudaMemcpyAsync(gpumat[handle], cpumat[handle], n*d*2, cudaMemcpyHostToDevice, 0);
 	cudaEventRecord(copyevent[handle], 0);
@@ -208,9 +213,11 @@ __declspec(dllexport) void cudamath_upload2(
 	unsigned short* w0, int n0, int d0, int handle0,
 	unsigned short* w1, int n1, int d1, int handle1)
 {
-	if(0){
+	if(!MATRIXCOPY_EARLY)return;
+
+	if(OPTIMISE_TRANSPOSE){
 	cudamath_bf16transpose((unsigned short*)&cpumat[handle0][0], w0, n0, d0,  0, d0+d1);
-	cudamath_bf16transpose((unsigned short*)&cpumat[handle0][0], w1, n1, d1, n0, d0+d1);
+	cudamath_bf16transpose((unsigned short*)&cpumat[handle0][0], w1, n1, d1, d0, d0+d1);
 	}
 	else{
 	cudamath_bf16copy((unsigned short*)&cpumat[handle0][    0], w0, n0*d0);
@@ -224,10 +231,12 @@ __declspec(dllexport) void cudamath_upload3(
 	unsigned short* w1, int n1, int d1, int handle1,
 	unsigned short* w2, int n2, int d2, int handle2)
 {
-	if(0){
+	if(!MATRIXCOPY_EARLY)return;
+
+	if(OPTIMISE_TRANSPOSE){
 	cudamath_bf16transpose((unsigned short*)&cpumat[handle0][0], w0, n0, d0,     0, d0+d1+d2);
-	cudamath_bf16transpose((unsigned short*)&cpumat[handle0][0], w1, n1, d1,    n0, d0+d1+d2);
-	cudamath_bf16transpose((unsigned short*)&cpumat[handle0][0], w2, n2, d2, n0+n1, d0+d1+d2);
+	cudamath_bf16transpose((unsigned short*)&cpumat[handle0][0], w1, n1, d1,    d0, d0+d1+d2);
+	cudamath_bf16transpose((unsigned short*)&cpumat[handle0][0], w2, n2, d2, d0+d1, d0+d1+d2);
 	}
 	else{
 	cudamath_bf16copy((unsigned short*)&cpumat[handle0][          0], w0, n0*d0);
@@ -237,7 +246,7 @@ __declspec(dllexport) void cudamath_upload3(
 	cudaMemcpyAsync(gpumat[handle0], cpumat[handle0], n0*(d0+d1+d2)*2, cudaMemcpyHostToDevice, 0);
 	cudaEventRecord(copyevent[handle0], 0);
 }
-__declspec(dllexport) void cudamath_muladd(float* xout, float* xin, unsigned short* w, int n, int d, int handle)
+__declspec(dllexport) void cudamath_muladd(float* xout, float* xin, unsigned short* wbuf, int n, int d, int handle)
 {
 	xdim = n;
 	ydim = d;
@@ -249,18 +258,14 @@ __declspec(dllexport) void cudamath_muladd(float* xout, float* xin, unsigned sho
 	for(x=0;x<xdim;x++)cpuvec[x] = xin[x];
 	if(32000 == handle){
 		if(gpumat_filled[LOGITS] < 1){
-			if(0){
-				cudamath_bf16transpose((unsigned short*)cpumat[LOGITS], w, xdim, ydim, 0, ydim);
-			}
-			else{
-				cudamath_bf16copy((unsigned short*)cpumat[LOGITS], w, xdim*ydim);
-			}
+			printf("upload logits to cpumem\n");
+			cudamath_upload(wbuf, n, d, LOGITS);
 			gpumat_filled[LOGITS] = 1;
 		}
 	}
 	else{
-		if(0){
-		cudamath_bf16copy((unsigned short*)cpumat[handle], w, xdim*ydim);
+		if(!MATRIXCOPY_EARLY){
+			cudamath_upload(wbuf, n, d, handle);
 		}
 	}
 
@@ -290,9 +295,8 @@ __declspec(dllexport) void cudamath_muladd2(
 	for(x=0;x<n0;x++)cpuvec[x] = xin0[x];
 	for(x=0;x<n1;x++)cpuvec[n0+x] = xin1[x];
 
-	if(0){
-	cudamath_bf16copy((unsigned short*)&cpumat[handle0][0], w0, n0*d0);
-	cudamath_bf16copy((unsigned short*)&cpumat[handle0][n0*d0], w1, n1*d1);
+	if(!MATRIXCOPY_EARLY){
+		cudamath_upload2(w0, n0, d0, handle0, w1, n1, d1, handle1);
 	}
 
 	cuda_compute(handle0);
@@ -316,10 +320,8 @@ __declspec(dllexport) void cudamath_muladd3(
 	for(x=0;x<n1;x++)cpuvec[n0+x] = xin1[x];
 	for(x=0;x<n2;x++)cpuvec[n0+n1+x] = xin2[x];
 
-	if(0){
-	cudamath_bf16copy((unsigned short*)&cpumat[handle0][0], w0, n0*d0);
-	cudamath_bf16copy((unsigned short*)&cpumat[handle0][n0*d0], w1, n1*d1);
-	cudamath_bf16copy((unsigned short*)&cpumat[handle0][n0*d0+n1*d1], w2, n2*d2);
+	if(!MATRIXCOPY_EARLY){
+		cudamath_upload3(w0, n0, d0, handle0, w1, n1, d1, handle1, w2, n2, d2, handle2);
 	}
 
 	cuda_compute(handle0);
