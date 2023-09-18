@@ -956,15 +956,21 @@ void transformer_eachlayer(RUNSTATE_FLOATTYPE* x, int pos, modelinfo* mi, RunSta
 
 //----------------upload data----------------
 #ifdef BACKEND_CUDA
-	upload3(
+	upload3(	//copy 0
 		w_wq, dim,    dim, 0,
 		w_wk, dim, kv_dim, 0,
 		w_wv, dim, kv_dim, 0);
-	upload(w_wo, dim, dim, 1);
-	upload2(
+#endif
+#ifdef BACKEND_CUDA
+	upload(w_wo, dim, dim, 1);	//copy 1
+#endif
+#ifdef BACKEND_CUDA
+	upload2(	//copy 2
 		w_w1, dim, hidden_dim, 2,
 		w_w3, dim, hidden_dim, 0);
-	upload(w_w2, hidden_dim, dim, 3);
+#endif
+#ifdef BACKEND_CUDA
+	upload(w_w2, hidden_dim, dim, 3);	//copy 3
 #endif
 
 
@@ -979,7 +985,7 @@ void transformer_eachlayer(RUNSTATE_FLOATTYPE* x, int pos, modelinfo* mi, RunSta
 	tatotb += tb-ta;
 
 	// qkv muladds for this position
-	muladd3(
+	muladd3(	//compute 0
 		rs_q, rs_xb, w_wq, dim,    dim, 0,
 		rs_k, rs_xb, w_wk, dim, kv_dim, 0,
 		rs_v, rs_xb, w_wv, dim, kv_dim, 0);
@@ -1055,7 +1061,7 @@ void transformer_eachlayer(RUNSTATE_FLOATTYPE* x, int pos, modelinfo* mi, RunSta
 	tctotd += td-tc;
 
 	// final muladd to get the output of the attention
-	muladd(rs_xb2, rs_xb, w_wo, dim, dim, 1);
+	muladd(rs_xb2, rs_xb, w_wo, dim, dim, 1);	//compute 1
 
 	u64 te = time_in_ns();
 	tdtote += te-td;
@@ -1082,7 +1088,7 @@ void transformer_eachlayer(RUNSTATE_FLOATTYPE* x, int pos, modelinfo* mi, RunSta
 
 	// Now for FFN in PyTorch we have: self.w2(F.silu(self.w1(x)) * self.w3(x))
 	// first calculate self.w1(x) and self.w3(x)
-	muladd2(
+	muladd2(	//compute 2
 		rs_hb , rs_xb, w_w1, dim, hidden_dim, 2,
 		rs_hb2, rs_xb, w_w3, dim, hidden_dim, 0);
 
@@ -1103,7 +1109,7 @@ void transformer_eachlayer(RUNSTATE_FLOATTYPE* x, int pos, modelinfo* mi, RunSta
 	tCtotD += tD-tC;
 
 	// final muladd to get the output of the ffn
-	muladd(rs_xb, rs_hb, w_w2, hidden_dim, dim, 3);
+	muladd(rs_xb, rs_hb, w_w2, hidden_dim, dim, 3);	//compute 3
 
 	u64 tE = time_in_ns();
 	tDtotE += tE-tD;

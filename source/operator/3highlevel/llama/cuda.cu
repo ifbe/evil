@@ -77,8 +77,9 @@ void cudamath_bf16tofloat(unsigned int* out, unsigned short* in, int cnt)
 }
 void cudamath_bf16copy(unsigned short* out, unsigned short* in, int cnt)
 {
-	int x;
-	for(x=0;x<cnt;x++)out[x] = in[x];
+	//int x;
+	//for(x=0;x<cnt;x++)out[x] = in[x];
+	memcpy(out, in, cnt*2);		//replace naive copy by memcpy: speed up from 0.2 token/s to 0.6 token/s
 }
 void cudamath_bf16transpose(unsigned short* out, unsigned short* in, int w, int h, int offset, int stride)
 {
@@ -92,6 +93,9 @@ void cudamath_bf16transpose(unsigned short* out, unsigned short* in, int w, int 
 extern "C"{
 
 
+#define MATRIXCOPY_EARLY 1
+#define OPTIMISE_TRANSPOSE 0
+//
 static int xdim = 16384;
 static int ydim = 32000;
 //
@@ -107,15 +111,17 @@ static float *gpuout = 0;
 static float *gpuvec = 0;
 static __nv_bfloat16* gpumat[5] = {};
 static int gpumat_filled[5] = {};
-//
-#define MATRIXCOPY_EARLY 1
-#define OPTIMISE_TRANSPOSE 0
 #define WQWKWV 0
 #define WO 1
 #define W1W3 2
 #define W2 3
 #define LOGITS 4
-static cudaEvent_t event[4];
+//
+static cudaStream_t stream[2];
+#define QUEUE_KERN 0
+#define QUEUE_COPY 1
+//
+static cudaEvent_t event[5];
 static cudaEvent_t copyevent[4];
 
 void cuda_cpu_compute(float* tmp0, float* tmp1, float* tmp2)
@@ -131,70 +137,74 @@ void cuda_cpu_compute(float* tmp0, float* tmp1, float* tmp2)
 }
 void cuda_compute(int handle)
 {
-	u64 time[5];
+	u64 time[6];
 	time[0] = time_in_ns();
+	cudaEventRecord(event[0], stream[QUEUE_KERN]);
 
-	int tx = 32;
-	if(0 == (ydim%128))tx = 128;
-	if(0 == (ydim%512))tx = 512;
-	dim3 threads = dim3(tx, 1, 1);
-	dim3 blocks  = dim3(ydim/tx, 1, 1);
+	cudaStreamSynchronize(stream[QUEUE_KERN]);
 
 	time[1] = time_in_ns();
-	cudaEventRecord(event[0], 0);
+	cudaEventRecord(event[1], stream[QUEUE_KERN]);
 
 	__nv_bfloat16* themat = 0;
 	if(32000 == handle){
 		themat = gpumat[LOGITS];
 		if(gpumat_filled[LOGITS] < 2){
 			printf("upload logits to gpumem\n");
-			cudaMemcpyAsync(themat, cpumat[LOGITS], matbyte, cudaMemcpyHostToDevice, 0);
+			cudaMemcpyAsync(themat, cpumat[LOGITS], matbyte, cudaMemcpyHostToDevice, stream[QUEUE_KERN]);
 			gpumat_filled[LOGITS] = 2;
 		}
 	}
 	else{
 		themat = gpumat[handle];
 		if(!MATRIXCOPY_EARLY){
-			cudaMemcpyAsync(themat, cpumat[handle], matbyte, cudaMemcpyHostToDevice, 0);
+			cudaMemcpyAsync(themat, cpumat[handle], matbyte, cudaMemcpyHostToDevice, stream[QUEUE_KERN]);
 		}
 		else{
 			while(cudaEventQuery(copyevent[handle]) == cudaErrorNotReady);
 		}
 	}
-	cudaMemcpyAsync(gpuvec, cpuvec, vecbyte, cudaMemcpyHostToDevice, 0);
-
-	cudaEventRecord(event[1], 0);
-
-	// asynchronously issue work to the GPU (all to stream 0)
-	if(OPTIMISE_TRANSPOSE){
-		muladd_kernel_transposed<<<blocks, threads, 0, 0>>>(gpuout, gpuvec, themat, xdim, ydim);
-	}
-	else{
-		muladd_kernel<<<blocks, threads, 0, 0>>>(gpuout, gpuvec, themat, xdim, ydim);
-	}
-
-	cudaEventRecord(event[2], 0);
-
-	cudaMemcpyAsync(cpuout, gpuout, outbyte, cudaMemcpyDeviceToHost, 0);
-
-	cudaEventRecord(event[3], 0);
+	cudaMemcpyAsync(gpuvec, cpuvec, vecbyte, cudaMemcpyHostToDevice, stream[QUEUE_KERN]);
 
 	time[2] = time_in_ns();
+	cudaEventRecord(event[2], stream[QUEUE_KERN]);
+
+	// asynchronously issue work to the GPU (all to stream 0)
+	int tx = 32;
+	//if(0 == (ydim%128))tx = 128;
+	//if(0 == (ydim%512))tx = 512;
+	dim3 threads = dim3(tx, 1, 1);
+	dim3 blocks  = dim3(ydim/tx, 1, 1);
+	if(OPTIMISE_TRANSPOSE){
+		muladd_kernel_transposed<<<blocks, threads, 0, stream[QUEUE_KERN]>>>(gpuout, gpuvec, themat, xdim, ydim);
+	}
+	else{
+		muladd_kernel<<<blocks, threads, 0, stream[QUEUE_KERN]>>>(gpuout, gpuvec, themat, xdim, ydim);
+	}
+
+	time[3] = time_in_ns();
+	cudaEventRecord(event[3], stream[QUEUE_KERN]);
+
+	cudaMemcpyAsync(cpuout, gpuout, outbyte, cudaMemcpyDeviceToHost, stream[QUEUE_KERN]);
+
+	time[4] = time_in_ns();
+	cudaEventRecord(event[4], stream[QUEUE_KERN]);
 
 	// have CPU do some work while waiting for stage 1 to finish
 	unsigned long int counter=0;
-	while (cudaEventQuery(event[3]) == cudaErrorNotReady)
+	while (cudaEventQuery(event[4]) == cudaErrorNotReady)
 	{
 		counter++;
 	}
-	time[3] = time_in_ns();
+	time[5] = time_in_ns();
 
-	float gputime[3] = {};
-	for(int i=0;i<3;i++)cudaEventElapsedTime(&gputime[i], event[i], event[i+1]);
+	float gputime[4] = {};
+	for(int i=0;i<4;i++)cudaEventElapsedTime(&gputime[i], event[i], event[i+1]);
 
-	time[4] = time_in_ns();
-	//printf("gpu %d %d: %f, %f, %f\n", xdim, ydim, gputime[0]*1e-3, gputime[1]*1e-3, gputime[2]*1e-3);
-	//printf("cpu %d %d: %f, %f, %f, %f\n", xdim, ydim, (time[1]-time[0])*1e-9, (time[2]-time[1])*1e-9, (time[3]-time[2])*1e-9, (time[4]-time[3])*1e-9);
+	float cputime[5] = {};
+	for(int i=0;i<5;i++)cputime[i] = time[i+1] - time[i];
+	//printf("gpu %d %d: %f, %f, %f, %f\n", xdim, ydim, gputime[0]*1e-3, gputime[1]*1e-3, gputime[2]*1e-3, gputime[3]*1e-3);
+	//printf("cpu %d %d: %f, %f, %f, %f, %f\n", xdim, ydim, cputime[0]*1e-9, cputime[1]*1e-9, cputime[2]*1e-9, cputime[3]*1e-9, cputime[4]*1e-9);
 }
 __declspec(dllexport) void cudamath_upload(unsigned short* wbuf, int n, int d, int handle)
 {
@@ -206,8 +216,8 @@ __declspec(dllexport) void cudamath_upload(unsigned short* wbuf, int n, int d, i
 	else{
 	cudamath_bf16copy((unsigned short*)cpumat[handle], wbuf, n*d);
 	}
-	cudaMemcpyAsync(gpumat[handle], cpumat[handle], n*d*2, cudaMemcpyHostToDevice, 0);
-	cudaEventRecord(copyevent[handle], 0);
+	cudaMemcpyAsync(gpumat[handle], cpumat[handle], n*d*2, cudaMemcpyHostToDevice, stream[QUEUE_COPY]);
+	cudaEventRecord(copyevent[handle], stream[QUEUE_COPY]);
 }
 __declspec(dllexport) void cudamath_upload2(
 	unsigned short* w0, int n0, int d0, int handle0,
@@ -223,8 +233,8 @@ __declspec(dllexport) void cudamath_upload2(
 	cudamath_bf16copy((unsigned short*)&cpumat[handle0][    0], w0, n0*d0);
 	cudamath_bf16copy((unsigned short*)&cpumat[handle0][n0*d0], w1, n1*d1);
 	}
-	cudaMemcpyAsync(gpumat[handle0], cpumat[handle0], n0*(d0+d1)*2, cudaMemcpyHostToDevice, 0);
-	cudaEventRecord(copyevent[handle0], 0);
+	cudaMemcpyAsync(gpumat[handle0], cpumat[handle0], n0*(d0+d1)*2, cudaMemcpyHostToDevice, stream[QUEUE_COPY]);
+	cudaEventRecord(copyevent[handle0], stream[QUEUE_COPY]);
 }
 __declspec(dllexport) void cudamath_upload3(
 	unsigned short* w0, int n0, int d0, int handle0,
@@ -243,8 +253,8 @@ __declspec(dllexport) void cudamath_upload3(
 	cudamath_bf16copy((unsigned short*)&cpumat[handle0][      n0*d0], w1, n1*d1);
 	cudamath_bf16copy((unsigned short*)&cpumat[handle0][n0*d0+n1*d1], w2, n2*d2);
 	}
-	cudaMemcpyAsync(gpumat[handle0], cpumat[handle0], n0*(d0+d1+d2)*2, cudaMemcpyHostToDevice, 0);
-	cudaEventRecord(copyevent[handle0], 0);
+	cudaMemcpyAsync(gpumat[handle0], cpumat[handle0], n0*(d0+d1+d2)*2, cudaMemcpyHostToDevice, stream[QUEUE_COPY]);
+	cudaEventRecord(copyevent[handle0], stream[QUEUE_COPY]);
 }
 __declspec(dllexport) void cudamath_muladd(float* xout, float* xin, unsigned short* wbuf, int n, int d, int handle)
 {
@@ -349,8 +359,11 @@ __declspec(dllexport) void cudamath_init()
 	for(int j=0;j<5;j++)cudaMalloc((void **)&gpumat[j], matbyte);
 	//cudaMemset(gpumem, 255, nbytes);
 
-	for(int i=0;i<4;i++)cudaEventCreate(&event[i]);
+	for(int i=0;i<5;i++)cudaEventCreate(&event[i]);
 	for(int i=0;i<4;i++)cudaEventCreate(&copyevent[i]);
+
+	for(int i=0;i<2;i++)cudaStreamCreateWithFlags(&stream[i], cudaStreamNonBlocking);
+
 	cudaDeviceSynchronize();
 
 	u64 t1 = time_in_ns();
@@ -360,7 +373,9 @@ __declspec(dllexport) void cudamath_exit()
 {
 	u64 t0 = time_in_ns();
 
-	for(int i=0;i<4;i++)cudaEventDestroy(event[i]);
+	for(int i=0;i<2;i++)cudaStreamDestroy(stream[i]);
+
+	for(int i=0;i<5;i++)cudaEventDestroy(event[i]);
 	for(int i=0;i<4;i++)cudaEventDestroy(copyevent[i]);
 
 	for(int j=0;j<5;j++)cudaFree(gpumat[j]);

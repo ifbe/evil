@@ -85,16 +85,16 @@ cli:
 	-Isource/libunit -Isource -lm
 cli-fast:
 	make -s cli CF="-Ofast"
-cli-native:
+cli-fastnative:
 	make -s cli CF="-march=native -Ofast"
 cli-fastomp:
 	make -s cli CF="-Ofast -fopenmp"
-cli-nativeomp:
+cli-fastnativeomp:
 	make -s cli CF="-march=native -Ofast -fopenmp"
 
-cli-nativeomp-wincuda:
+cli-fastnative-wincuda:
 	nvcc --shared source/operator/3highlevel/llama/cuda.cu -o cuda.dll
-	$(CC) -march=native -Ofast -fopenmp -DBACKEND_CUDA -o a.exe \
+	$(CC) -march=native -Ofast -DBACKEND_CUDA -o a.exe \
 	source/operator/2indite/render/cli.c \
 	source/operator/2indite/serve/none.c \
 	$(SRC) cuda.dll \
