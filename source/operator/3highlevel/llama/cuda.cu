@@ -93,8 +93,20 @@ void cudamath_bf16transpose(unsigned short* out, unsigned short* in, int w, int 
 extern "C"{
 
 
+#define DEBUG_MALLOC 1
 #define MATRIXCOPY_EARLY 1
-#define OPTIMISE_TRANSPOSE 0
+#define OPTIMISE_TRANSPOSE 0	//not working
+#define OPTIMISE_RESIDENTPINMEM_32LAYER4ROUND 1		//consume gpumem = 12G
+#define OPTIMISE_RESIDENTPINMEM_LOGITS        1		//consume pinmem = 4096*32000*2
+#define OPTIMISE_RESIDENTGPUMEM_32LAYER4ROUND 0		//consume gpumem = 12G
+#define OPTIMISE_RESIDENTGPUMEM_LOGITS        1		//consume gpumem = 4096*32000*2
+//
+static cudaStream_t stream[2];
+#define QUEUE_KERN 0
+#define QUEUE_COPY 1
+//
+static cudaEvent_t event[5];
+static cudaEvent_t copyevent[5];
 //
 static int xdim = 16384;
 static int ydim = 32000;
@@ -105,24 +117,111 @@ static int matbyte = xdim * ydim * 2;	//sizeof(float);
 //
 static float *cpuout = 0;
 static float *cpuvec = 0;
-static __nv_bfloat16* cpumat[5] = {};
+static __nv_bfloat16* pinmem_logits = 0;
+//
+#if OPTIMISE_RESIDENTPINMEM_32LAYER4ROUND==1
+	static __nv_bfloat16* pinmem[32*4]={};	//llama2 7b: layer=32
+	#define LAYER_0 0
+	#define LAYER_1 1
+	#define LAYER_2 2
+#else
+	static __nv_bfloat16* pinmem[4] = {};	//each layer 4 muladd
+	#define PINMEM_WQWKWV 0
+	#define PINMEM_WO     1
+	#define PINMEM_W1W3   2
+	#define PINMEM_W2     3
+#endif
 //
 static float *gpuout = 0;
 static float *gpuvec = 0;
-static __nv_bfloat16* gpumat[5] = {};
-static int gpumat_filled[5] = {};
-#define WQWKWV 0
-#define WO 1
-#define W1W3 2
-#define W2 3
-#define LOGITS 4
+static __nv_bfloat16* gpumem_logits = 0;
 //
-static cudaStream_t stream[2];
-#define QUEUE_KERN 0
-#define QUEUE_COPY 1
-//
-static cudaEvent_t event[5];
-static cudaEvent_t copyevent[4];
+#if OPTIMISE_RESIDENTGPUMEM_32LAYER4ROUND==1
+	static __nv_bfloat16* gpumem[32*4]={};	//llama2 7b: layer=32
+#else
+	#define GPUMEM_COUNT 48		//gtx1060 only have 6g gram
+	static __nv_bfloat16* gpumem[GPUMEM_COUNT+4] = {};	//each layer 4 muladd
+#endif
+
+__nv_bfloat16* pinmem_get(int handle)
+{
+	if(32000 == handle){
+		return pinmem_logits;
+	}
+
+#if OPTIMISE_RESIDENTPINMEM_32LAYER4ROUND==1
+	return pinmem[handle];
+#else
+	int k = handle & 0x3;
+	return pinmem[k];
+#endif
+}
+__nv_bfloat16* pinmem_create_or_get(int handle, int size)
+{
+	cudaError_t ret;
+	if(32000 == handle){
+		if(0 == pinmem_logits){
+			ret = cudaMallocHost((void **)&pinmem_logits, size);
+			if(DEBUG_MALLOC)printf("pinmem_create_or_get1: ret=%d\n", ret);
+		}
+		return pinmem_logits;
+	}
+
+#if OPTIMISE_RESIDENTPINMEM_32LAYER4ROUND==1
+	if(0 == pinmem[handle]){
+		ret = cudaMallocHost((void **)&pinmem[handle], size);
+		if(DEBUG_MALLOC)printf("pinmem_create_or_get2: ret=%d\n", ret);
+	}
+	return pinmem[handle];
+#else
+	int k = handle & 0x3;
+	if(0 == pinmem[k]){
+		ret = cudaMallocHost((void **)&pinmem[k], size);
+		if(DEBUG_MALLOC)printf("pinmem_create_or_get3: ret=%d\n", ret);
+	}
+	return pinmem[k];
+#endif
+}
+
+__nv_bfloat16* gpumem_get(int handle)
+{
+	if(32000 == handle){
+		return gpumem_logits;
+	}
+
+#if OPTIMISE_RESIDENTGPUMEM_32LAYER4ROUND==1
+	return gpumem[handle];
+#else
+	int k = (handle < GPUMEM_COUNT) ? handle : GPUMEM_COUNT+handle%4;
+	return gpumem[k];
+#endif
+}
+__nv_bfloat16* gpumem_create_or_get(int handle, int size)
+{
+	cudaError_t ret;
+	if(32000 == handle){
+		if(0 == gpumem_logits){
+			ret = cudaMalloc((void **)&gpumem_logits, size);
+			if(DEBUG_MALLOC)printf("gpumem_create_or_get1: ret=%d\n", ret);
+		}
+		return gpumem_logits;
+	}
+
+#if OPTIMISE_RESIDENTGPUMEM_32LAYER4ROUND==1
+	if(0 == gpumem[handle]){
+		ret = cudaMalloc((void **)&gpumem[handle], size);
+		if(DEBUG_MALLOC)printf("gpumem_create_or_get2: ret=%d\n", ret);
+	}
+	return gpumem[handle];
+#else
+	int k = (handle < GPUMEM_COUNT) ? handle : GPUMEM_COUNT+handle%4;
+	if(0 == gpumem[k]){
+		ret = cudaMalloc((void **)&gpumem[k], size);
+		if(DEBUG_MALLOC)printf("gpumem_create_or_get3: k=%d, ret=%d\n", k, ret);
+	}
+	return gpumem[k];
+#endif
+}
 
 void cuda_cpu_compute(float* tmp0, float* tmp1, float* tmp2)
 {
@@ -141,45 +240,32 @@ void cuda_compute(int handle)
 	time[0] = time_in_ns();
 	cudaEventRecord(event[0], stream[QUEUE_KERN]);
 
-	cudaStreamSynchronize(stream[QUEUE_KERN]);
+	//cudaStreamSynchronize(stream[QUEUE_KERN]);
 
 	time[1] = time_in_ns();
 	cudaEventRecord(event[1], stream[QUEUE_KERN]);
 
-	__nv_bfloat16* themat = 0;
-	if(32000 == handle){
-		themat = gpumat[LOGITS];
-		if(gpumat_filled[LOGITS] < 2){
-			printf("upload logits to gpumem\n");
-			cudaMemcpyAsync(themat, cpumat[LOGITS], matbyte, cudaMemcpyHostToDevice, stream[QUEUE_KERN]);
-			gpumat_filled[LOGITS] = 2;
-		}
-	}
-	else{
-		themat = gpumat[handle];
-		if(!MATRIXCOPY_EARLY){
-			cudaMemcpyAsync(themat, cpumat[handle], matbyte, cudaMemcpyHostToDevice, stream[QUEUE_KERN]);
-		}
-		else{
-			while(cudaEventQuery(copyevent[handle]) == cudaErrorNotReady);
-		}
-	}
 	cudaMemcpyAsync(gpuvec, cpuvec, vecbyte, cudaMemcpyHostToDevice, stream[QUEUE_KERN]);
+
+	__nv_bfloat16* gpumat = gpumem_get(handle);
+	int evid = (handle==32000) ? 4 : (handle&3);
+	//while(cudaEventQuery(copyevent[evid]) == cudaErrorNotReady);
+	cudaEventSynchronize(copyevent[evid]);
 
 	time[2] = time_in_ns();
 	cudaEventRecord(event[2], stream[QUEUE_KERN]);
 
-	// asynchronously issue work to the GPU (all to stream 0)
+	// asynchronously issue work to the GPU
 	int tx = 32;
 	//if(0 == (ydim%128))tx = 128;
 	//if(0 == (ydim%512))tx = 512;
 	dim3 threads = dim3(tx, 1, 1);
 	dim3 blocks  = dim3(ydim/tx, 1, 1);
 	if(OPTIMISE_TRANSPOSE){
-		muladd_kernel_transposed<<<blocks, threads, 0, stream[QUEUE_KERN]>>>(gpuout, gpuvec, themat, xdim, ydim);
+		muladd_kernel_transposed<<<blocks, threads, 0, stream[QUEUE_KERN]>>>(gpuout, gpuvec, gpumat, xdim, ydim);
 	}
 	else{
-		muladd_kernel<<<blocks, threads, 0, stream[QUEUE_KERN]>>>(gpuout, gpuvec, themat, xdim, ydim);
+		muladd_kernel<<<blocks, threads, 0, stream[QUEUE_KERN]>>>(gpuout, gpuvec, gpumat, xdim, ydim);
 	}
 
 	time[3] = time_in_ns();
@@ -190,12 +276,8 @@ void cuda_compute(int handle)
 	time[4] = time_in_ns();
 	cudaEventRecord(event[4], stream[QUEUE_KERN]);
 
-	// have CPU do some work while waiting for stage 1 to finish
-	unsigned long int counter=0;
-	while (cudaEventQuery(event[4]) == cudaErrorNotReady)
-	{
-		counter++;
-	}
+	// waiting for compute to finish
+	cudaEventSynchronize(event[4]);
 	time[5] = time_in_ns();
 
 	float gputime[4] = {};
@@ -208,53 +290,102 @@ void cuda_compute(int handle)
 }
 __declspec(dllexport) void cudamath_upload(unsigned short* wbuf, int n, int d, int handle)
 {
-	if(!MATRIXCOPY_EARLY)return;
+	int size = 2 * n * d;
+	__nv_bfloat16* cpumat = pinmem_get(handle);
 
-	if(OPTIMISE_TRANSPOSE){
-	cudamath_bf16transpose((unsigned short*)cpumat[handle], wbuf, n, d, 0, d);
+	if(0 == cpumat){
+		cpumat = pinmem_create_or_get(handle, size);
+		if(DEBUG_MALLOC)printf("cpumem: handle=%d,size=%x,addr=%p\n", handle, size, cpumat);
+		if(OPTIMISE_TRANSPOSE){
+			cudamath_bf16transpose((unsigned short*)cpumat, wbuf, n, d, 0, d);
+		}
+		else{
+			cudamath_bf16copy((unsigned short*)cpumat, wbuf, n*d);
+		}
 	}
-	else{
-	cudamath_bf16copy((unsigned short*)cpumat[handle], wbuf, n*d);
+
+	int evid = (handle==32000) ? 4 : (handle&3);
+	__nv_bfloat16* gpumat = gpumem_get(handle);
+	if(0 == gpumat){
+		gpumat = gpumem_create_or_get(handle, size);
+		if(DEBUG_MALLOC)printf("gpumem: handle=%d,size=%x,addr=%p\n", handle, size, gpumat);
+		//Sleep(1000);
+		cudaMemcpyAsync(gpumat, cpumat, size, cudaMemcpyHostToDevice, stream[QUEUE_COPY]);
+		cudaEventRecord(copyevent[evid], stream[QUEUE_COPY]);
 	}
-	cudaMemcpyAsync(gpumat[handle], cpumat[handle], n*d*2, cudaMemcpyHostToDevice, stream[QUEUE_COPY]);
-	cudaEventRecord(copyevent[handle], stream[QUEUE_COPY]);
+	else if((0==OPTIMISE_RESIDENTGPUMEM_32LAYER4ROUND) && (handle!=32000) && (handle>=GPUMEM_COUNT)){
+		cudaMemcpyAsync(gpumat, cpumat, size, cudaMemcpyHostToDevice, stream[QUEUE_COPY]);
+		cudaEventRecord(copyevent[evid], stream[QUEUE_COPY]);
+	}
 }
 __declspec(dllexport) void cudamath_upload2(
 	unsigned short* w0, int n0, int d0, int handle0,
 	unsigned short* w1, int n1, int d1, int handle1)
 {
-	if(!MATRIXCOPY_EARLY)return;
+	int size = 2 * n0 * (d0+d1);
+	__nv_bfloat16* cpumat = pinmem_get(handle0);
 
-	if(OPTIMISE_TRANSPOSE){
-	cudamath_bf16transpose((unsigned short*)&cpumat[handle0][0], w0, n0, d0,  0, d0+d1);
-	cudamath_bf16transpose((unsigned short*)&cpumat[handle0][0], w1, n1, d1, d0, d0+d1);
+	if(0 == cpumat){
+		cpumat = pinmem_create_or_get(handle0, size);
+		if(DEBUG_MALLOC)printf("cpumem: handle=%d,size=%x,addr=%p\n", handle0, size, cpumat);
+		if(OPTIMISE_TRANSPOSE){
+			cudamath_bf16transpose((unsigned short*)cpumat, w0, n0, d0,  0, d0+d1);
+			cudamath_bf16transpose((unsigned short*)cpumat, w1, n1, d1, d0, d0+d1);
+		}
+		else{
+			cudamath_bf16copy((unsigned short*)&cpumat[    0], w0, n0*d0);
+			cudamath_bf16copy((unsigned short*)&cpumat[n0*d0], w1, n1*d1);
+		}
 	}
-	else{
-	cudamath_bf16copy((unsigned short*)&cpumat[handle0][    0], w0, n0*d0);
-	cudamath_bf16copy((unsigned short*)&cpumat[handle0][n0*d0], w1, n1*d1);
+
+	int evid = (handle0==32000) ? 4 : (handle0&3);
+	__nv_bfloat16* gpumat = gpumem_get(handle0);
+	if(0 == gpumat){
+		gpumat = gpumem_create_or_get(handle0, size);
+		if(DEBUG_MALLOC)printf("gpumem: handle=%d,size=%x,addr=%p\n", handle0, size, gpumat);
+		cudaMemcpyAsync(gpumat, cpumat, size, cudaMemcpyHostToDevice, stream[QUEUE_COPY]);
+		cudaEventRecord(copyevent[evid], stream[QUEUE_COPY]);
 	}
-	cudaMemcpyAsync(gpumat[handle0], cpumat[handle0], n0*(d0+d1)*2, cudaMemcpyHostToDevice, stream[QUEUE_COPY]);
-	cudaEventRecord(copyevent[handle0], stream[QUEUE_COPY]);
+	else if((0==OPTIMISE_RESIDENTGPUMEM_32LAYER4ROUND) && (handle0!=32000) && (handle0>=GPUMEM_COUNT)){
+		cudaMemcpyAsync(gpumat, cpumat, size, cudaMemcpyHostToDevice, stream[QUEUE_COPY]);
+		cudaEventRecord(copyevent[evid], stream[QUEUE_COPY]);
+	}
 }
 __declspec(dllexport) void cudamath_upload3(
 	unsigned short* w0, int n0, int d0, int handle0,
 	unsigned short* w1, int n1, int d1, int handle1,
 	unsigned short* w2, int n2, int d2, int handle2)
 {
-	if(!MATRIXCOPY_EARLY)return;
+	int size = 2 * n0 * (d0+d1+d2);
+	__nv_bfloat16* cpumat = pinmem_get(handle0);
 
-	if(OPTIMISE_TRANSPOSE){
-	cudamath_bf16transpose((unsigned short*)&cpumat[handle0][0], w0, n0, d0,     0, d0+d1+d2);
-	cudamath_bf16transpose((unsigned short*)&cpumat[handle0][0], w1, n1, d1,    d0, d0+d1+d2);
-	cudamath_bf16transpose((unsigned short*)&cpumat[handle0][0], w2, n2, d2, d0+d1, d0+d1+d2);
+	if(0 == cpumat){
+		cpumat = pinmem_create_or_get(handle0, size);
+		if(DEBUG_MALLOC)printf("cpumem: handle=%d,size=%x,addr=%p\n", handle0, size, cpumat);
+		if(OPTIMISE_TRANSPOSE){
+			cudamath_bf16transpose((unsigned short*)cpumat, w0, n0, d0,     0, d0+d1+d2);
+			cudamath_bf16transpose((unsigned short*)cpumat, w1, n1, d1,    d0, d0+d1+d2);
+			cudamath_bf16transpose((unsigned short*)cpumat, w2, n2, d2, d0+d1, d0+d1+d2);
+		}
+		else{
+			cudamath_bf16copy((unsigned short*)&cpumat[          0], w0, n0*d0);
+			cudamath_bf16copy((unsigned short*)&cpumat[      n0*d0], w1, n1*d1);
+			cudamath_bf16copy((unsigned short*)&cpumat[n0*d0+n1*d1], w2, n2*d2);
+		}
 	}
-	else{
-	cudamath_bf16copy((unsigned short*)&cpumat[handle0][          0], w0, n0*d0);
-	cudamath_bf16copy((unsigned short*)&cpumat[handle0][      n0*d0], w1, n1*d1);
-	cudamath_bf16copy((unsigned short*)&cpumat[handle0][n0*d0+n1*d1], w2, n2*d2);
+
+	int evid = (handle0==32000) ? 4 : (handle0&3);
+	__nv_bfloat16* gpumat = gpumem_get(handle0);
+	if(0 == gpumat){
+		gpumat = gpumem_create_or_get(handle0, size);
+		if(DEBUG_MALLOC)printf("gpumem: handle=%d,size=%x,addr=%p\n", handle0, size, gpumat);
+		cudaMemcpyAsync(gpumat, cpumat, size, cudaMemcpyHostToDevice, stream[QUEUE_COPY]);
+		cudaEventRecord(copyevent[evid], stream[QUEUE_COPY]);
 	}
-	cudaMemcpyAsync(gpumat[handle0], cpumat[handle0], n0*(d0+d1+d2)*2, cudaMemcpyHostToDevice, stream[QUEUE_COPY]);
-	cudaEventRecord(copyevent[handle0], stream[QUEUE_COPY]);
+	else if((0==OPTIMISE_RESIDENTGPUMEM_32LAYER4ROUND) && (handle0!=32000) && (handle0>=GPUMEM_COUNT)){
+		cudaMemcpyAsync(gpumat, cpumat, size, cudaMemcpyHostToDevice, stream[QUEUE_COPY]);
+		cudaEventRecord(copyevent[evid], stream[QUEUE_COPY]);
+	}
 }
 __declspec(dllexport) void cudamath_muladd(float* xout, float* xin, unsigned short* wbuf, int n, int d, int handle)
 {
@@ -266,17 +397,8 @@ __declspec(dllexport) void cudamath_muladd(float* xout, float* xin, unsigned sho
 
 	int x;
 	for(x=0;x<xdim;x++)cpuvec[x] = xin[x];
-	if(32000 == handle){
-		if(gpumat_filled[LOGITS] < 1){
-			printf("upload logits to cpumem\n");
-			cudamath_upload(wbuf, n, d, LOGITS);
-			gpumat_filled[LOGITS] = 1;
-		}
-	}
-	else{
-		if(!MATRIXCOPY_EARLY){
-			cudamath_upload(wbuf, n, d, handle);
-		}
+	if(!MATRIXCOPY_EARLY){
+		cudamath_upload(wbuf, n, d, handle);
 	}
 
 	cuda_compute(handle);
@@ -351,16 +473,16 @@ __declspec(dllexport) void cudamath_init()
 	// allocate host memory
 	cudaMallocHost((void **)&cpuout, outbyte);
 	cudaMallocHost((void **)&cpuvec, vecbyte);
-	for(int j=0;j<5;j++)cudaMallocHost((void **)&cpumat[j], matbyte);
+	//for(int j=0;j<4;j++)cudaMallocHost((void **)&pinmem[j], matbyte);
 
 	// allocate device memory
 	cudaMalloc((void **)&gpuout, outbyte);
 	cudaMalloc((void **)&gpuvec, vecbyte);
-	for(int j=0;j<5;j++)cudaMalloc((void **)&gpumat[j], matbyte);
+	//for(int j=0;j<4;j++)cudaMalloc((void **)&gpumem[j], matbyte);
 	//cudaMemset(gpumem, 255, nbytes);
 
 	for(int i=0;i<5;i++)cudaEventCreate(&event[i]);
-	for(int i=0;i<4;i++)cudaEventCreate(&copyevent[i]);
+	for(int i=0;i<5;i++)cudaEventCreate(&copyevent[i]);
 
 	for(int i=0;i<2;i++)cudaStreamCreateWithFlags(&stream[i], cudaStreamNonBlocking);
 
@@ -376,15 +498,23 @@ __declspec(dllexport) void cudamath_exit()
 	for(int i=0;i<2;i++)cudaStreamDestroy(stream[i]);
 
 	for(int i=0;i<5;i++)cudaEventDestroy(event[i]);
-	for(int i=0;i<4;i++)cudaEventDestroy(copyevent[i]);
+	for(int i=0;i<5;i++)cudaEventDestroy(copyevent[i]);
 
-	for(int j=0;j<5;j++)cudaFree(gpumat[j]);
 	cudaFree(gpuvec);
 	cudaFree(gpuout);
+#if OPTIMISE_RESIDENTGPUMEM_32LAYER4ROUND==1
+	for(int j=0;j<32*4;j++)cudaFree(gpumem[j]);
+#else
+	for(int j=0;j<4;j++)cudaFree(gpumem[j]);
+#endif
 
-	for(int j=0;j<5;j++)cudaFreeHost(cpumat[j]);
 	cudaFreeHost(cpuvec);
 	cudaFreeHost(cpuout);
+#if OPTIMISE_RESIDENTPINMEM_32LAYER4ROUND==1
+	for(int j=0;j<32*4;j++)cudaFreeHost(pinmem[j]);
+#else
+	for(int j=0;j<4;j++)cudaFreeHost(pinmem[j]);
+#endif
 
 	//printf("time spent executing by the GPU: %f, %f, %f\n", gputime[0]*1e-3, gputime[1]*1e-3, gputime[2]*1e-3);
 
