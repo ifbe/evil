@@ -143,6 +143,18 @@ static __nv_bfloat16* gpumem_logits = 0;
 	static __nv_bfloat16* gpumem[GPUMEM_COUNT+4] = {};	//each layer 4 muladd
 #endif
 
+void cuda_cpu_compute(float* tmp0, float* tmp1, float* tmp2)
+{
+	int x,y;
+	for(y=0;y<ydim;y++){
+		float tmp = 0.0;
+		for(x=0;x<xdim;x++){
+		tmp += tmp2[y*xdim+x] * tmp1[x];
+		}
+		tmp0[y] = tmp;
+	}
+}
+
 __nv_bfloat16* pinmem_get(int handle)
 {
 	if(32000 == handle){
@@ -223,16 +235,36 @@ __nv_bfloat16* gpumem_create_or_get(int handle, int size)
 #endif
 }
 
-void cuda_cpu_compute(float* tmp0, float* tmp1, float* tmp2)
+struct pendingcopy{
+	int size;
+}pending_data[32*4+4] = {};
+void maybe_start_next_copy(int handle)
 {
-	int x,y;
-	for(y=0;y<ydim;y++){
-		float tmp = 0.0;
-		for(x=0;x<xdim;x++){
-		tmp += tmp2[y*xdim+x] * tmp1[x];
-		}
-		tmp0[y] = tmp;
-	}
+	/*
+	0 -> return
+	1 -> return
+	GPUMEM_COUNT-1 -> return
+	GPUMEM_COUNT+0 -> GPUMEM_COUNT+1
+	GPUMEM_COUNT+1 -> GPUMEM_COUNT+2
+	GPUMEM_COUNT+2 -> GPUMEM_COUNT+3
+	GPUMEM_COUNT+3 -> GPUMEM_COUNT+4
+	...
+	max -> return
+	*/
+	if(handle == 32000)return;
+	if(handle < GPUMEM_COUNT)return;
+
+	int tocopy = handle+1;
+	if(pending_data[tocopy].size == 0)return;
+	__nv_bfloat16* gpumat = gpumem_get(tocopy);
+	if(0==gpumat)return;	//not in gpumem yet
+	__nv_bfloat16* cpumat = pinmem_get(tocopy);
+	if(0==cpumat)return;	//not in cpumem yet
+
+	int evid = tocopy&3;
+	int size = pending_data[evid].size;
+	cudaMemcpyAsync(gpumat, cpumat, size, cudaMemcpyHostToDevice, stream[QUEUE_COPY]);
+	cudaEventRecord(copyevent[evid], stream[QUEUE_COPY]);
 }
 void cuda_compute(int handle)
 {
@@ -240,12 +272,10 @@ void cuda_compute(int handle)
 	time[0] = time_in_ns();
 	cudaEventRecord(event[0], stream[QUEUE_KERN]);
 
-	//cudaStreamSynchronize(stream[QUEUE_KERN]);
+	cudaMemcpyAsync(gpuvec, cpuvec, vecbyte, cudaMemcpyHostToDevice, stream[QUEUE_KERN]);
 
 	time[1] = time_in_ns();
 	cudaEventRecord(event[1], stream[QUEUE_KERN]);
-
-	cudaMemcpyAsync(gpuvec, cpuvec, vecbyte, cudaMemcpyHostToDevice, stream[QUEUE_KERN]);
 
 	__nv_bfloat16* gpumat = gpumem_get(handle);
 	int evid = (handle==32000) ? 4 : (handle&3);
@@ -267,6 +297,7 @@ void cuda_compute(int handle)
 	else{
 		muladd_kernel<<<blocks, threads, 0, stream[QUEUE_KERN]>>>(gpuout, gpuvec, gpumat, xdim, ydim);
 	}
+	maybe_start_next_copy(handle);
 
 	time[3] = time_in_ns();
 	cudaEventRecord(event[3], stream[QUEUE_KERN]);
@@ -313,9 +344,17 @@ __declspec(dllexport) void cudamath_upload(unsigned short* wbuf, int n, int d, i
 		cudaMemcpyAsync(gpumat, cpumat, size, cudaMemcpyHostToDevice, stream[QUEUE_COPY]);
 		cudaEventRecord(copyevent[evid], stream[QUEUE_COPY]);
 	}
-	else if((0==OPTIMISE_RESIDENTGPUMEM_32LAYER4ROUND) && (handle!=32000) && (handle>=GPUMEM_COUNT)){
-		cudaMemcpyAsync(gpumat, cpumat, size, cudaMemcpyHostToDevice, stream[QUEUE_COPY]);
-		cudaEventRecord(copyevent[evid], stream[QUEUE_COPY]);
+	else if((0==OPTIMISE_RESIDENTGPUMEM_32LAYER4ROUND) && (handle!=32000) ){
+		pending_data[handle].size = size;
+		if(handle==GPUMEM_COUNT){
+			cudaMemcpyAsync(gpumat, cpumat, size, cudaMemcpyHostToDevice, stream[QUEUE_COPY]);
+			cudaEventRecord(copyevent[evid], stream[QUEUE_COPY]);
+		}
+		else if(handle>GPUMEM_COUNT){
+			//h2d copy will not overlap on 2 stream, h2d copy will not preempt
+			//my gpu will not start compute until all copy are done
+			//so the copy must happen after call kernel compute
+		}
 	}
 }
 __declspec(dllexport) void cudamath_upload2(
@@ -346,9 +385,17 @@ __declspec(dllexport) void cudamath_upload2(
 		cudaMemcpyAsync(gpumat, cpumat, size, cudaMemcpyHostToDevice, stream[QUEUE_COPY]);
 		cudaEventRecord(copyevent[evid], stream[QUEUE_COPY]);
 	}
-	else if((0==OPTIMISE_RESIDENTGPUMEM_32LAYER4ROUND) && (handle0!=32000) && (handle0>=GPUMEM_COUNT)){
-		cudaMemcpyAsync(gpumat, cpumat, size, cudaMemcpyHostToDevice, stream[QUEUE_COPY]);
-		cudaEventRecord(copyevent[evid], stream[QUEUE_COPY]);
+	else if((0==OPTIMISE_RESIDENTGPUMEM_32LAYER4ROUND) && (handle0!=32000) ){
+		pending_data[handle0].size = size;
+		if(handle0==GPUMEM_COUNT){
+			cudaMemcpyAsync(gpumat, cpumat, size, cudaMemcpyHostToDevice, stream[QUEUE_COPY]);
+			cudaEventRecord(copyevent[evid], stream[QUEUE_COPY]);
+		}
+		else if(handle0>GPUMEM_COUNT){
+			//h2d copy will not overlap on 2 stream, h2d copy will not preempt
+			//my gpu will not start compute until all copy are done
+			//so the copy must happen after call kernel compute
+		}
 	}
 }
 __declspec(dllexport) void cudamath_upload3(
@@ -382,9 +429,17 @@ __declspec(dllexport) void cudamath_upload3(
 		cudaMemcpyAsync(gpumat, cpumat, size, cudaMemcpyHostToDevice, stream[QUEUE_COPY]);
 		cudaEventRecord(copyevent[evid], stream[QUEUE_COPY]);
 	}
-	else if((0==OPTIMISE_RESIDENTGPUMEM_32LAYER4ROUND) && (handle0!=32000) && (handle0>=GPUMEM_COUNT)){
-		cudaMemcpyAsync(gpumat, cpumat, size, cudaMemcpyHostToDevice, stream[QUEUE_COPY]);
-		cudaEventRecord(copyevent[evid], stream[QUEUE_COPY]);
+	else if((0==OPTIMISE_RESIDENTGPUMEM_32LAYER4ROUND) && (handle0!=32000) ){
+		pending_data[handle0].size = size;
+		if(handle0==GPUMEM_COUNT){
+			cudaMemcpyAsync(gpumat, cpumat, size, cudaMemcpyHostToDevice, stream[QUEUE_COPY]);
+			cudaEventRecord(copyevent[evid], stream[QUEUE_COPY]);
+		}
+		else if(handle0>GPUMEM_COUNT){
+			//h2d copy will not overlap on 2 stream, h2d copy will not preempt
+			//my gpu will not start compute until all copy are done
+			//so the copy must happen after call kernel compute
+		}
 	}
 }
 __declspec(dllexport) void cudamath_muladd(float* xout, float* xin, unsigned short* wbuf, int n, int d, int handle)
@@ -484,7 +539,10 @@ __declspec(dllexport) void cudamath_init()
 	for(int i=0;i<5;i++)cudaEventCreate(&event[i]);
 	for(int i=0;i<5;i++)cudaEventCreate(&copyevent[i]);
 
-	for(int i=0;i<2;i++)cudaStreamCreateWithFlags(&stream[i], cudaStreamNonBlocking);
+	int hi,lo;
+	cudaDeviceGetStreamPriorityRange(&lo, &hi);
+	cudaStreamCreateWithPriority(&stream[QUEUE_KERN], cudaStreamNonBlocking, hi);
+	cudaStreamCreateWithPriority(&stream[QUEUE_COPY], cudaStreamNonBlocking, lo);
 
 	cudaDeviceSynchronize();
 

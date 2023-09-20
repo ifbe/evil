@@ -1228,7 +1228,7 @@ void llama_runmodel(modelinfo* mi, RunState* rs, tokeninfo* ti, TokenState* ts)
 		}
 		pos++;
 
-		if(1 == next)break;
+		if(2 >= next)break;
 
 		// following BOS token (1), sentencepiece decoder strips any leading whitespace (see PR #89)
 		char *token_str = (token == 1 && ti->vocab[next][0] == ' ') ? ti->vocab[next]+1 : ti->vocab[next];

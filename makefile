@@ -93,7 +93,7 @@ cli-fastnativeomp:
 	make -s cli CF="-march=native -Ofast -fopenmp"
 
 cli-fastnative-wincuda:
-	nvcc --shared source/operator/3highlevel/llama/cuda.cu -o cuda.dll
+	nvcc --default-stream per-thread --shared source/operator/3highlevel/llama/cuda.cu -o cuda.dll
 	$(CC) -march=native -Ofast -DBACKEND_CUDA -o a.exe \
 	source/operator/2indite/render/cli.c \
 	source/operator/2indite/serve/none.c \
