@@ -842,6 +842,16 @@ void softmax(RUNSTATE_FLOATTYPE* x, int size) {
 	}
 }
 
+#define LAYER_0_ROUND_0 0
+#define LAYER_0_ROUND_1 1
+#define LAYER_0_ROUND_2 2
+#define LAYER_0_ROUND_3 3
+#define LAYER_1_ROUND_0 (1*4 + 0)
+#define LAYER_1_ROUND_1 (1*4 + 1)
+#define LAYER_1_ROUND_2 (1*4 + 2)
+#define LAYER_1_ROUND_3 (1*4 + 3)
+#define SPECIAL_HANDLE_FOR_LOGITS 32000
+
 #ifdef BACKEND_VULKAN
 void vulkan_muladd(RUNSTATE_FLOATTYPE* xout, RUNSTATE_FLOATTYPE* x, MODELWEIGHT_FLOATTYPE* w, int n, int d, int handle);
 void vulkan_muladd2(
@@ -921,6 +931,8 @@ void dequantization(RUNSTATE_FLOATTYPE* dst, MODELWEIGHT_FLOATTYPE* src, int cnt
 void transformer_eachlayer(RUNSTATE_FLOATTYPE* x, int pos, modelinfo* mi, RunState* rs, int layer)
 {
 //----------------first stage----------------
+	u64 ta = time_in_ns();
+
 	int dim = mi->dim;
 	int head_size = dim / mi->n_heads;
 	int kv_dim = (mi->dim * mi->n_kv_heads) / mi->n_heads;
@@ -940,43 +952,6 @@ void transformer_eachlayer(RUNSTATE_FLOATTYPE* x, int pos, modelinfo* mi, RunSta
 	RUNSTATE_FLOATTYPE* rs_att = rs->att_data;
 	RUNSTATE_FLOATTYPE* rs_key_cache = rs->key_cache_data;
 	RUNSTATE_FLOATTYPE* rs_value_cache = rs->value_cache_data;
-
-//----------------second stage----------------
-	//int dim = mi->dim;	//redefinition
-	int hidden_dim =  mi->hidden_dim;
-
-	MODELWEIGHT_FLOATTYPE* w_rms_ffn_weight = mi->rms_ffn_weight_data + layer*dim;
-	MODELWEIGHT_FLOATTYPE* w_w1 = mi->w1_data + layer*dim*hidden_dim;
-	MODELWEIGHT_FLOATTYPE* w_w2 = mi->w2_data + layer*dim*hidden_dim;
-	MODELWEIGHT_FLOATTYPE* w_w3 = mi->w3_data + layer*dim*hidden_dim;
-
-	//RUNSTATE_FLOATTYPE* rs_xb = rs->xb_data;	//redefinition
-	RUNSTATE_FLOATTYPE* rs_hb = rs->hb_data;
-	RUNSTATE_FLOATTYPE* rs_hb2 = rs->hb2_data;
-
-//----------------upload data----------------
-#ifdef BACKEND_CUDA
-	upload3(	//copy 0
-		w_wq, dim,    dim, layer*4+0,
-		w_wk, dim, kv_dim, 0,
-		w_wv, dim, kv_dim, 0);
-#endif
-#ifdef BACKEND_CUDA
-	upload(w_wo, dim, dim, layer*4+1);	//copy 1
-#endif
-#ifdef BACKEND_CUDA
-	upload2(	//copy 2
-		w_w1, dim, hidden_dim, layer*4+2,
-		w_w3, dim, hidden_dim, 0);
-#endif
-#ifdef BACKEND_CUDA
-	upload(w_w2, hidden_dim, dim, layer*4+3);	//copy 3
-#endif
-
-
-
-//----------------first stage----------------
-	u64 ta = time_in_ns();
 
 	// attention rmsnorm
 	rmsnorm(rs_xb, x, w_rms_att_weight, dim);
@@ -1080,6 +1055,18 @@ void transformer_eachlayer(RUNSTATE_FLOATTYPE* x, int pos, modelinfo* mi, RunSta
 //----------------second stage----------------
 	u64 tA = time_in_ns();
 
+	//int dim = mi->dim;	//redefinition
+	int hidden_dim =  mi->hidden_dim;
+
+	MODELWEIGHT_FLOATTYPE* w_rms_ffn_weight = mi->rms_ffn_weight_data + layer*dim;
+	MODELWEIGHT_FLOATTYPE* w_w1 = mi->w1_data + layer*dim*hidden_dim;
+	MODELWEIGHT_FLOATTYPE* w_w2 = mi->w2_data + layer*dim*hidden_dim;
+	MODELWEIGHT_FLOATTYPE* w_w3 = mi->w3_data + layer*dim*hidden_dim;
+
+	//RUNSTATE_FLOATTYPE* rs_xb = rs->xb_data;	//redefinition
+	RUNSTATE_FLOATTYPE* rs_hb = rs->hb_data;
+	RUNSTATE_FLOATTYPE* rs_hb2 = rs->hb2_data;
+
 	// ffn rmsnorm
 	rmsnorm(rs_xb, x, w_rms_ffn_weight, dim);
 
@@ -1143,7 +1130,6 @@ void transformer(int token, int pos, modelinfo* mi, RunState* rs) {
 	for(int l = 0; l < mi->n_layers; l++) {
 		transformer_eachlayer(rs_x, pos, mi, rs, l);
 	}
-	upload(w_wcls, mi->dim, mi->vocab_size, 32000);	//copy 5
 
 	u64 t2 = time_in_ns();
 	t1tot2 += t2-t1;
@@ -1155,7 +1141,7 @@ void transformer(int token, int pos, modelinfo* mi, RunState* rs) {
 	t2tot3 += t3-t2;
 
 	// classifier into logits
-	muladd(rs_logits, rs_x, w_wcls, mi->dim, mi->vocab_size, 32000);
+	muladd(rs_logits, rs_x, w_wcls, mi->dim, mi->vocab_size, SPECIAL_HANDLE_FOR_LOGITS);
 
 	u64 t4 = time_in_ns();
 	t3tot4 += t4-t3;
@@ -1184,6 +1170,48 @@ int argmax(RUNSTATE_FLOATTYPE* v, int n) {
 	}
 	return max_i;
 }
+
+
+
+
+#ifdef BACKEND_CUDA
+void uploadall(modelinfo* mi)
+{
+	int dim = mi->dim;
+	int hidden_dim =  mi->hidden_dim;
+	int kv_dim = (mi->dim * mi->n_kv_heads) / mi->n_heads;
+
+	int layer;
+	for(layer=0;layer<mi->n_layers;layer++){
+		//copy 0
+		MODELWEIGHT_FLOATTYPE* w_wq = mi->wq_data + layer*dim*dim;
+		MODELWEIGHT_FLOATTYPE* w_wk = mi->wk_data + layer*dim*kv_dim;
+		MODELWEIGHT_FLOATTYPE* w_wv = mi->wv_data + layer*dim*kv_dim;
+		upload3(
+			w_wq, dim,    dim, layer*4+0,
+			w_wk, dim, kv_dim, 0,
+			w_wv, dim, kv_dim, 0);
+
+		//copy 1
+		MODELWEIGHT_FLOATTYPE* w_wo = mi->wo_data + layer*dim*dim;
+		upload(w_wo, dim, dim, layer*4+1);
+
+		//copy 2
+		MODELWEIGHT_FLOATTYPE* w_w1 = mi->w1_data + layer*dim*hidden_dim;
+		MODELWEIGHT_FLOATTYPE* w_w3 = mi->w3_data + layer*dim*hidden_dim;
+		upload2(
+			w_w1, dim, hidden_dim, layer*4+2,
+			w_w3, dim, hidden_dim, 0);
+
+		//copy 3
+		MODELWEIGHT_FLOATTYPE* w_w2 = mi->w2_data + layer*dim*hidden_dim;
+		upload(w_w2, hidden_dim, dim, layer*4+3);
+	}
+
+	MODELWEIGHT_FLOATTYPE* w_wcls = mi->wcls_data;
+	upload(w_wcls, mi->dim, mi->vocab_size, SPECIAL_HANDLE_FOR_LOGITS);
+}
+#endif
 void llama_runmodel(modelinfo* mi, RunState* rs, tokeninfo* ti, TokenState* ts)
 {
 	printf("--------runmodel--------\n");
@@ -1290,6 +1318,7 @@ void llama(int argc, char** argv)
 	vulkan_myctx_create(0, 0);
 #elif BACKEND_CUDA
 	cudamath_init();
+	uploadall(&model);
 #endif
 
 	int ret;
