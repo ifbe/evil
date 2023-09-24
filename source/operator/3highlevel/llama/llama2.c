@@ -25,14 +25,6 @@
 #endif
 int input(void*, int);
 int output(void*, int);
-//
-void* vulkan_init(void*, void*);
-void vulkan_exit();
-void vulkan_myctx_create(void*, void*);
-void vulkan_myctx_delete();
-//
-void cudamath_init();
-void cudamath_exit();
 
 #ifdef _WIN32
 #include <windows.h>
@@ -853,6 +845,10 @@ void softmax(RUNSTATE_FLOATTYPE* x, int size) {
 #define SPECIAL_HANDLE_FOR_LOGITS 32000
 
 #ifdef BACKEND_VULKAN
+void* vulkan_init(void*, void*);
+void vulkan_exit();
+void vulkan_myctx_create(void*, void*);
+void vulkan_myctx_delete();
 void vulkan_muladd(RUNSTATE_FLOATTYPE* xout, RUNSTATE_FLOATTYPE* x, MODELWEIGHT_FLOATTYPE* w, int n, int d, int handle);
 void vulkan_muladd2(
 	RUNSTATE_FLOATTYPE* xout0, RUNSTATE_FLOATTYPE* x0, MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
@@ -866,6 +862,8 @@ void vulkan_muladd3(
 #define muladd3 vulkan_muladd3
 
 #elif BACKEND_CUDA
+void cudamath_init();
+void cudamath_exit();
 void cudamath_upload(MODELWEIGHT_FLOATTYPE* w, int n, int d, int handle);
 void cudamath_upload2(
 	MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
@@ -882,12 +880,35 @@ void cudamath_muladd3(
 	RUNSTATE_FLOATTYPE* xout0, RUNSTATE_FLOATTYPE* x0, MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
 	RUNSTATE_FLOATTYPE* xout1, RUNSTATE_FLOATTYPE* x1, MODELWEIGHT_FLOATTYPE* w1, int n1, int d1, int handle1,
 	RUNSTATE_FLOATTYPE* xout2, RUNSTATE_FLOATTYPE* x2, MODELWEIGHT_FLOATTYPE* w2, int n2, int d2, int handle2);
-#define muladd cudamath_muladd
-#define muladd2 cudamath_muladd2
-#define muladd3 cudamath_muladd3
 #define upload cudamath_upload
 #define upload2 cudamath_upload2
 #define upload3 cudamath_upload3
+#define muladd cudamath_muladd
+#define muladd2 cudamath_muladd2
+#define muladd3 cudamath_muladd3
+
+#elif BACKEND_REMOTEGPU
+void remotegpu_init();
+void remotegpu_exit();
+void remotegpu_upload(MODELWEIGHT_FLOATTYPE* w, int n, int d, int handle);
+void remotegpu_upload2(
+	MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
+	MODELWEIGHT_FLOATTYPE* w1, int n1, int d1, int handle2);
+void remotegpu_upload3(
+	MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
+	MODELWEIGHT_FLOATTYPE* w1, int n1, int d1, int handle1,
+	MODELWEIGHT_FLOATTYPE* w2, int n2, int d2, int handle2);
+void remotegpu_muladd(RUNSTATE_FLOATTYPE* xout, RUNSTATE_FLOATTYPE* x, MODELWEIGHT_FLOATTYPE* w, int n, int d, int handle);
+void remotegpu_muladd2(
+	RUNSTATE_FLOATTYPE* xout0, RUNSTATE_FLOATTYPE* x0, MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
+	RUNSTATE_FLOATTYPE* xout1, RUNSTATE_FLOATTYPE* x1, MODELWEIGHT_FLOATTYPE* w1, int n1, int d1, int handle2);
+void remotegpu_muladd3(
+	RUNSTATE_FLOATTYPE* xout0, RUNSTATE_FLOATTYPE* x0, MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
+	RUNSTATE_FLOATTYPE* xout1, RUNSTATE_FLOATTYPE* x1, MODELWEIGHT_FLOATTYPE* w1, int n1, int d1, int handle1,
+	RUNSTATE_FLOATTYPE* xout2, RUNSTATE_FLOATTYPE* x2, MODELWEIGHT_FLOATTYPE* w2, int n2, int d2, int handle2);
+#define muladd remotegpu_muladd
+#define muladd2 remotegpu_muladd2
+#define muladd3 remotegpu_muladd3
 
 #else
 void muladd(RUNSTATE_FLOATTYPE* xout, RUNSTATE_FLOATTYPE* x, MODELWEIGHT_FLOATTYPE* w, int n, int d, int handle)
@@ -1301,7 +1322,21 @@ int getinputincludingcrlf(char* str, int len)
 void llama(int argc, char** argv)
 {
 	modelinfo model;
+#ifdef BACKEND_VULKAN
+	void* ins = vulkan_init(0, 0);
+	if(0 == ins)return;
 	llama_initmodel(argv[1], &model);
+	vulkan_myctx_create(0, 0);
+#elif BACKEND_CUDA
+	cudamath_init();
+	llama_initmodel(argv[1], &model);
+	uploadall(&model);
+#elif BACKEND_REMOTEGPU
+	remotegpu_init();
+	llama_initmodel(argv[1], &model);
+#else
+	llama_initmodel(argv[1], &model);
+#endif
 
 	RunState modelstate;
 	llama_initstate(&model, &modelstate);
@@ -1311,15 +1346,6 @@ void llama(int argc, char** argv)
 
 	TokenState tokenstate;
 	llama_initprompt(&model, &tokenstate);
-
-#ifdef BACKEND_VULKAN
-	void* ins = vulkan_init(0, 0);
-	if(0 == ins)return;
-	vulkan_myctx_create(0, 0);
-#elif BACKEND_CUDA
-	cudamath_init();
-	uploadall(&model);
-#endif
 
 	int ret;
 	char str[4096];
@@ -1336,14 +1362,18 @@ void llama(int argc, char** argv)
 		llama_runmodel(&model, &modelstate, &token, &tokenstate);
 		printf("\n");
 	}while(1);
+
+	//llama_exitprompt();
+	//llama_exittokenizer();
+	//llama_exitstate();
 #ifdef BACKEND_VULKAN
 	vulkan_myctx_delete();
 	vulkan_exit();
 #elif BACKEND_CUDA
 	cudamath_exit();
-#endif
-	//llama_exitprompt();
-	//llama_exittokenizer();
-	//llama_exitstate();
+#elif BACKEND_REMOTEGPU
+	remotegpu_exit();
+#else
 	//llama_exitmodel();
+#endif
 }

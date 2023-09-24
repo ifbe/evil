@@ -100,6 +100,14 @@ cli-fastnative-wincuda:
 	$(SRC) cuda.dll \
 	-Isource/libunit -Isource -lm
 
+cli-fastnative-remotegpu:
+	$(CC) -march=native -Ofast -fopenmp -DBACKEND_REMOTEGPU -o a.exe \
+	$(SRC) \
+	source/operator/3highlevel/llama/remotegpu.c \
+	source/operator/2indite/render/cli.c \
+	source/operator/2indite/serve/none.c \
+	-Isource/libunit -Isource -lm
+
 cli-nativeomp-winvulkan:
 	C:\VulkanSDK\1.3.261.1\Bin\glslc.exe shader.comp -o shader.comp.spv
 	$(CC) -march=native -Ofast -fopenmp -DBACKEND_VULKAN -o a.exe \
