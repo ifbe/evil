@@ -795,18 +795,6 @@ VkPipelineLayout pipelineLayout;
 VkDescriptorPool descriptorPool;
 VkDescriptorSet descriptorSet;
 VkDescriptorSetLayout descriptorSetLayout;
-//
-VkBuffer hostBuffer[4];
-VkDeviceMemory hostMemory[4];
-VkBuffer deviceBuffer[4];
-VkDeviceMemory deviceMemory[4];
-static int logitstatus = 0;
-//
-int xdim = 16384;		//11008
-int ydim = 32000;
-int outputbuffersize = 0;
-int vectorbuffersize = 0;
-int matrixbuffersize = 0;
 unsigned int pushconst[4] = {0, 0, 0, 0};
 
 
@@ -1044,12 +1032,247 @@ void createcomputepipeline()
 }
 
 
+//
+int xdim = 8192;		//11008
+int ydim = 32000;
+int outputbuffersize = 0;
+int vectorbuffersize = 0;
+int matrixbuffersize = 0;
+//
+struct vkbuf{
+	VkBuffer buffer;
+	VkDeviceMemory memory;
+	u32 size;
+};
+struct vkbuf cpuout={};
+struct vkbuf cpuin={};
+struct vkbuf cpulogit={};
+struct vkbuf cpubuf[32*4]={};
+//
+struct vkbuf gpuout={};
+struct vkbuf gpuin={};
+struct vkbuf gpulogit={};
+struct vkbuf gpubuf[4]={};
+
+
+
+
+void pinmem_malloc(struct vkbuf* vb, int sz)
+{
+	printf("pinmem: vb=%p, sz=%x\n", vb, sz);
+	createBuffer(
+		&vb->buffer,
+		&vb->memory,
+		physicaldevice,
+		logicaldevice,
+		VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		sz,
+		0
+	);
+	vb->size = sz;
+	printf("pinmem: fd=%p,mem=%p\n", vb->buffer, vb->memory);
+}
+void gpumem_malloc(struct vkbuf* vb, int sz)
+{
+	printf("gpumem: vb=%p, sz=%x\n", vb, sz);
+	createBuffer(
+		&vb->buffer,
+		&vb->memory,
+		physicaldevice,
+		logicaldevice,
+		VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		sz,
+		0
+	);
+	vb->size = sz;
+	printf("gpumem: fd=%p,mem=%p\n", vb->buffer, vb->memory);
+}
+struct vkbuf* pinmem_get(int handle)
+{
+	if(32000==handle)return &cpulogit;
+	return &cpubuf[handle];
+}
+struct vkbuf* gpumem_get(int handle)
+{
+	if(32000==handle)return &gpulogit;
+	return &gpubuf[handle&3];
+}
+struct vkbuf* pinmem_create_or_get(int handle, int size)
+{
+	struct vkbuf* vb = pinmem_get(handle);
+	if(0 == vb->size)pinmem_malloc(vb, size);
+	return vb;
+}
+struct vkbuf* gpumem_create_or_get(int handle, int size)
+{
+	struct vkbuf* vb = gpumem_get(handle);
+	if(0 == vb->size)gpumem_malloc(vb, size);
+	return vb;
+}
+void vulkan_bf16tofloat(u32* out, u16* in, int cnt)
+{
+	int x;
+	for(x=0;x<cnt;x++){
+		out[x] = (u32)in[x]<<16;
+	}
+}
+void vulkan_bf16tofp16(float* out, __bf16* in, int cnt)
+{
+	int x;
+	for(x=0;x<cnt;x++){
+		out[x] = in[x];
+		//if(x<16)printf("%f%c",(float)out[x], x<15?' ':'\n');
+	}
+}
+void vulkan_upload(__bf16* w, int n, int d, int handle)
+{
+	printf("handle=%d\n", handle);
+	unsigned long long t0 = time_in_ns();
+
+	int size = 4 * n * d;
+	struct vkbuf* vb = pinmem_create_or_get(handle, size);
+
+	//map
+	float* mat;
+	vkMapMemory(logicaldevice, vb->memory, 0, VK_WHOLE_SIZE, 0, (void*)&mat);
+
+	unsigned long long t1 = time_in_ns();
+
+	//invalidate
+	VkMappedMemoryRange mappedRange[1] = {};
+	mappedRange[0].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+	mappedRange[0].memory = vb->memory;
+	mappedRange[0].offset = 0;
+	mappedRange[0].size = VK_WHOLE_SIZE;
+	vkInvalidateMappedMemoryRanges(logicaldevice, 1, mappedRange);
+
+	unsigned long long t2 = time_in_ns();
+
+	//copy
+	vulkan_bf16tofp16(mat, (void*)w, n * d);
+
+	unsigned long long t3 = time_in_ns();
+
+	//unmap
+	vkUnmapMemory(logicaldevice, vb->memory);
+
+	unsigned long long t4 = time_in_ns();
+
+	//printf("%f,%f,%f,%f\n", (t1-t0)*1e-9, (t2-t1)*1e-9, (t3-t2)*1e-9, (t4-t3)*1e-9);
+
+
+
+
+	struct vkbuf* gb = gpumem_create_or_get(handle, size);
+/*
+	//compute work
+	VkCommandBufferBeginInfo cmdBufbeginInfo = {};
+	cmdBufbeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	int ret = vkBeginCommandBuffer(commandBuffer, &cmdBufbeginInfo);
+
+	//command copy from cpu to gpu
+	VkBufferCopy vectorcopyregion = {};
+	vectorcopyregion.size = vectorbuffersize;
+	vkCmdCopyBuffer(commandBuffer, vb->buffer, gb->buffer, 1, &vectorcopyregion);
+
+	ret = vkEndCommandBuffer(commandBuffer);
+
+	// Submit compute work
+	vkResetFences(logicaldevice, 1, &computefence);
+	const VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+	VkSubmitInfo computeSubmitInfo = {};
+	computeSubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	computeSubmitInfo.pWaitDstStageMask = &waitStageMask;
+	computeSubmitInfo.commandBufferCount = 1;
+	computeSubmitInfo.pCommandBuffers = &commandBuffer;
+	vkQueueSubmit(computeQueue, 1, &computeSubmitInfo, computefence);*/
+}
+void vulkan_upload2(
+	__bf16* w0, int n0, int d0, int handle0,
+	__bf16* w1, int n1, int d1, int handle1)
+{
+	printf("handle=%d\n", handle0);
+	unsigned long long t0 = time_in_ns();
+
+	int size = 4 * n0 * (d0+d1);
+	struct vkbuf* vb = pinmem_create_or_get(handle0, size);
+
+	//map
+	float* mat;
+	vkMapMemory(logicaldevice, vb->memory, 0, VK_WHOLE_SIZE, 0, (void*)&mat);
+
+	unsigned long long t1 = time_in_ns();
+
+	//invalidate
+	VkMappedMemoryRange mappedRange[1] = {};
+	mappedRange[0].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+	mappedRange[0].memory = vb->memory;
+	mappedRange[0].offset = 0;
+	mappedRange[0].size = VK_WHOLE_SIZE;
+	vkInvalidateMappedMemoryRanges(logicaldevice, 1, mappedRange);
+
+	unsigned long long t2 = time_in_ns();
+
+	vulkan_bf16tofp16(mat, w0, n0*d0);
+	vulkan_bf16tofp16(&mat[n0*d0], w1, n1*d1);
+
+	unsigned long long t3 = time_in_ns();
+
+	//unmap
+	vkUnmapMemory(logicaldevice, vb->memory);
+
+	unsigned long long t4 = time_in_ns();
+
+	//printf("%f,%f,%f,%f\n", (t1-t0)*1e-9, (t2-t1)*1e-9, (t3-t2)*1e-9, (t4-t3)*1e-9);
+
+	struct vkbuf* gb = gpumem_create_or_get(handle0, size);
+}
+void vulkan_upload3(
+	__bf16* w0, int n0, int d0, int handle0,
+	__bf16* w1, int n1, int d1, int handle1,
+	__bf16* w2, int n2, int d2, int handle2)
+{
+	printf("handle=%d\n", handle0);
+	unsigned long long t0 = time_in_ns();
+
+	int size = 4 * n0 * (d0+d1+d2);
+	struct vkbuf* vb = pinmem_create_or_get(handle0, size);
+
+	//map
+	float* mat;
+	vkMapMemory(logicaldevice, vb->memory, 0, VK_WHOLE_SIZE, 0, (void*)&mat);
+
+	unsigned long long t1 = time_in_ns();
+
+	//invalidate
+	VkMappedMemoryRange mappedRange[1] = {};
+	mappedRange[0].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+	mappedRange[0].memory = vb->memory;
+	mappedRange[0].offset = 0;
+	mappedRange[0].size = VK_WHOLE_SIZE;
+	vkInvalidateMappedMemoryRanges(logicaldevice, 1, mappedRange);
+
+	unsigned long long t2 = time_in_ns();
+
+	vulkan_bf16tofp16(mat, w0, n0*d0);
+	vulkan_bf16tofp16(&mat[n0*d0], w1, n1*d1);
+	vulkan_bf16tofp16(&mat[n0*d0+n1*d1], w2, n2*d2);
+
+	unsigned long long t3 = time_in_ns();
+
+	//unmap
+	vkUnmapMemory(logicaldevice, vb->memory);
+
+	unsigned long long t4 = time_in_ns();
+
+	//printf("%f,%f,%f,%f\n", (t1-t0)*1e-9, (t2-t1)*1e-9, (t3-t2)*1e-9, (t4-t3)*1e-9);
+
+	struct vkbuf* gb = gpumem_create_or_get(handle0, size);
+}
 void vulkan_myctx_create()
 {
-	outputbuffersize = 4*ydim;
-	vectorbuffersize = 4*xdim;
-	matrixbuffersize = 4*xdim*ydim;
-
 	physicaldevice = vulkan_device_create(2, 0);
 	if(0 == physicaldevice)return;
 
@@ -1060,41 +1283,13 @@ void vulkan_myctx_create()
 	//compute pipeline
 	createcomputepipeline();
 
-	for(int j=0;j<4;j++){
-		int size = 0;
-		if(j==0)size = outputbuffersize;
-		if(j==1)size = vectorbuffersize;
-		if(j==2)size = matrixbuffersize;
-		if(j==3)size = matrixbuffersize;
 
-		//gpu mem
-		printf("gpumem%d: allocing\n", j);
-		createBuffer(
-			&deviceBuffer[j],
-			&deviceMemory[j],
-			physicaldevice,
-			logicaldevice,
-			VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-			size,
-			0
-		);
-		printf("gpumem%d: fd=%p,mem=%p\n", j, deviceBuffer[j], deviceMemory[j]);
-
-		//cpu mem
-		printf("cpumem%d: allocing\n", j);
-		createBuffer(
-			&hostBuffer[j],
-			&hostMemory[j],
-			physicaldevice,
-			logicaldevice,
-			VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-			size,
-			0
-		);
-		printf("cpumem%d: fd=%p,mem=%p\n", j, hostBuffer[j], hostMemory[j]);
-	}
+	outputbuffersize = 4*ydim;
+	vectorbuffersize = 4*xdim;
+	pinmem_malloc(&cpuout,outputbuffersize);
+	pinmem_malloc(&cpuin, vectorbuffersize);
+	gpumem_malloc(&gpuout,outputbuffersize);
+	gpumem_malloc(&gpuin, vectorbuffersize);
 }
 void vulkan_myctx_delete()
 {
@@ -1120,15 +1315,27 @@ void vulkan_myctx_delete()
 
 
 
+void cpu_compute(float* tmp0, float* tmp1, float* tmp2)
+{
+	int x,y;
+	for(y=0;y<ydim;y++){
+		float tmp = 0.0;
+		for(x=0;x<xdim;x++){
+		tmp += tmp2[y*xdim+x] * tmp1[x];
+		}
+		tmp0[y] = tmp;
+	}
+}
 void gpu_compute(int handle)
 {
 	int x,y;
+	struct vkbuf* pb = pinmem_get(handle);
+	struct vkbuf* gb = pinmem_get(handle);
 
 	//update data
 	VkDescriptorBufferInfo bufferDescriptor[3] = {};
 	VkWriteDescriptorSet descriptorWrites[3] = {};
 	for(int j=0;j<3;j++){
-		bufferDescriptor[j].buffer = deviceBuffer[j];
 		bufferDescriptor[j].offset = 0;
 		bufferDescriptor[j].range = VK_WHOLE_SIZE;
 
@@ -1140,7 +1347,9 @@ void gpu_compute(int handle)
 		descriptorWrites[j].descriptorCount = 1;
 		descriptorWrites[j].pBufferInfo = &bufferDescriptor[j];
 	}
-	if(32000 == handle)bufferDescriptor[2].buffer = deviceBuffer[3];
+	bufferDescriptor[0].buffer = gpuout.buffer;
+	bufferDescriptor[1].buffer = gpuin.buffer;
+	bufferDescriptor[2].buffer = gb->buffer;
 	vkUpdateDescriptorSets(logicaldevice, 3, descriptorWrites, 0, NULL);
 
 	//compute work
@@ -1151,36 +1360,26 @@ void gpu_compute(int handle)
 	//command copy from cpu to gpu
 	VkBufferCopy vectorcopyregion = {};
 	vectorcopyregion.size = vectorbuffersize;
-	vkCmdCopyBuffer(commandBuffer, hostBuffer[1], deviceBuffer[1], 1, &vectorcopyregion);
+	vkCmdCopyBuffer(commandBuffer, cpuin.buffer, gpuin.buffer, 1, &vectorcopyregion);
 
 	VkBufferCopy matrixcopyregion = {};
 	matrixcopyregion.size = matrixbuffersize;
-	if(32000 == handle){
-		if(logitstatus < 2){
-			printf("upload logits to gpumem\n");
-			vkCmdCopyBuffer(commandBuffer, hostBuffer[3], deviceBuffer[3], 1, &matrixcopyregion);
-			logitstatus = 2;
-		}
-	}
-	else{
-		vkCmdCopyBuffer(commandBuffer, hostBuffer[2], deviceBuffer[2], 1, &matrixcopyregion);
-	}
+	vkCmdCopyBuffer(commandBuffer, pb->buffer, gb->buffer, 1, &matrixcopyregion);
 
 	// Barrier to ensure that input buffer transfer is finished before compute shader reads from it
 	VkBufferMemoryBarrier bufferBarrier[2] = {};
-	bufferBarrier[0].buffer = deviceBuffer[1];
+	bufferBarrier[0].buffer = cpuin.buffer;
 	bufferBarrier[0].size = VK_WHOLE_SIZE;
 	bufferBarrier[0].srcAccessMask = VK_ACCESS_HOST_WRITE_BIT;
 	bufferBarrier[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 	bufferBarrier[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	bufferBarrier[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	bufferBarrier[1].buffer = deviceBuffer[2];
+	bufferBarrier[1].buffer = gb->buffer;
 	bufferBarrier[1].size = VK_WHOLE_SIZE;
 	bufferBarrier[1].srcAccessMask = VK_ACCESS_HOST_WRITE_BIT;
 	bufferBarrier[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 	bufferBarrier[1].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	bufferBarrier[1].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	if(32000 == handle)bufferBarrier[1].buffer = deviceBuffer[3];
 
 	vkCmdPipelineBarrier(
 		commandBuffer,
@@ -1202,7 +1401,7 @@ void gpu_compute(int handle)
 	// Barrier to ensure that shader writes are finished before buffer is read back from GPU
 	bufferBarrier[0].srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
 	bufferBarrier[0].dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-	bufferBarrier[0].buffer = deviceBuffer[0];
+	bufferBarrier[0].buffer = gpuout.buffer;
 	bufferBarrier[0].size = VK_WHOLE_SIZE;
 	bufferBarrier[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	bufferBarrier[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -1217,12 +1416,12 @@ void gpu_compute(int handle)
 
 	// Read back to host visible buffer
 	vectorcopyregion.size = outputbuffersize;
-	vkCmdCopyBuffer(commandBuffer, deviceBuffer[0], hostBuffer[0], 1, &vectorcopyregion);
+	vkCmdCopyBuffer(commandBuffer, gpuout.buffer, cpuout.buffer, 1, &vectorcopyregion);
 
 	// Barrier to ensure that buffer copy is finished before host reading from it
 	bufferBarrier[0].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 	bufferBarrier[0].dstAccessMask = VK_ACCESS_HOST_READ_BIT;
-	bufferBarrier[0].buffer = hostBuffer[0];
+	bufferBarrier[0].buffer = cpuout.buffer;
 	bufferBarrier[0].size = VK_WHOLE_SIZE;
 	bufferBarrier[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	bufferBarrier[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -1248,26 +1447,9 @@ void gpu_compute(int handle)
 	computeSubmitInfo.pCommandBuffers = &commandBuffer;
 	vkQueueSubmit(computeQueue, 1, &computeSubmitInfo, computefence);
 }
-void cpu_compute(float* tmp0, float* tmp1, float* tmp2)
-{
-	int x,y;
-	for(y=0;y<ydim;y++){
-		float tmp = 0.0;
-		for(x=0;x<xdim;x++){
-		tmp += tmp2[y*xdim+x] * tmp1[x];
-		}
-		tmp0[y] = tmp;
-	}
-}
-void vulkan_bf16tofloat(u32* out, u16* in, int cnt)
-{
-	int x;
-	for(x=0;x<cnt;x++){
-		out[x] = (u32)in[x]<<16;
-	}
-}
 void vulkan_muladd(float* xout, float* xin, __bf16* w, int n, int d, int handle)
 {
+	//printf("muladd1\n");
 	unsigned long long t0 = time_in_ns();
 
 	xdim = n;
@@ -1278,74 +1460,59 @@ void vulkan_muladd(float* xout, float* xin, __bf16* w, int n, int d, int handle)
 	pushconst[0] = xdim;
 	pushconst[1] = ydim;
 
-	float* tmp1;
-	vkMapMemory(logicaldevice, hostMemory[1], 0, VK_WHOLE_SIZE, 0, (void*)&tmp1);
+	//map input
+	float* in;
+	vkMapMemory(logicaldevice, cpuin.memory, 0, VK_WHOLE_SIZE, 0, (void*)&in);
 
-	VkMappedMemoryRange mappedRange[3] = {};
+	//invalidate input
+	VkMappedMemoryRange mappedRange[2] = {};
 	mappedRange[0].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-	mappedRange[0].memory = hostMemory[1];
-	mappedRange[0].offset = 0;
-	mappedRange[0].size = VK_WHOLE_SIZE;
-	mappedRange[1].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-	mappedRange[1].memory = hostMemory[2];
-	mappedRange[1].offset = 0;
-	mappedRange[1].size = VK_WHOLE_SIZE;
-
-	float* tmp2;
-	if(32000 == handle){
-		mappedRange[1].memory = hostMemory[3];
-		vkMapMemory(logicaldevice, hostMemory[3], 0, VK_WHOLE_SIZE, 0, (void*)&tmp2);
-	}
-	else{
-		vkMapMemory(logicaldevice, hostMemory[2], 0, VK_WHOLE_SIZE, 0, (void*)&tmp2);
-	}
-	vkInvalidateMappedMemoryRanges(logicaldevice, 2, mappedRange);
-
-	unsigned long long t1 = time_in_ns();
-
-	int x,y;
-	for(x=0;x<xdim;x++){
-		tmp1[x] = xin[x];
-	}
-	if(32000 == handle){
-		if(logitstatus <= 1){
-			printf("upload logits to cpumem\n");
-			vulkan_bf16tofloat((void*)tmp2, (void*)w, xdim*ydim);
-			logitstatus = 1;
-		}
-	}
-	else{
-		vulkan_bf16tofloat((void*)tmp2, (void*)w, xdim*ydim);
-	}
-
-	unsigned long long t2 = time_in_ns();
-
-	gpu_compute(handle);
-
-	unsigned long long t3 = time_in_ns();
-
-	vkWaitForFences(logicaldevice, 1, &computefence, VK_TRUE, UINT64_MAX);
-
-	unsigned long long t4 = time_in_ns();
-
-	float* tmp0;
-	vkMapMemory(logicaldevice, hostMemory[0], 0, VK_WHOLE_SIZE, 0, (void*)&tmp0);
-
-	mappedRange[0].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-	mappedRange[0].memory = hostMemory[0];
+	mappedRange[0].memory = cpuin.memory;
 	mappedRange[0].offset = 0;
 	mappedRange[0].size = VK_WHOLE_SIZE;
 	vkInvalidateMappedMemoryRanges(logicaldevice, 1, mappedRange);
 
-	//cpu_compute(tmp0,tmp1,tmp2);
+	unsigned long long t1 = time_in_ns();
+
+	//copy input
+	int x,y;
+	for(x=0;x<xdim;x++)in[x] = xin[x];
+
+	//unmap input
+	vkUnmapMemory(logicaldevice, cpuin.memory);
+
+	unsigned long long t2 = time_in_ns();
+
+	//compute
+	gpu_compute(handle);
+
+	unsigned long long t3 = time_in_ns();
+
+	//wait
+	vkWaitForFences(logicaldevice, 1, &computefence, VK_TRUE, UINT64_MAX);
+
+	unsigned long long t4 = time_in_ns();
+
+	//map output
+	float* out;
+	vkMapMemory(logicaldevice, cpuout.memory, 0, VK_WHOLE_SIZE, 0, (void*)&out);
+
+	//invalidate output
+	mappedRange[0].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+	mappedRange[0].memory = cpuout.memory;
+	mappedRange[0].offset = 0;
+	mappedRange[0].size = VK_WHOLE_SIZE;
+	vkInvalidateMappedMemoryRanges(logicaldevice, 1, mappedRange);
+
+	//cpu_compute(out,tmp1,tmp2);
 	//printf("cpu_compute:xdim=%d,ydim=%d,first=%f,last=%f\n",xdim,ydim,xout[0],xout[ydim-1]);
 
-	for(y=0;y<ydim;y++)xout[y] = tmp0[y];
+	//copy output
+	for(y=0;y<ydim;y++)xout[y] = out[y];
 	//printf("gpu_compute:xdim=%d,ydim=%d,first=%f,767=%f,last=%f\n",xdim,ydim,xout[0],xout[767],xout[ydim-1]);
 
-	vkUnmapMemory(logicaldevice, hostMemory[2]);
-	vkUnmapMemory(logicaldevice, hostMemory[1]);
-	vkUnmapMemory(logicaldevice, hostMemory[0]);
+	//unmap output
+	vkUnmapMemory(logicaldevice, cpuout.memory);
 
 	unsigned long long t5 = time_in_ns();
 
@@ -1355,6 +1522,7 @@ void vulkan_muladd2(
 	float* xout0, float* xin0, __bf16* w0, int n0, int d0, int handle0,
 	float* xout1, float* xin1, __bf16* w1, int n1, int d1, int handle1)
 {
+	//printf("muladd2\n");
 	unsigned long long t0 = time_in_ns();
 
 	xdim = n0;		//must ensure n0=n1=n2
@@ -1365,59 +1533,61 @@ void vulkan_muladd2(
 	pushconst[0] = xdim;
 	pushconst[1] = ydim;
 
-	float* tmp1;
-	float* tmp2;
-	vkMapMemory(logicaldevice, hostMemory[1], 0, VK_WHOLE_SIZE, 0, (void*)&tmp1);
-	vkMapMemory(logicaldevice, hostMemory[2], 0, VK_WHOLE_SIZE, 0, (void*)&tmp2);
+	//map input
+	float* in;
+	vkMapMemory(logicaldevice, cpuin.memory, 0, VK_WHOLE_SIZE, 0, (void*)&in);
 
-	VkMappedMemoryRange mappedRange[3] = {};
+	//invalidate input
+	VkMappedMemoryRange mappedRange[2] = {};
 	mappedRange[0].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-	mappedRange[0].memory = hostMemory[1];
-	mappedRange[0].offset = 0;
-	mappedRange[0].size = VK_WHOLE_SIZE;
-	mappedRange[1].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-	mappedRange[1].memory = hostMemory[2];
-	mappedRange[1].offset = 0;
-	mappedRange[1].size = VK_WHOLE_SIZE;
-	vkInvalidateMappedMemoryRanges(logicaldevice, 2, mappedRange);
-
-	unsigned long long t1 = time_in_ns();
-
-	int x,y;
-	for(x=0;x<n0;x++)tmp1[x] = xin0[x];
-	for(x=0;x<n1;x++)tmp1[n0+x] = xin1[x];
-	vulkan_bf16tofloat((void*)tmp2, (void*)w0, n0*d0);
-	vulkan_bf16tofloat((void*)&tmp2[n0*d0], (void*)w1, n1*d1);
-
-	unsigned long long t2 = time_in_ns();
-
-	gpu_compute(handle0);
-
-	unsigned long long t3 = time_in_ns();
-
-	vkWaitForFences(logicaldevice, 1, &computefence, VK_TRUE, UINT64_MAX);
-
-	unsigned long long t4 = time_in_ns();
-
-	float* tmp0;
-	vkMapMemory(logicaldevice, hostMemory[0], 0, VK_WHOLE_SIZE, 0, (void*)&tmp0);
-
-	mappedRange[0].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-	mappedRange[0].memory = hostMemory[0];
+	mappedRange[0].memory = cpuin.memory;
 	mappedRange[0].offset = 0;
 	mappedRange[0].size = VK_WHOLE_SIZE;
 	vkInvalidateMappedMemoryRanges(logicaldevice, 1, mappedRange);
 
-	//cpu_compute(tmp0,tmp1,tmp2);
+	unsigned long long t1 = time_in_ns();
+
+	//copy input
+	int x,y;
+	for(x=0;x<n0;x++)in[x] = xin0[x];
+	for(x=0;x<n1;x++)in[n0+x] = xin1[x];
+
+	//unmap input
+	vkUnmapMemory(logicaldevice, cpuin.memory);
+
+	unsigned long long t2 = time_in_ns();
+
+	//compute
+	gpu_compute(handle0);
+
+	unsigned long long t3 = time_in_ns();
+
+	//wait
+	vkWaitForFences(logicaldevice, 1, &computefence, VK_TRUE, UINT64_MAX);
+
+	unsigned long long t4 = time_in_ns();
+
+	//map output
+	float* out;
+	vkMapMemory(logicaldevice, cpuout.memory, 0, VK_WHOLE_SIZE, 0, (void*)&out);
+
+	//invalidate output
+	mappedRange[0].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+	mappedRange[0].memory = cpuout.memory;
+	mappedRange[0].offset = 0;
+	mappedRange[0].size = VK_WHOLE_SIZE;
+	vkInvalidateMappedMemoryRanges(logicaldevice, 1, mappedRange);
+
+	//cpu_compute(out,tmp1,tmp2);
 	//printf("cpu_compute:xdim=%d,ydim=%d,first=%f,last=%f\n",xdim,ydim,xout[0],xout[ydim-1]);
 
-	for(y=0;y<d0;y++)xout0[y] = tmp0[y];
-	for(y=0;y<d1;y++)xout1[y] = tmp0[d0+y];
+	//copy output
+	for(y=0;y<d0;y++)xout0[y] = out[y];
+	for(y=0;y<d1;y++)xout1[y] = out[d0+y];
 	//printf("gpu_compute:xdim=%d,ydim=%d,first=%f,767=%f,last=%f\n",xdim,ydim,xout[0],xout[767],xout[ydim-1]);
 
-	vkUnmapMemory(logicaldevice, hostMemory[2]);
-	vkUnmapMemory(logicaldevice, hostMemory[1]);
-	vkUnmapMemory(logicaldevice, hostMemory[0]);
+	//unmap output
+	vkUnmapMemory(logicaldevice, cpuout.memory);
 
 	unsigned long long t5 = time_in_ns();
 
@@ -1428,6 +1598,7 @@ void vulkan_muladd3(
 	float* xout1, float* xin1, __bf16* w1, int n1, int d1, int handle1,
 	float* xout2, float* xin2, __bf16* w2, int n2, int d2, int handle2)
 {
+	//printf("muladd3\n");
 	unsigned long long t0 = time_in_ns();
 
 	xdim = n0;		//must ensure n0=n1=n2
@@ -1438,84 +1609,65 @@ void vulkan_muladd3(
 	pushconst[0] = xdim;
 	pushconst[1] = ydim;
 
-	float* tmp1;
-	float* tmp2;
-	vkMapMemory(logicaldevice, hostMemory[1], 0, VK_WHOLE_SIZE, 0, (void*)&tmp1);
-	vkMapMemory(logicaldevice, hostMemory[2], 0, VK_WHOLE_SIZE, 0, (void*)&tmp2);
+	//map input
+	float* in;
+	vkMapMemory(logicaldevice, cpuin.memory, 0, VK_WHOLE_SIZE, 0, (void*)&in);
 
-	VkMappedMemoryRange mappedRange[3] = {};
+	//invalidate input
+	VkMappedMemoryRange mappedRange[2] = {};
 	mappedRange[0].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-	mappedRange[0].memory = hostMemory[1];
-	mappedRange[0].offset = 0;
-	mappedRange[0].size = VK_WHOLE_SIZE;
-	mappedRange[1].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-	mappedRange[1].memory = hostMemory[2];
-	mappedRange[1].offset = 0;
-	mappedRange[1].size = VK_WHOLE_SIZE;
-	vkInvalidateMappedMemoryRanges(logicaldevice, 2, mappedRange);
-
-	unsigned long long t1 = time_in_ns();
-
-	int x,y;
-	for(x=0;x<n0;x++)tmp1[x      ] = xin0[x];
-	for(x=0;x<n1;x++)tmp1[n0+x   ] = xin1[x];
-	for(x=0;x<n2;x++)tmp1[n0+n1+x] = xin2[x];
-	vulkan_bf16tofloat((void*)tmp2, (void*)w0, n0*d0);
-	vulkan_bf16tofloat((void*)&tmp2[n0*d0], (void*)w1, n1*d1);
-	vulkan_bf16tofloat((void*)&tmp2[n0*d0+n1*d1], (void*)w2, n2*d2);
-
-	unsigned long long t2 = time_in_ns();
-
-	gpu_compute(handle0);
-
-	unsigned long long t3 = time_in_ns();
-
-	vkWaitForFences(logicaldevice, 1, &computefence, VK_TRUE, UINT64_MAX);
-
-	unsigned long long t4 = time_in_ns();
-
-	float* tmp0;
-	vkMapMemory(logicaldevice, hostMemory[0], 0, VK_WHOLE_SIZE, 0, (void*)&tmp0);
-
-	mappedRange[0].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-	mappedRange[0].memory = hostMemory[0];
+	mappedRange[0].memory = cpuin.memory;
 	mappedRange[0].offset = 0;
 	mappedRange[0].size = VK_WHOLE_SIZE;
 	vkInvalidateMappedMemoryRanges(logicaldevice, 1, mappedRange);
 
-	//cpu_compute(tmp0,tmp1,tmp2);
+	unsigned long long t1 = time_in_ns();
+
+	//copy input
+	int x,y;
+	for(x=0;x<n0;x++)in[x      ] = xin0[x];
+	for(x=0;x<n1;x++)in[n0+x   ] = xin1[x];
+	for(x=0;x<n2;x++)in[n0+n1+x] = xin2[x];
+
+	//unmap input
+	vkUnmapMemory(logicaldevice, cpuin.memory);
+
+	unsigned long long t2 = time_in_ns();
+
+	//compute
+	gpu_compute(handle0);
+
+	unsigned long long t3 = time_in_ns();
+
+	//wait
+	vkWaitForFences(logicaldevice, 1, &computefence, VK_TRUE, UINT64_MAX);
+
+	unsigned long long t4 = time_in_ns();
+
+	//map output
+	float* out;
+	vkMapMemory(logicaldevice, cpuout.memory, 0, VK_WHOLE_SIZE, 0, (void*)&out);
+
+	//invalidate output
+	mappedRange[0].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+	mappedRange[0].memory = cpuout.memory;
+	mappedRange[0].offset = 0;
+	mappedRange[0].size = VK_WHOLE_SIZE;
+	vkInvalidateMappedMemoryRanges(logicaldevice, 1, mappedRange);
+
+	//cpu_compute(out,tmp1,tmp2);
 	//printf("cpu_compute:xdim=%d,ydim=%d,first=%f,last=%f\n",xdim,ydim,xout[0],xout[ydim-1]);
 
-	for(y=0;y<d0;y++)xout0[y] = tmp0[y      ];
-	for(y=0;y<d1;y++)xout1[y] = tmp0[d0+y   ];
-	for(y=0;y<d2;y++)xout2[y] = tmp0[d0+d1+y];
+	//copy output
+	for(y=0;y<d0;y++)xout0[y] = out[y      ];
+	for(y=0;y<d1;y++)xout1[y] = out[d0+y   ];
+	for(y=0;y<d2;y++)xout2[y] = out[d0+d1+y];
 	//printf("gpu_compute:xdim=%d,ydim=%d,first=%f,767=%f,last=%f\n",xdim,ydim,xout[0],xout[767],xout[ydim-1]);
 
-	vkUnmapMemory(logicaldevice, hostMemory[2]);
-	vkUnmapMemory(logicaldevice, hostMemory[1]);
-	vkUnmapMemory(logicaldevice, hostMemory[0]);
+	//unmap output
+	vkUnmapMemory(logicaldevice, cpuout.memory);
 
 	unsigned long long t5 = time_in_ns();
 
 	//printf("%f,%f,%f,%f,%f\n", (t1-t0)*1e-9, (t2-t1)*1e-9, (t3-t2)*1e-9, (t4-t3)*1e-9, (t5-t4)*1e-9);
 }
-/*
-int main()
-{
-        //init
-        void* ins = vulkan_init(0, 0);
-        if(0 == ins)return -1;
-
-        //vulkan: things
-        vulkan_myctx_create(0, 0);
-
-        //once
-        drawframe();
-
-        //vulkan
-        vulkan_myctx_delete();
-
-        //exit
-        vulkan_exit();
-        return 0;
-}*/

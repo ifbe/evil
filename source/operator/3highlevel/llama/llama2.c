@@ -16,10 +16,14 @@
 #define s16 signed short
 #define s32 signed int
 #define s64 signed long long
+//
+#define MODELWEIGHT_FLOATTYPE __bf16
+#define RUNSTATE_FLOATTYPE float
+//
 #define DEBUG_WEIGHT 1
 #define DEBUG_TOKEN 0
 #define DEBUG_PROMPT 1
-
+//
 #ifndef O_BINARY
 	#define O_BINARY 0x0
 #endif
@@ -85,51 +89,6 @@ float random_f32() { // random float32 in [0,1)
 	return (random_u32() >> 8) / 16777216.0f;
 }
 
-
-#define MODELWEIGHT_HEADSIZE 0x1c
-#define MODELWEIGHT_FLOATTYPE __bf16
-typedef struct{
-	int dim; // transformer dimension
-	int hidden_dim; // for ffn layers
-	int n_layers; // number of layers
-	int n_heads; // number of query heads
-	int n_kv_heads; // number of key/value heads (can be < query heads because of multiquery)
-	int vocab_size; // vocabulary size, usually 256 (byte-level)
-	int seq_len; // max sequence length
-
-	// token embedding table
-	unsigned long long token_embedding_table_size;    // (vocab_size, dim)
-	// weights for rmsnorms
-	unsigned long long rms_att_weight_size; // (layer, dim) rmsnorm weights
-	// weights for muladds
-	unsigned long long wq_size; // (layer, dim, dim)
-	unsigned long long wk_size; // (layer, dim, dim)
-	unsigned long long wv_size; // (layer, dim, dim)
-	unsigned long long wo_size; // (layer, dim, dim)
-	//
-	unsigned long long rms_ffn_weight_size; // (layer, dim)
-	// weights for ffn
-	unsigned long long w1_size; // (layer, hidden_dim, dim)
-	unsigned long long w2_size; // (layer, dim, hidden_dim)
-	unsigned long long w3_size; // (layer, hidden_dim, dim)
-	// final rmsnorm
-	unsigned long long rms_final_weight_size; // (dim,)
-	// (optional) classifier weights for the logits, on the last layer
-	unsigned long long wcls_size;
-
-	MODELWEIGHT_FLOATTYPE* token_embedding_table_data;
-	MODELWEIGHT_FLOATTYPE* rms_att_weight_data;
-	MODELWEIGHT_FLOATTYPE* wq_data;
-	MODELWEIGHT_FLOATTYPE* wk_data;
-	MODELWEIGHT_FLOATTYPE* wv_data;
-	MODELWEIGHT_FLOATTYPE* wo_data;
-	MODELWEIGHT_FLOATTYPE* rms_ffn_weight_data;
-	MODELWEIGHT_FLOATTYPE* w1_data;
-	MODELWEIGHT_FLOATTYPE* w2_data;
-	MODELWEIGHT_FLOATTYPE* w3_data;
-	MODELWEIGHT_FLOATTYPE* rms_final_weight_data;
-	MODELWEIGHT_FLOATTYPE* wcls_data;
-}modelinfo;
 void printfloat(void* addr)
 {
 	MODELWEIGHT_FLOATTYPE* p = addr;
@@ -167,13 +126,193 @@ s64 fullread(int fd, void* buf, u64 len)
 		else{
 			ret = read(fd, buf+j, eachread);
 		}
-		//printf("offs=%llx,ret=%llx, errno=%d\n", j, ret, errno);
 		if(eachread == ret)continue;
 		if(ret >= 0)return j+ret;
+		printf("offs=%llx,ret=%llx, errno=%d\n", j, ret, errno);
 		return -1;
 	}
 	return len;
 }
+
+#define LAYER_0_ROUND_0 0
+#define LAYER_0_ROUND_1 1
+#define LAYER_0_ROUND_2 2
+#define LAYER_0_ROUND_3 3
+#define LAYER_1_ROUND_0 (1*4 + 0)
+#define LAYER_1_ROUND_1 (1*4 + 1)
+#define LAYER_1_ROUND_2 (1*4 + 2)
+#define LAYER_1_ROUND_3 (1*4 + 3)
+#define SPECIAL_HANDLE_FOR_LOGITS 32000
+
+#ifdef BACKEND_VULKAN
+void* vulkan_init(void*, void*);
+void vulkan_exit();
+void vulkan_myctx_create(void*, void*);
+void vulkan_myctx_delete();
+void vulkan_upload(MODELWEIGHT_FLOATTYPE* w, int n, int d, int handle);
+void vulkan_upload2(
+	MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
+	MODELWEIGHT_FLOATTYPE* w1, int n1, int d1, int handle2);
+void vulkan_upload3(
+	MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
+	MODELWEIGHT_FLOATTYPE* w1, int n1, int d1, int handle1,
+	MODELWEIGHT_FLOATTYPE* w2, int n2, int d2, int handle2);
+void vulkan_muladd(RUNSTATE_FLOATTYPE* xout, RUNSTATE_FLOATTYPE* x, MODELWEIGHT_FLOATTYPE* w, int n, int d, int handle);
+void vulkan_muladd2(
+	RUNSTATE_FLOATTYPE* xout0, RUNSTATE_FLOATTYPE* x0, MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
+	RUNSTATE_FLOATTYPE* xout1, RUNSTATE_FLOATTYPE* x1, MODELWEIGHT_FLOATTYPE* w1, int n1, int d1, int handle1);
+void vulkan_muladd3(
+	RUNSTATE_FLOATTYPE* xout0, RUNSTATE_FLOATTYPE* x0, MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
+	RUNSTATE_FLOATTYPE* xout1, RUNSTATE_FLOATTYPE* x1, MODELWEIGHT_FLOATTYPE* w1, int n1, int d1, int handle1,
+	RUNSTATE_FLOATTYPE* xout2, RUNSTATE_FLOATTYPE* x2, MODELWEIGHT_FLOATTYPE* w2, int n2, int d2, int handle2);
+#define upload vulkan_upload
+#define upload2 vulkan_upload2
+#define upload3 vulkan_upload3
+#define muladd vulkan_muladd
+#define muladd2 vulkan_muladd2
+#define muladd3 vulkan_muladd3
+
+#elif BACKEND_CUDA
+void cudamath_init();
+void cudamath_exit();
+void cudamath_upload(MODELWEIGHT_FLOATTYPE* w, int n, int d, int handle);
+void cudamath_upload2(
+	MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
+	MODELWEIGHT_FLOATTYPE* w1, int n1, int d1, int handle2);
+void cudamath_upload3(
+	MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
+	MODELWEIGHT_FLOATTYPE* w1, int n1, int d1, int handle1,
+	MODELWEIGHT_FLOATTYPE* w2, int n2, int d2, int handle2);
+void cudamath_muladd(RUNSTATE_FLOATTYPE* xout, RUNSTATE_FLOATTYPE* x, MODELWEIGHT_FLOATTYPE* w, int n, int d, int handle);
+void cudamath_muladd2(
+	RUNSTATE_FLOATTYPE* xout0, RUNSTATE_FLOATTYPE* x0, MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
+	RUNSTATE_FLOATTYPE* xout1, RUNSTATE_FLOATTYPE* x1, MODELWEIGHT_FLOATTYPE* w1, int n1, int d1, int handle2);
+void cudamath_muladd3(
+	RUNSTATE_FLOATTYPE* xout0, RUNSTATE_FLOATTYPE* x0, MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
+	RUNSTATE_FLOATTYPE* xout1, RUNSTATE_FLOATTYPE* x1, MODELWEIGHT_FLOATTYPE* w1, int n1, int d1, int handle1,
+	RUNSTATE_FLOATTYPE* xout2, RUNSTATE_FLOATTYPE* x2, MODELWEIGHT_FLOATTYPE* w2, int n2, int d2, int handle2);
+#define upload cudamath_upload
+#define upload2 cudamath_upload2
+#define upload3 cudamath_upload3
+#define muladd cudamath_muladd
+#define muladd2 cudamath_muladd2
+#define muladd3 cudamath_muladd3
+
+#elif BACKEND_REMOTEGPU
+void remotegpu_init();
+void remotegpu_exit();
+void remotegpu_upload(MODELWEIGHT_FLOATTYPE* w, int n, int d, int handle);
+void remotegpu_upload2(
+	MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
+	MODELWEIGHT_FLOATTYPE* w1, int n1, int d1, int handle2);
+void remotegpu_upload3(
+	MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
+	MODELWEIGHT_FLOATTYPE* w1, int n1, int d1, int handle1,
+	MODELWEIGHT_FLOATTYPE* w2, int n2, int d2, int handle2);
+void remotegpu_muladd(RUNSTATE_FLOATTYPE* xout, RUNSTATE_FLOATTYPE* x, MODELWEIGHT_FLOATTYPE* w, int n, int d, int handle);
+void remotegpu_muladd2(
+	RUNSTATE_FLOATTYPE* xout0, RUNSTATE_FLOATTYPE* x0, MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
+	RUNSTATE_FLOATTYPE* xout1, RUNSTATE_FLOATTYPE* x1, MODELWEIGHT_FLOATTYPE* w1, int n1, int d1, int handle2);
+void remotegpu_muladd3(
+	RUNSTATE_FLOATTYPE* xout0, RUNSTATE_FLOATTYPE* x0, MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
+	RUNSTATE_FLOATTYPE* xout1, RUNSTATE_FLOATTYPE* x1, MODELWEIGHT_FLOATTYPE* w1, int n1, int d1, int handle1,
+	RUNSTATE_FLOATTYPE* xout2, RUNSTATE_FLOATTYPE* x2, MODELWEIGHT_FLOATTYPE* w2, int n2, int d2, int handle2);
+#define muladd remotegpu_muladd
+#define muladd2 remotegpu_muladd2
+#define muladd3 remotegpu_muladd3
+
+#else
+void muladd(RUNSTATE_FLOATTYPE* xout, RUNSTATE_FLOATTYPE* x, MODELWEIGHT_FLOATTYPE* w, int n, int d, int handle)
+{
+	// W (d,n) @ x (n,) -> xout (d,)
+	// by far the most amount of time is spent inside this little function
+	int i;
+	#pragma omp parallel for private(i)
+	for (i = 0; i < d; i++) {
+		float val = 0.0f;
+		for (int j = 0; j < n; j++) {
+			val += w[i * n + j] * x[j];
+		}
+		xout[i] = val;
+	}
+	//printf("%f,%f,%f\n",xout[0], xout[767], xout[d-1]);
+}
+void muladd2(
+	RUNSTATE_FLOATTYPE* xout0, RUNSTATE_FLOATTYPE* x0, MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
+	RUNSTATE_FLOATTYPE* xout1, RUNSTATE_FLOATTYPE* x1, MODELWEIGHT_FLOATTYPE* w1, int n1, int d1, int handle1)
+{
+	muladd(xout0, x0, w0, n0, d0, handle0);
+	muladd(xout1, x1, w1, n1, d1, handle1);
+}
+void muladd3(
+	RUNSTATE_FLOATTYPE* xout0, RUNSTATE_FLOATTYPE* x0, MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
+	RUNSTATE_FLOATTYPE* xout1, RUNSTATE_FLOATTYPE* x1, MODELWEIGHT_FLOATTYPE* w1, int n1, int d1, int handle1,
+	RUNSTATE_FLOATTYPE* xout2, RUNSTATE_FLOATTYPE* x2, MODELWEIGHT_FLOATTYPE* w2, int n2, int d2, int handle2)
+{
+	muladd(xout0, x0, w0, n0, d0, handle0);
+	muladd(xout1, x1, w1, n1, d1, handle1);
+	muladd(xout2, x2, w2, n2, d2, handle2);
+}
+#endif
+
+#define SAVEMEM 1
+#define MODELWEIGHT_HEADSIZE 0x1c
+typedef struct{
+	int dim; // transformer dimension
+	int hidden_dim; // for ffn layers
+	int n_layers; // number of layers
+	int n_heads; // number of query heads
+	int n_kv_heads; // number of key/value heads (can be < query heads because of multiquery)
+	int vocab_size; // vocabulary size, usually 256 (byte-level)
+	int seq_len; // max sequence length
+
+	// token embedding table
+	unsigned long long token_embedding_table_offs;
+	unsigned long long token_embedding_table_size;    // (vocab_size, dim)
+	// weights for rmsnorms
+	unsigned long long rms_att_weight_offs;
+	unsigned long long rms_att_weight_size; // (layer, dim) rmsnorm weights
+	// weights for muladds
+	unsigned long long wq_offs;
+	unsigned long long wq_size; // (layer, dim, dim)
+	unsigned long long wk_offs;
+	unsigned long long wk_size; // (layer, dim, dim)
+	unsigned long long wv_offs;
+	unsigned long long wv_size; // (layer, dim, dim)
+	unsigned long long wo_offs;
+	unsigned long long wo_size; // (layer, dim, dim)
+	//
+	unsigned long long rms_ffn_weight_offs;
+	unsigned long long rms_ffn_weight_size; // (layer, dim)
+	// weights for ffn
+	unsigned long long w1_offs;
+	unsigned long long w1_size; // (layer, hidden_dim, dim)
+	unsigned long long w2_offs;
+	unsigned long long w2_size; // (layer, dim, hidden_dim)
+	unsigned long long w3_offs;
+	unsigned long long w3_size; // (layer, hidden_dim, dim)
+	// final rmsnorm
+	unsigned long long rms_final_weight_offs;
+	unsigned long long rms_final_weight_size; // (dim,)
+	// (optional) classifier weights for the logits, on the last layer
+	unsigned long long wcls_offs;
+	unsigned long long wcls_size;
+
+	MODELWEIGHT_FLOATTYPE* token_embedding_table_data;
+	MODELWEIGHT_FLOATTYPE* rms_att_weight_data;
+	MODELWEIGHT_FLOATTYPE* wq_data;
+	MODELWEIGHT_FLOATTYPE* wk_data;
+	MODELWEIGHT_FLOATTYPE* wv_data;
+	MODELWEIGHT_FLOATTYPE* wo_data;
+	MODELWEIGHT_FLOATTYPE* rms_ffn_weight_data;
+	MODELWEIGHT_FLOATTYPE* w1_data;
+	MODELWEIGHT_FLOATTYPE* w2_data;
+	MODELWEIGHT_FLOATTYPE* w3_data;
+	MODELWEIGHT_FLOATTYPE* rms_final_weight_data;
+	MODELWEIGHT_FLOATTYPE* wcls_data;
+
+	MODELWEIGHT_FLOATTYPE* tmp;		//temp buffer sendto backend
+}modelinfo;
 void llama_initmodel(char* modelpath, modelinfo* mi)
 {
 	int fd = open(modelpath, O_RDONLY|O_BINARY);
@@ -190,13 +329,13 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	s64 ret = lseek64(fd, 0, SEEK_SET);
 	if(ret < 0){
 		printf("errno=%d@lseek\n", errno);
-		goto releasehead;
+		goto theend;
 	}
 
 	ret = read(fd, mi, MODELWEIGHT_HEADSIZE);
 	if(ret <= 0){
 		printf("errno=%d@read\n", errno);
-		goto releasehead;
+		goto theend;
 	}
 
 
@@ -220,67 +359,80 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	u64 next = 0;
 	printf("--------weight parsing--------\n");
 
+	mi->token_embedding_table_offs = offs;
 	mi->token_embedding_table_size = mi->vocab_size * mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	next = offs + mi->token_embedding_table_size;
 	printf("[%16llx,%16llx)%16lldMB        token_embedding_table\n", offs, next, mi->token_embedding_table_size>>20);
 	offs = next;
 
+	mi->rms_att_weight_offs = offs;
 	mi->rms_att_weight_size = mi->n_layers * mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	next += mi->rms_att_weight_size;
 	printf("[%16llx,%16llx)%16lldMB        rms_att_weight\n", offs, next, mi->rms_att_weight_size>>20);
 	offs = next;
 
+	mi->wq_offs = offs;
 	mi->wq_size = (u64)mi->n_layers * mi->dim * mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	next += mi->wq_size;
 	printf("[%16llx,%16llx)%16lldMB        wq\n", offs, next, mi->wq_size>>20);
 	offs = next;
 
+	mi->wk_offs = offs;
 	mi->wk_size = (u64)mi->n_layers * mi->dim * mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	next += mi->wk_size;
 	printf("[%16llx,%16llx)%16lldMB        wk\n", offs, next, mi->wk_size>>20);
 	offs = next;
 
+	mi->wv_offs = offs;
 	mi->wv_size = (u64)mi->n_layers * mi->dim * mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	next += mi->wv_size;
 	printf("[%16llx,%16llx)%16lldMB        wv\n", offs, next, mi->wv_size>>20);
 	offs = next;
 
+	mi->wo_offs = offs;
 	mi->wo_size = (u64)mi->n_layers * mi->dim * mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	next += mi->wo_size;
 	printf("[%16llx,%16llx)%16lldMB        wo\n", offs, next, mi->wo_size>>20);
 	offs = next;
 
+	mi->rms_ffn_weight_offs = offs;
 	mi->rms_ffn_weight_size = (u64)mi->n_layers * mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	next += mi->rms_ffn_weight_size;
 	printf("[%16llx,%16llx)%16lldMB        rms_ffn_weight\n", offs, next, mi->rms_ffn_weight_size>>20);
 	offs = next;
 
+	mi->w1_offs = offs;
 	mi->w1_size = (u64)mi->n_layers * mi->dim * mi->hidden_dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	next += mi->w1_size;
 	printf("[%16llx,%16llx)%16lldMB        w1\n", offs, next, mi->w1_size>>20);
 	offs = next;
 
+	mi->w2_offs = offs;
 	mi->w2_size = (u64)mi->n_layers * mi->hidden_dim * mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	next += mi->w2_size;
 	printf("[%16llx,%16llx)%16lldMB        w2\n", offs, next, mi->w2_size>>20);
 	offs = next;
 
+	mi->w3_offs = offs;
 	mi->w3_size = (u64)mi->n_layers * mi->dim * mi->hidden_dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	next += mi->w3_size;
 	printf("[%16llx,%16llx)%16lldMB        w3\n", offs, next, mi->w3_size>>20);
 	offs = next;
 
+	mi->rms_final_weight_offs = offs;
 	mi->rms_final_weight_size = (u64)mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	next += mi->rms_final_weight_size;
 	printf("[%16llx,%16llx)%16lldMB        rms_final_weight\n", offs, next, mi->rms_final_weight_size>>20);
 	offs = next;
 
 	int head_size = mi->dim / mi->n_heads;
+	u64 freq_cis_real_offs = offs;
 	u64 freq_cis_real_size = (u64)mi->seq_len * head_size / 2 * sizeof(MODELWEIGHT_FLOATTYPE);
 	next += freq_cis_real_size;
 	printf("[%16llx,%16llx)%16lldMB        freq_cis_real\n", offs, next, freq_cis_real_size>>20);
 	offs = next;
 
+	u64 freq_cis_imag_offs = offs;
 	u64 freq_cis_imag_size = (u64)mi->seq_len * head_size / 2 * sizeof(MODELWEIGHT_FLOATTYPE);
 	next += freq_cis_imag_size;
 	printf("[%16llx,%16llx)%16lldMB        freq_cis_imag\n", offs, next, freq_cis_imag_size>>20);
@@ -291,6 +443,7 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 		printf("shared_weights@wcls\n");
 	}
 	else{
+		mi->wcls_offs = offs;
 		mi->wcls_size = (u64)mi->vocab_size * mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
 		next += mi->wcls_size;
 		printf("[%16llx,%16llx)%16lldMB        wcls\n", offs, next, mi->wcls_size>>20);
@@ -300,12 +453,11 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	printf("\n");
 
 
-	printf("--------weight reading--------\n");
-	offs = MODELWEIGHT_HEADSIZE;
+	printf("--------weight reading1--------\n");
 
 	//token_embedding_table
 	mi->token_embedding_table_data = malloc(mi->token_embedding_table_size);
-	lseek64(fd, offs, SEEK_SET);
+	lseek64(fd, mi->token_embedding_table_offs, SEEK_SET);
 	ret = fullread(fd, mi->token_embedding_table_data, mi->token_embedding_table_size);
 	printf("read:	%llx / %llx\n", ret, mi->token_embedding_table_size);
 	if(DEBUG_WEIGHT){
@@ -313,11 +465,10 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 		printfloat(mi->token_embedding_table_data);
 		printminmax(mi->token_embedding_table_data, mi->token_embedding_table_size);
 	}
-	offs += mi->token_embedding_table_size;
 
 	//rms_att_weight
 	mi->rms_att_weight_data = malloc(mi->rms_att_weight_size);
-	lseek64(fd, offs, SEEK_SET);
+	lseek64(fd, mi->rms_att_weight_offs, SEEK_SET);
 	ret = fullread(fd, mi->rms_att_weight_data, mi->rms_att_weight_size);
 	printf("read:	%llx / %llx\n", ret, mi->rms_att_weight_size);
 	if(DEBUG_WEIGHT){
@@ -325,59 +476,10 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 		printfloat(mi->rms_att_weight_data);
 		printminmax(mi->rms_att_weight_data, mi->rms_att_weight_size);
 	}
-	offs += mi->rms_att_weight_size;
-
-	//wq
-	mi->wq_data = malloc(mi->wq_size);
-	lseek64(fd, offs, SEEK_SET);
-	ret = fullread(fd, mi->wq_data, mi->wq_size);
-	printf("read:	%llx / %llx\n", ret, mi->wq_size);
-	if(DEBUG_WEIGHT){
-		printu8(mi->wq_data);
-		printfloat(mi->wq_data);
-		printminmax(mi->wq_data, mi->wq_size);
-	}
-	offs += mi->wq_size;
-
-	//wk
-	mi->wk_data = malloc(mi->wk_size);
-	lseek64(fd, offs, SEEK_SET);
-	ret = fullread(fd, mi->wk_data, mi->wk_size);
-	printf("read:	%llx / %llx\n", ret, mi->wk_size);
-	if(DEBUG_WEIGHT){
-		printu8(mi->wk_data);
-		printfloat(mi->wk_data);
-		printminmax(mi->wk_data, mi->wk_size);
-	}
-	offs += mi->wk_size;
-
-	//wv
-	mi->wv_data = malloc(mi->wv_size);
-	lseek64(fd, offs, SEEK_SET);
-	ret = fullread(fd, mi->wv_data, mi->wv_size);
-	printf("read:	%llx / %llx\n", ret, mi->wv_size);
-	if(DEBUG_WEIGHT){
-		printu8(mi->wv_data);
-		printfloat(mi->wv_data);
-		printminmax(mi->wv_data, mi->wv_size);
-	}
-	offs += mi->wv_size;
-
-	//wo
-	mi->wo_data = malloc(mi->wo_size);
-	lseek64(fd, offs, SEEK_SET);
-	ret = fullread(fd, mi->wo_data, mi->wo_size);
-	printf("read:	%llx / %llx\n", ret, mi->wo_size);
-	if(DEBUG_WEIGHT){
-		printu8(mi->wo_data);
-		printfloat(mi->wo_data);
-		printminmax(mi->wo_data, mi->wo_size);
-	}
-	offs += mi->wo_size;
 
 	//rms_ffn_weight
 	mi->rms_ffn_weight_data = malloc(mi->rms_ffn_weight_size);
-	lseek64(fd, offs, SEEK_SET);
+	lseek64(fd, mi->rms_ffn_weight_offs, SEEK_SET);
 	ret = fullread(fd, mi->rms_ffn_weight_data, mi->rms_ffn_weight_size);
 	printf("read:	%llx / %llx\n", ret, mi->rms_ffn_weight_size);
 	if(DEBUG_WEIGHT){
@@ -385,47 +487,10 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 		printfloat(mi->rms_ffn_weight_data);
 		printminmax(mi->rms_ffn_weight_data, mi->rms_ffn_weight_size);
 	}
-	offs += mi->rms_ffn_weight_size;
-
-	//w1
-	mi->w1_data = malloc(mi->w1_size);
-	lseek64(fd, offs, SEEK_SET);
-	ret = fullread(fd, mi->w1_data, mi->w1_size);
-	printf("read:	%llx / %llx\n", ret, mi->w1_size);
-	if(DEBUG_WEIGHT){
-		printu8(mi->w1_data);
-		printfloat(mi->w1_data);
-		printminmax(mi->w1_data, mi->w1_size);
-	}
-	offs += mi->w1_size;
-
-	//w2
-	mi->w2_data = malloc(mi->w2_size);
-	lseek64(fd, offs, SEEK_SET);
-	ret = fullread(fd, mi->w2_data, mi->w2_size);
-	printf("read:	%llx / %llx\n", ret, mi->w2_size);
-	if(DEBUG_WEIGHT){
-		printu8(mi->w2_data);
-		printfloat(mi->w2_data);
-		printminmax(mi->w2_data, mi->w2_size);
-	}
-	offs += mi->w2_size;
-
-	//w3
-	mi->w3_data = malloc(mi->w3_size);
-	lseek64(fd, offs, SEEK_SET);
-	ret = fullread(fd, mi->w3_data, mi->w3_size);
-	printf("read:	%llx / %llx\n", ret, mi->w3_size);
-	if(DEBUG_WEIGHT){
-		printu8(mi->w3_data);
-		printfloat(mi->w3_data);
-		printminmax(mi->w3_data, mi->w3_size);
-	}
-	offs += mi->w3_size;
 
 	//rms_final_weight
 	mi->rms_final_weight_data = malloc(mi->rms_final_weight_size);
-	lseek64(fd, offs, SEEK_SET);
+	lseek64(fd, mi->rms_final_weight_offs, SEEK_SET);
 	ret = fullread(fd, mi->rms_final_weight_data, mi->rms_final_weight_size);
 	printf("read:	%llx / %llx\n", ret, mi->rms_final_weight_size);
 	if(DEBUG_WEIGHT){
@@ -433,17 +498,13 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 		printfloat(mi->rms_final_weight_data);
 		printminmax(mi->rms_final_weight_data, mi->rms_final_weight_size);
 	}
-	offs += mi->rms_final_weight_size;
-
-	offs += freq_cis_real_size;
-	offs += freq_cis_imag_size;
 
 	if(shared_weights){
 		mi->wcls_data = mi->token_embedding_table_data;
 	}
 	else{
 		mi->wcls_data = malloc(mi->wcls_size);
-		lseek64(fd, offs, SEEK_SET);
+		lseek64(fd, mi->wcls_offs, SEEK_SET);
 		ret = fullread(fd, mi->wcls_data, mi->wcls_size);
 		printf("read:	%llx / %llx\n", ret, mi->wcls_size);
 		if(DEBUG_WEIGHT){
@@ -451,41 +512,304 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 			printfloat(mi->wcls_data);
 			printminmax(mi->wcls_data, mi->wcls_size);
 		}
-		offs += mi->wcls_size;
 	}
 
 	if(	!mi->token_embedding_table_data||
 		!mi->rms_att_weight_data||
+		!mi->rms_ffn_weight_data||
+		!mi->rms_final_weight_data||
+		!mi->wcls_data)
+	{
+		fprintf(stderr, "malloc1 failed!\n");
+		exit(EXIT_FAILURE);
+	}
+	else{
+		printf("malloc1 ok\n\n");
+	}
+
+#if defined(BACKEND_CUDA) && !defined(BACKEND_VULKAN) && SAVEMEM==1
+	goto theend;
+#endif
+
+	printf("--------weight reading2--------\n");
+
+	//wq
+	mi->wq_data = malloc(mi->wq_size);
+	lseek64(fd, mi->wq_offs, SEEK_SET);
+	ret = fullread(fd, mi->wq_data, mi->wq_size);
+	printf("read:	%llx / %llx\n", ret, mi->wq_size);
+	if(DEBUG_WEIGHT){
+		printu8(mi->wq_data);
+		printfloat(mi->wq_data);
+		printminmax(mi->wq_data, mi->wq_size);
+	}
+
+	//wk
+	mi->wk_data = malloc(mi->wk_size);
+	lseek64(fd, mi->wk_offs, SEEK_SET);
+	ret = fullread(fd, mi->wk_data, mi->wk_size);
+	printf("read:	%llx / %llx\n", ret, mi->wk_size);
+	if(DEBUG_WEIGHT){
+		printu8(mi->wk_data);
+		printfloat(mi->wk_data);
+		printminmax(mi->wk_data, mi->wk_size);
+	}
+
+	//wv
+	mi->wv_data = malloc(mi->wv_size);
+	lseek64(fd, mi->wv_offs, SEEK_SET);
+	ret = fullread(fd, mi->wv_data, mi->wv_size);
+	printf("read:	%llx / %llx\n", ret, mi->wv_size);
+	if(DEBUG_WEIGHT){
+		printu8(mi->wv_data);
+		printfloat(mi->wv_data);
+		printminmax(mi->wv_data, mi->wv_size);
+	}
+
+	//wo
+	mi->wo_data = malloc(mi->wo_size);
+	lseek64(fd, mi->wo_offs, SEEK_SET);
+	ret = fullread(fd, mi->wo_data, mi->wo_size);
+	printf("read:	%llx / %llx\n", ret, mi->wo_size);
+	if(DEBUG_WEIGHT){
+		printu8(mi->wo_data);
+		printfloat(mi->wo_data);
+		printminmax(mi->wo_data, mi->wo_size);
+	}
+
+	//w1
+	mi->w1_data = malloc(mi->w1_size);
+	lseek64(fd, mi->w1_offs, SEEK_SET);
+	ret = fullread(fd, mi->w1_data, mi->w1_size);
+	printf("read:	%llx / %llx\n", ret, mi->w1_size);
+	if(DEBUG_WEIGHT){
+		printu8(mi->w1_data);
+		printfloat(mi->w1_data);
+		printminmax(mi->w1_data, mi->w1_size);
+	}
+
+	//w2
+	mi->w2_data = malloc(mi->w2_size);
+	lseek64(fd, mi->w2_offs, SEEK_SET);
+	ret = fullread(fd, mi->w2_data, mi->w2_size);
+	printf("read:	%llx / %llx\n", ret, mi->w2_size);
+	if(DEBUG_WEIGHT){
+		printu8(mi->w2_data);
+		printfloat(mi->w2_data);
+		printminmax(mi->w2_data, mi->w2_size);
+	}
+
+	//w3
+	mi->w3_data = malloc(mi->w3_size);
+	lseek64(fd, mi->w3_offs, SEEK_SET);
+	ret = fullread(fd, mi->w3_data, mi->w3_size);
+	printf("read:	%llx / %llx\n", ret, mi->w3_size);
+	if(DEBUG_WEIGHT){
+		printu8(mi->w3_data);
+		printfloat(mi->w3_data);
+		printminmax(mi->w3_data, mi->w3_size);
+	}
+
+	if(
 		!mi->wq_data||
 		!mi->wk_data||
 		!mi->wv_data||
 		!mi->wo_data||
-		!mi->rms_ffn_weight_data||
 		!mi->w1_data||
 		!mi->w2_data||
-		!mi->w3_data||
-		!mi->rms_final_weight_data||
-		!mi->wcls_data)
+		!mi->w3_data)
 	{
-		fprintf(stderr, "malloc failed!\n");
+		fprintf(stderr, "malloc2 failed!\n");
 		exit(EXIT_FAILURE);
 	}
 	else{
-		printf("malloc ok\n\n");
+		printf("malloc2 ok\n\n");
 	}
-
-releasebody:
-	//free(body);
-
-releasehead:
-	//free(head);
 
 theend:
 	close(fd);
 }
 
+#if defined(BACKEND_CUDA) || defined(BACKEND_VULKAN)
+#if SAVEMEM==1
+void uploadall(char* modelpath, modelinfo* mi)
+{
+	printf("----------------uploadall savemem----------------\n");
+	int dim = mi->dim;
+	int hidden_dim =  mi->hidden_dim;
+	int kv_dim = (mi->dim * mi->n_kv_heads) / mi->n_heads;
 
-#define RUNSTATE_FLOATTYPE float
+	int fd = open(modelpath, O_RDONLY|O_BINARY);
+	printf("fd=%d\n", fd);
+	if(fd <= 0){
+		printf("errno=%d@open\n", errno);
+		return;
+	}
+
+	int sz0 = 2*dim*dim*3;
+	int sz1 = 2*dim*dim;
+	int sz2 = 2*dim*hidden_dim*2;
+	int sz3 = 2*hidden_dim*dim;
+	int szlogit = dim*32000;
+
+	int maxsize = sz0;
+	if(maxsize < sz2)maxsize = sz2;
+	if(maxsize < szlogit)maxsize = szlogit;
+	mi->tmp = malloc(maxsize);
+	printf("sz0=%x,sz1=%x,sz2=%x,sz3=%x,szlogit=%x,mi->tmp=%p\n", sz0,sz1,sz2,sz3,szlogit,mi->tmp);
+
+	u64 offs;
+	u64 size;
+	s64 ret;
+	int layer;
+	for(layer=0;layer<mi->n_layers;layer++){
+		//copy 0
+		MODELWEIGHT_FLOATTYPE* w_wq;
+		MODELWEIGHT_FLOATTYPE* w_wk;
+		MODELWEIGHT_FLOATTYPE* w_wv;
+
+		offs = mi->wq_offs + sizeof(MODELWEIGHT_FLOATTYPE)*dim*dim*layer;
+		ret = lseek64(fd, offs, SEEK_SET);
+		printf("0seek:%llx,%llx\n",offs,ret);
+
+		size = sizeof(MODELWEIGHT_FLOATTYPE)*dim*dim;
+		w_wq = mi->tmp;
+		ret = fullread(fd, w_wq, size);
+		printf("0read:%llx,%llx\n",size,ret);
+
+		offs = mi->wk_offs + sizeof(MODELWEIGHT_FLOATTYPE)*dim*kv_dim*layer;
+		ret = lseek64(fd, offs, SEEK_SET);
+		printf("0seek:%llx,%llx\n",offs,ret);
+
+		size = sizeof(MODELWEIGHT_FLOATTYPE)*dim*kv_dim;
+		w_wk = &mi->tmp[dim*dim];
+		ret = fullread(fd, w_wk, size);
+		printf("0read:%llx,%llx\n",size,ret);
+
+		offs = mi->wv_offs + sizeof(MODELWEIGHT_FLOATTYPE)*dim*kv_dim*layer;
+		ret = lseek64(fd, offs, SEEK_SET);
+		printf("0seek:%llx,%llx\n",offs,ret);
+
+		w_wv = &mi->tmp[dim*(dim+kv_dim)];
+		size = sizeof(MODELWEIGHT_FLOATTYPE)*dim*kv_dim;
+		ret = fullread(fd, w_wv, size);
+		printf("0read:%llx,%llx\n",size,ret);
+
+		upload3(
+			w_wq, dim,    dim, layer*4+0,
+			w_wk, dim, kv_dim, 0,
+			w_wv, dim, kv_dim, 0);
+
+
+		//copy 1
+		MODELWEIGHT_FLOATTYPE* w_wo;
+
+		offs = mi->wo_offs + sizeof(MODELWEIGHT_FLOATTYPE)*dim*dim*layer;
+		ret = lseek64(fd, offs, SEEK_SET);
+		printf("1seek:%llx,%llx\n",offs,ret);
+
+		w_wo = mi->tmp;
+		size = sizeof(MODELWEIGHT_FLOATTYPE)*dim*dim;
+		ret = fullread(fd, w_wo, size);
+		printf("1read:%llx,%llx\n",size,ret);
+
+		upload(w_wo, dim, dim, layer*4+1);
+
+
+		//copy 2
+		MODELWEIGHT_FLOATTYPE* w_w1;
+		MODELWEIGHT_FLOATTYPE* w_w3;
+
+		offs = mi->w1_offs + sizeof(MODELWEIGHT_FLOATTYPE)*dim*hidden_dim*layer;
+		ret = lseek64(fd, offs, SEEK_SET);
+		printf("2seek:%llx,%llx\n",offs,ret);
+
+		w_w1 = mi->tmp;
+		size = sizeof(MODELWEIGHT_FLOATTYPE)*dim*hidden_dim;
+		ret = fullread(fd, w_w1, size);
+		printf("2read:%llx,%llx\n",size,ret);
+
+		offs = mi->w3_offs + sizeof(MODELWEIGHT_FLOATTYPE)*dim*hidden_dim*layer;
+		ret = lseek64(fd, offs, SEEK_SET);
+		printf("2seek:%llx,%llx\n",offs,ret);
+
+		w_w3 = &mi->tmp[dim*hidden_dim];
+		size = sizeof(MODELWEIGHT_FLOATTYPE)*dim*hidden_dim;
+		ret = fullread(fd, w_w3, size);
+		printf("2read:%llx,%llx\n",size,ret);
+
+		upload2(
+			w_w1, dim, hidden_dim, layer*4+2,
+			w_w3, dim, hidden_dim, 0);
+
+
+		//copy 3
+		MODELWEIGHT_FLOATTYPE* w_w2;
+
+		offs = mi->w2_offs + sizeof(MODELWEIGHT_FLOATTYPE)*dim*hidden_dim*layer;
+		ret = lseek64(fd, offs, SEEK_SET);
+		printf("3seek:%llx,%llx\n",offs,ret);
+
+		w_w2 = mi->tmp;
+		size = sizeof(MODELWEIGHT_FLOATTYPE)*dim*hidden_dim;
+		ret = fullread(fd, w_w2, size);
+		printf("3read:%llx,%llx\n",size,ret);
+
+		upload(w_w2, hidden_dim, dim, layer*4+3);
+	}
+
+	MODELWEIGHT_FLOATTYPE* w_wcls = mi->wcls_data;
+	upload(w_wcls, mi->dim, mi->vocab_size, SPECIAL_HANDLE_FOR_LOGITS);
+
+	close(fd);
+}
+#else
+void uploadall(char* modelpath, modelinfo* mi)
+{
+	printf("----------------uploadall----------------\n");
+	int dim = mi->dim;
+	int hidden_dim =  mi->hidden_dim;
+	int kv_dim = (mi->dim * mi->n_kv_heads) / mi->n_heads;
+
+	u64 offs;
+	u64 size;
+	int ret;
+	int layer;
+	for(layer=0;layer<mi->n_layers;layer++){
+		//copy 0
+		MODELWEIGHT_FLOATTYPE* w_wq = mi->wq_data + layer*dim*dim;
+		MODELWEIGHT_FLOATTYPE* w_wk = mi->wk_data + layer*dim*kv_dim;
+		MODELWEIGHT_FLOATTYPE* w_wv = mi->wv_data + layer*dim*kv_dim;
+		upload3(
+			w_wq, dim,    dim, layer*4+0,
+			w_wk, dim, kv_dim, 0,
+			w_wv, dim, kv_dim, 0);
+
+
+		//copy 1
+		MODELWEIGHT_FLOATTYPE* w_wo = mi->wo_data + layer*dim*dim;
+		upload(w_wo, dim, dim, layer*4+1);
+
+
+		//copy 2
+		MODELWEIGHT_FLOATTYPE* w_w1 = mi->w1_data + layer*dim*hidden_dim;
+		MODELWEIGHT_FLOATTYPE* w_w3 = mi->w3_data + layer*dim*hidden_dim;
+		upload2(
+			w_w1, dim, hidden_dim, layer*4+2,
+			w_w3, dim, hidden_dim, 0);
+
+
+		//copy 3
+		MODELWEIGHT_FLOATTYPE* w_w2 = mi->w2_data + layer*dim*hidden_dim;
+		upload(w_w2, hidden_dim, dim, layer*4+3);
+	}
+
+	MODELWEIGHT_FLOATTYPE* w_wcls = mi->wcls_data;
+	upload(w_wcls, mi->dim, mi->vocab_size, SPECIAL_HANDLE_FOR_LOGITS);
+}
+#endif
+#endif
+
 typedef struct {
 	// activation at current time stamp (dim,)
 	u64 x_size;
@@ -834,116 +1158,6 @@ void softmax(RUNSTATE_FLOATTYPE* x, int size) {
 	}
 }
 
-#define LAYER_0_ROUND_0 0
-#define LAYER_0_ROUND_1 1
-#define LAYER_0_ROUND_2 2
-#define LAYER_0_ROUND_3 3
-#define LAYER_1_ROUND_0 (1*4 + 0)
-#define LAYER_1_ROUND_1 (1*4 + 1)
-#define LAYER_1_ROUND_2 (1*4 + 2)
-#define LAYER_1_ROUND_3 (1*4 + 3)
-#define SPECIAL_HANDLE_FOR_LOGITS 32000
-
-#ifdef BACKEND_VULKAN
-void* vulkan_init(void*, void*);
-void vulkan_exit();
-void vulkan_myctx_create(void*, void*);
-void vulkan_myctx_delete();
-void vulkan_muladd(RUNSTATE_FLOATTYPE* xout, RUNSTATE_FLOATTYPE* x, MODELWEIGHT_FLOATTYPE* w, int n, int d, int handle);
-void vulkan_muladd2(
-	RUNSTATE_FLOATTYPE* xout0, RUNSTATE_FLOATTYPE* x0, MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
-	RUNSTATE_FLOATTYPE* xout1, RUNSTATE_FLOATTYPE* x1, MODELWEIGHT_FLOATTYPE* w1, int n1, int d1, int handle1);
-void vulkan_muladd3(
-	RUNSTATE_FLOATTYPE* xout0, RUNSTATE_FLOATTYPE* x0, MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
-	RUNSTATE_FLOATTYPE* xout1, RUNSTATE_FLOATTYPE* x1, MODELWEIGHT_FLOATTYPE* w1, int n1, int d1, int handle1,
-	RUNSTATE_FLOATTYPE* xout2, RUNSTATE_FLOATTYPE* x2, MODELWEIGHT_FLOATTYPE* w2, int n2, int d2, int handle2);
-#define muladd vulkan_muladd
-#define muladd2 vulkan_muladd2
-#define muladd3 vulkan_muladd3
-
-#elif BACKEND_CUDA
-void cudamath_init();
-void cudamath_exit();
-void cudamath_upload(MODELWEIGHT_FLOATTYPE* w, int n, int d, int handle);
-void cudamath_upload2(
-	MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
-	MODELWEIGHT_FLOATTYPE* w1, int n1, int d1, int handle2);
-void cudamath_upload3(
-	MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
-	MODELWEIGHT_FLOATTYPE* w1, int n1, int d1, int handle1,
-	MODELWEIGHT_FLOATTYPE* w2, int n2, int d2, int handle2);
-void cudamath_muladd(RUNSTATE_FLOATTYPE* xout, RUNSTATE_FLOATTYPE* x, MODELWEIGHT_FLOATTYPE* w, int n, int d, int handle);
-void cudamath_muladd2(
-	RUNSTATE_FLOATTYPE* xout0, RUNSTATE_FLOATTYPE* x0, MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
-	RUNSTATE_FLOATTYPE* xout1, RUNSTATE_FLOATTYPE* x1, MODELWEIGHT_FLOATTYPE* w1, int n1, int d1, int handle2);
-void cudamath_muladd3(
-	RUNSTATE_FLOATTYPE* xout0, RUNSTATE_FLOATTYPE* x0, MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
-	RUNSTATE_FLOATTYPE* xout1, RUNSTATE_FLOATTYPE* x1, MODELWEIGHT_FLOATTYPE* w1, int n1, int d1, int handle1,
-	RUNSTATE_FLOATTYPE* xout2, RUNSTATE_FLOATTYPE* x2, MODELWEIGHT_FLOATTYPE* w2, int n2, int d2, int handle2);
-#define upload cudamath_upload
-#define upload2 cudamath_upload2
-#define upload3 cudamath_upload3
-#define muladd cudamath_muladd
-#define muladd2 cudamath_muladd2
-#define muladd3 cudamath_muladd3
-
-#elif BACKEND_REMOTEGPU
-void remotegpu_init();
-void remotegpu_exit();
-void remotegpu_upload(MODELWEIGHT_FLOATTYPE* w, int n, int d, int handle);
-void remotegpu_upload2(
-	MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
-	MODELWEIGHT_FLOATTYPE* w1, int n1, int d1, int handle2);
-void remotegpu_upload3(
-	MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
-	MODELWEIGHT_FLOATTYPE* w1, int n1, int d1, int handle1,
-	MODELWEIGHT_FLOATTYPE* w2, int n2, int d2, int handle2);
-void remotegpu_muladd(RUNSTATE_FLOATTYPE* xout, RUNSTATE_FLOATTYPE* x, MODELWEIGHT_FLOATTYPE* w, int n, int d, int handle);
-void remotegpu_muladd2(
-	RUNSTATE_FLOATTYPE* xout0, RUNSTATE_FLOATTYPE* x0, MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
-	RUNSTATE_FLOATTYPE* xout1, RUNSTATE_FLOATTYPE* x1, MODELWEIGHT_FLOATTYPE* w1, int n1, int d1, int handle2);
-void remotegpu_muladd3(
-	RUNSTATE_FLOATTYPE* xout0, RUNSTATE_FLOATTYPE* x0, MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
-	RUNSTATE_FLOATTYPE* xout1, RUNSTATE_FLOATTYPE* x1, MODELWEIGHT_FLOATTYPE* w1, int n1, int d1, int handle1,
-	RUNSTATE_FLOATTYPE* xout2, RUNSTATE_FLOATTYPE* x2, MODELWEIGHT_FLOATTYPE* w2, int n2, int d2, int handle2);
-#define muladd remotegpu_muladd
-#define muladd2 remotegpu_muladd2
-#define muladd3 remotegpu_muladd3
-
-#else
-void muladd(RUNSTATE_FLOATTYPE* xout, RUNSTATE_FLOATTYPE* x, MODELWEIGHT_FLOATTYPE* w, int n, int d, int handle)
-{
-	// W (d,n) @ x (n,) -> xout (d,)
-	// by far the most amount of time is spent inside this little function
-	int i;
-	#pragma omp parallel for private(i)
-	for (i = 0; i < d; i++) {
-		float val = 0.0f;
-		for (int j = 0; j < n; j++) {
-			val += w[i * n + j] * x[j];
-		}
-		xout[i] = val;
-	}
-	//printf("%f,%f,%f\n",xout[0], xout[767], xout[d-1]);
-}
-void muladd2(
-	RUNSTATE_FLOATTYPE* xout0, RUNSTATE_FLOATTYPE* x0, MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
-	RUNSTATE_FLOATTYPE* xout1, RUNSTATE_FLOATTYPE* x1, MODELWEIGHT_FLOATTYPE* w1, int n1, int d1, int handle1)
-{
-	muladd(xout0, x0, w0, n0, d0, handle0);
-	muladd(xout1, x1, w1, n1, d1, handle1);
-}
-void muladd3(
-	RUNSTATE_FLOATTYPE* xout0, RUNSTATE_FLOATTYPE* x0, MODELWEIGHT_FLOATTYPE* w0, int n0, int d0, int handle0,
-	RUNSTATE_FLOATTYPE* xout1, RUNSTATE_FLOATTYPE* x1, MODELWEIGHT_FLOATTYPE* w1, int n1, int d1, int handle1,
-	RUNSTATE_FLOATTYPE* xout2, RUNSTATE_FLOATTYPE* x2, MODELWEIGHT_FLOATTYPE* w2, int n2, int d2, int handle2)
-{
-	muladd(xout0, x0, w0, n0, d0, handle0);
-	muladd(xout1, x1, w1, n1, d1, handle1);
-	muladd(xout2, x2, w2, n2, d2, handle2);
-}
-#endif
-
 void dequantization(RUNSTATE_FLOATTYPE* dst, MODELWEIGHT_FLOATTYPE* src, int cnt)
 {
 	int j;
@@ -1195,44 +1409,6 @@ int argmax(RUNSTATE_FLOATTYPE* v, int n) {
 
 
 
-#ifdef BACKEND_CUDA
-void uploadall(modelinfo* mi)
-{
-	int dim = mi->dim;
-	int hidden_dim =  mi->hidden_dim;
-	int kv_dim = (mi->dim * mi->n_kv_heads) / mi->n_heads;
-
-	int layer;
-	for(layer=0;layer<mi->n_layers;layer++){
-		//copy 0
-		MODELWEIGHT_FLOATTYPE* w_wq = mi->wq_data + layer*dim*dim;
-		MODELWEIGHT_FLOATTYPE* w_wk = mi->wk_data + layer*dim*kv_dim;
-		MODELWEIGHT_FLOATTYPE* w_wv = mi->wv_data + layer*dim*kv_dim;
-		upload3(
-			w_wq, dim,    dim, layer*4+0,
-			w_wk, dim, kv_dim, 0,
-			w_wv, dim, kv_dim, 0);
-
-		//copy 1
-		MODELWEIGHT_FLOATTYPE* w_wo = mi->wo_data + layer*dim*dim;
-		upload(w_wo, dim, dim, layer*4+1);
-
-		//copy 2
-		MODELWEIGHT_FLOATTYPE* w_w1 = mi->w1_data + layer*dim*hidden_dim;
-		MODELWEIGHT_FLOATTYPE* w_w3 = mi->w3_data + layer*dim*hidden_dim;
-		upload2(
-			w_w1, dim, hidden_dim, layer*4+2,
-			w_w3, dim, hidden_dim, 0);
-
-		//copy 3
-		MODELWEIGHT_FLOATTYPE* w_w2 = mi->w2_data + layer*dim*hidden_dim;
-		upload(w_w2, hidden_dim, dim, layer*4+3);
-	}
-
-	MODELWEIGHT_FLOATTYPE* w_wcls = mi->wcls_data;
-	upload(w_wcls, mi->dim, mi->vocab_size, SPECIAL_HANDLE_FOR_LOGITS);
-}
-#endif
 void llama_runmodel(modelinfo* mi, RunState* rs, tokeninfo* ti, TokenState* ts)
 {
 	printf("--------runmodel--------\n");
@@ -1325,12 +1501,13 @@ void llama(int argc, char** argv)
 #ifdef BACKEND_VULKAN
 	void* ins = vulkan_init(0, 0);
 	if(0 == ins)return;
-	llama_initmodel(argv[1], &model);
 	vulkan_myctx_create(0, 0);
+	llama_initmodel(argv[1], &model);
+	uploadall(argv[1], &model);
 #elif BACKEND_CUDA
 	cudamath_init();
 	llama_initmodel(argv[1], &model);
-	uploadall(&model);
+	uploadall(argv[1], &model);
 #elif BACKEND_REMOTEGPU
 	remotegpu_init();
 	llama_initmodel(argv[1], &model);
