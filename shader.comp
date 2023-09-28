@@ -7,16 +7,19 @@ layout(push_constant)uniform constants {
 	uint xx;
 	uint yy;
 };
-layout(binding = 0) buffer outdat {
+layout(std430, binding = 0) buffer outdat {
 	float _o[ ];
 };
-layout(binding = 1) buffer indat {
+layout(std430, binding = 1) buffer indat {
 	vec4 _x[ ];
+	//float _x[];
 };
-layout(binding = 2) buffer weight {
-	vec4 _w[ ];
+layout(std430, binding = 2) buffer weight {
+	//vec4 _w[ ];
 	//f16vec4 _w[ ];
 	//mat4 _w[ ];
+	float16_t _w[];
+	//float _w[];
 };
 
 void main(){
@@ -24,13 +27,37 @@ void main(){
 	uint iy = gl_GlobalInvocationID.y;
 	uint id = iy * gl_NumWorkGroups.x * gl_WorkGroupSize.x + ix;
 
+/*
+	_o[id] = float(id);
+*/
+
 	uint count = xx/4;
-	uint offset = id*count;
+	uint offset = id*xx;
 
 	vec4 tmp = vec4(0.0);
 	for(int j=0;j<count;j++){
-		tmp += vec4(_w[offset + j]) * _x[j];
+		tmp += vec4(_w[offset+j*4+0], _w[offset+j*4+1], _w[offset+j*4+2], _w[offset+j*4+3]) * _x[j];
+		//tmp += vec4(_w[offset + j]) * _x[j];
 		//tmp += matrixCompMult(_w[offset + j], _x[j]);
 	}
 	_o[id] = tmp.x+tmp.y+tmp.z+tmp.w;
+
+/*
+	uint count = xx;
+	uint offset = id*count;
+
+	float tmp = 0.0;
+	for(int j=0;j<count;j++){
+		tmp += float(_w[offset+j]) * _x[j];
+	}
+	_o[id] = tmp;
+*/
+/*
+	//checksum
+	float tmp = 0.0;
+	for(int j=0;j<xx*yy;j++){
+		tmp += float(_w[j]);
+	}
+	_o[id] = tmp;
+*/
 }

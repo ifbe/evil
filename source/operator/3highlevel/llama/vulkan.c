@@ -1032,8 +1032,9 @@ void createcomputepipeline()
 }
 
 
+#define SHADER_FLOATTYPE _Float16
 //
-int xdim = 8192;		//11008
+int xdim = 16384;		//11008
 int ydim = 32000;
 int outputbuffersize = 0;
 int vectorbuffersize = 0;
@@ -1043,6 +1044,7 @@ struct vkbuf{
 	VkBuffer buffer;
 	VkDeviceMemory memory;
 	u32 size;
+	u32 stat;
 };
 struct vkbuf cpuout={};
 struct vkbuf cpuin={};
@@ -1052,7 +1054,8 @@ struct vkbuf cpubuf[32*4]={};
 struct vkbuf gpuout={};
 struct vkbuf gpuin={};
 struct vkbuf gpulogit={};
-struct vkbuf gpubuf[4]={};
+struct vkbuf gpubuf[32*4]={};
+#define GPUMEM_MAX 48
 
 
 
@@ -1066,7 +1069,7 @@ void pinmem_malloc(struct vkbuf* vb, int sz)
 		physicaldevice,
 		logicaldevice,
 		VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,	// | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 		sz,
 		0
 	);
@@ -1097,7 +1100,9 @@ struct vkbuf* pinmem_get(int handle)
 struct vkbuf* gpumem_get(int handle)
 {
 	if(32000==handle)return &gpulogit;
-	return &gpubuf[handle&3];
+
+	int which = (handle < GPUMEM_MAX) ? handle : GPUMEM_MAX+(handle&3);
+	return &gpubuf[handle];
 }
 struct vkbuf* pinmem_create_or_get(int handle, int size)
 {
@@ -1118,24 +1123,29 @@ void vulkan_bf16tofloat(u32* out, u16* in, int cnt)
 		out[x] = (u32)in[x]<<16;
 	}
 }
-void vulkan_bf16tofp16(float* out, __bf16* in, int cnt)
+void vulkan_bf16tofp16(SHADER_FLOATTYPE* out, __bf16* in, int cnt)
 {
 	int x;
+	float sum = 0;
+	float tmp;
 	for(x=0;x<cnt;x++){
-		out[x] = in[x];
-		//if(x<16)printf("%f%c",(float)out[x], x<15?' ':'\n');
+		tmp = in[x];
+		out[x] = tmp;
+		sum += out[x];
+		//if(x<4)printf("%f%c", (float)out[x], x<3?' ':'\n');
 	}
+	printf("sum=%f\n", sum);
 }
 void vulkan_upload(__bf16* w, int n, int d, int handle)
 {
 	printf("handle=%d\n", handle);
 	unsigned long long t0 = time_in_ns();
 
-	int size = 4 * n * d;
+	int size = sizeof(SHADER_FLOATTYPE) * n * d;
 	struct vkbuf* vb = pinmem_create_or_get(handle, size);
 
 	//map
-	float* mat;
+	SHADER_FLOATTYPE* mat;
 	vkMapMemory(logicaldevice, vb->memory, 0, VK_WHOLE_SIZE, 0, (void*)&mat);
 
 	unsigned long long t1 = time_in_ns();
@@ -1152,8 +1162,20 @@ void vulkan_upload(__bf16* w, int n, int d, int handle)
 
 	//copy
 	vulkan_bf16tofp16(mat, (void*)w, n * d);
+	//printf("%d: %f,%f\n",handle, (float)mat[n*(d-1)],(float)mat[n*(d-1)+1]);
+	//float f = 0.0;
+	//for(int j=0;j<n*d;j++)f+=(float)mat[j];
+	//printf("%f\n",f);
 
 	unsigned long long t3 = time_in_ns();
+
+	//flush
+	VkMappedMemoryRange flushrange = {};
+	flushrange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+	flushrange.memory = vb->memory;
+	flushrange.offset = 0;
+	flushrange.size = VK_WHOLE_SIZE;
+	vkFlushMappedMemoryRanges(logicaldevice, 1, &flushrange);
 
 	//unmap
 	vkUnmapMemory(logicaldevice, vb->memory);
@@ -1196,11 +1218,11 @@ void vulkan_upload2(
 	printf("handle=%d\n", handle0);
 	unsigned long long t0 = time_in_ns();
 
-	int size = 4 * n0 * (d0+d1);
+	int size = sizeof(SHADER_FLOATTYPE) * n0 * (d0+d1);
 	struct vkbuf* vb = pinmem_create_or_get(handle0, size);
 
 	//map
-	float* mat;
+	SHADER_FLOATTYPE* mat;
 	vkMapMemory(logicaldevice, vb->memory, 0, VK_WHOLE_SIZE, 0, (void*)&mat);
 
 	unsigned long long t1 = time_in_ns();
@@ -1217,8 +1239,20 @@ void vulkan_upload2(
 
 	vulkan_bf16tofp16(mat, w0, n0*d0);
 	vulkan_bf16tofp16(&mat[n0*d0], w1, n1*d1);
+	//printf("%d: %f,%f\n",handle0, (float)mat[n0*(d0-1)],(float)mat[n0*(d0-1)+1]);
+	//float f = 0.0;
+	//for(int j=0;j<n0*(d0+d1);j++)f+=(float)mat[j];
+	//printf("%f\n",f);
 
 	unsigned long long t3 = time_in_ns();
+
+	//flush
+	VkMappedMemoryRange flushrange = {};
+	flushrange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+	flushrange.memory = vb->memory;
+	flushrange.offset = 0;
+	flushrange.size = VK_WHOLE_SIZE;
+	vkFlushMappedMemoryRanges(logicaldevice, 1, &flushrange);
 
 	//unmap
 	vkUnmapMemory(logicaldevice, vb->memory);
@@ -1237,11 +1271,11 @@ void vulkan_upload3(
 	printf("handle=%d\n", handle0);
 	unsigned long long t0 = time_in_ns();
 
-	int size = 4 * n0 * (d0+d1+d2);
+	int size = sizeof(SHADER_FLOATTYPE) * n0 * (d0+d1+d2);
 	struct vkbuf* vb = pinmem_create_or_get(handle0, size);
 
 	//map
-	float* mat;
+	SHADER_FLOATTYPE* mat;
 	vkMapMemory(logicaldevice, vb->memory, 0, VK_WHOLE_SIZE, 0, (void*)&mat);
 
 	unsigned long long t1 = time_in_ns();
@@ -1259,8 +1293,20 @@ void vulkan_upload3(
 	vulkan_bf16tofp16(mat, w0, n0*d0);
 	vulkan_bf16tofp16(&mat[n0*d0], w1, n1*d1);
 	vulkan_bf16tofp16(&mat[n0*d0+n1*d1], w2, n2*d2);
+	//printf("%d: %f,%f\n",handle0, (float)mat[n0*(d0-1)],(float)mat[n0*(d0-1)+1]);
+	//float f = 0.0;
+	//for(int j=0;j<n0*(d0+d1+d2);j++)f+=(float)mat[j];
+	//printf("%f\n",f);
 
 	unsigned long long t3 = time_in_ns();
+
+	//flush
+	VkMappedMemoryRange flushrange = {};
+	flushrange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+	flushrange.memory = vb->memory;
+	flushrange.offset = 0;
+	flushrange.size = VK_WHOLE_SIZE;
+	vkFlushMappedMemoryRanges(logicaldevice, 1, &flushrange);
 
 	//unmap
 	vkUnmapMemory(logicaldevice, vb->memory);
@@ -1362,9 +1408,19 @@ void gpu_compute(int handle)
 	vectorcopyregion.size = vectorbuffersize;
 	vkCmdCopyBuffer(commandBuffer, cpuin.buffer, gpuin.buffer, 1, &vectorcopyregion);
 
+	int needcopy = 1;
+	if( (handle < GPUMEM_MAX) | (handle == 32000) ){
+		if(gb->stat == 1)needcopy = 0;
+		else{
+			printf("copying %d\n", handle);
+			gb->stat = 1;
+		}
+	}
+	if(needcopy){
 	VkBufferCopy matrixcopyregion = {};
 	matrixcopyregion.size = matrixbuffersize;
 	vkCmdCopyBuffer(commandBuffer, pb->buffer, gb->buffer, 1, &matrixcopyregion);
+	}
 
 	// Barrier to ensure that input buffer transfer is finished before compute shader reads from it
 	VkBufferMemoryBarrier bufferBarrier[2] = {};
@@ -1456,7 +1512,7 @@ void vulkan_muladd(float* xout, float* xin, __bf16* w, int n, int d, int handle)
 	ydim = d;
 	outputbuffersize = 4*ydim;
 	vectorbuffersize = 4*xdim;
-	matrixbuffersize = 4*xdim*ydim;
+	matrixbuffersize = sizeof(SHADER_FLOATTYPE)*xdim*ydim;
 	pushconst[0] = xdim;
 	pushconst[1] = ydim;
 
@@ -1510,6 +1566,7 @@ void vulkan_muladd(float* xout, float* xin, __bf16* w, int n, int d, int handle)
 	//copy output
 	for(y=0;y<ydim;y++)xout[y] = out[y];
 	//printf("gpu_compute:xdim=%d,ydim=%d,first=%f,767=%f,last=%f\n",xdim,ydim,xout[0],xout[767],xout[ydim-1]);
+	//printf("%d: %f,%f,%f,%f\n", handle, xout[0], xout[1], xout[2], xout[3]);
 
 	//unmap output
 	vkUnmapMemory(logicaldevice, cpuout.memory);
@@ -1529,7 +1586,7 @@ void vulkan_muladd2(
 	ydim = d0+d1;
 	outputbuffersize = 4*ydim;
 	vectorbuffersize = 4*xdim;
-	matrixbuffersize = 4*xdim*ydim;
+	matrixbuffersize = sizeof(SHADER_FLOATTYPE)*xdim*ydim;
 	pushconst[0] = xdim;
 	pushconst[1] = ydim;
 
@@ -1585,6 +1642,7 @@ void vulkan_muladd2(
 	for(y=0;y<d0;y++)xout0[y] = out[y];
 	for(y=0;y<d1;y++)xout1[y] = out[d0+y];
 	//printf("gpu_compute:xdim=%d,ydim=%d,first=%f,767=%f,last=%f\n",xdim,ydim,xout[0],xout[767],xout[ydim-1]);
+	//printf("%d: %f,%f,%f,%f\n", handle0, xout0[0], xout0[1], xout0[2], xout0[3]);
 
 	//unmap output
 	vkUnmapMemory(logicaldevice, cpuout.memory);
@@ -1605,7 +1663,7 @@ void vulkan_muladd3(
 	ydim = d0+d1+d2;
 	outputbuffersize = 4*ydim;
 	vectorbuffersize = 4*xdim;
-	matrixbuffersize = 4*xdim*ydim;
+	matrixbuffersize = sizeof(SHADER_FLOATTYPE)*xdim*ydim;
 	pushconst[0] = xdim;
 	pushconst[1] = ydim;
 
@@ -1663,6 +1721,7 @@ void vulkan_muladd3(
 	for(y=0;y<d1;y++)xout1[y] = out[d0+y   ];
 	for(y=0;y<d2;y++)xout2[y] = out[d0+d1+y];
 	//printf("gpu_compute:xdim=%d,ydim=%d,first=%f,767=%f,last=%f\n",xdim,ydim,xout[0],xout[767],xout[ydim-1]);
+	//printf("%d: %f,%f,%f,%f\n", handle0, xout0[0], xout0[1], xout0[2], xout0[3]);
 
 	//unmap output
 	vkUnmapMemory(logicaldevice, cpuout.memory);

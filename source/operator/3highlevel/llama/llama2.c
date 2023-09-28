@@ -527,7 +527,7 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 		printf("malloc1 ok\n\n");
 	}
 
-#if defined(BACKEND_CUDA) && !defined(BACKEND_VULKAN) && SAVEMEM==1
+#if (defined(BACKEND_CUDA) || defined(BACKEND_VULKAN)) && SAVEMEM==1
 	goto theend;
 #endif
 
@@ -655,8 +655,10 @@ void uploadall(char* modelpath, modelinfo* mi)
 	int maxsize = sz0;
 	if(maxsize < sz2)maxsize = sz2;
 	if(maxsize < szlogit)maxsize = szlogit;
+	printf("sz0=%x,sz1=%x,sz2=%x,sz3=%x,szlogit=%x\n", sz0,sz1,sz2,sz3,szlogit);
+
 	mi->tmp = malloc(maxsize);
-	printf("sz0=%x,sz1=%x,sz2=%x,sz3=%x,szlogit=%x,mi->tmp=%p\n", sz0,sz1,sz2,sz3,szlogit,mi->tmp);
+	printf("mi->tmp=%p\n",mi->tmp);
 
 	u64 offs;
 	u64 size;

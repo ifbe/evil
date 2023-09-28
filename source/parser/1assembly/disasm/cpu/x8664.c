@@ -2311,7 +2311,14 @@ int disasm_x8664_0f(u8* pre, u8* p, u64 rip)
 int disasm_x8664_4x(u8* pre, u8* p, u64 rip)
 {
 	int k;
-	if(0x41 == p[0]){
+	if(0x40 == p[0]){
+		if(0x56 == p[1]){
+			disasm_x8664_print(p,2);
+			printf("push rsi\n");
+			return 2;
+		}
+	}
+	else if(0x41 == p[0]){
 		k = p[1] & 0xf8;
 		if(0x50 == k){
 			k = p[1]&7;
