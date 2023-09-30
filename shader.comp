@@ -16,9 +16,9 @@ layout(std430, binding = 1) buffer indat {
 };
 layout(std430, binding = 2) buffer weight {
 	//vec4 _w[ ];
-	//f16vec4 _w[ ];
+	f16vec4 _w[ ];
 	//mat4 _w[ ];
-	float16_t _w[];
+	//float16_t _w[];
 	//float _w[];
 };
 
@@ -32,12 +32,12 @@ void main(){
 */
 
 	uint count = xx/4;
-	uint offset = id*xx;
+	uint offset = id*count;
 
 	vec4 tmp = vec4(0.0);
 	for(int j=0;j<count;j++){
-		tmp += vec4(_w[offset+j*4+0], _w[offset+j*4+1], _w[offset+j*4+2], _w[offset+j*4+3]) * _x[j];
-		//tmp += vec4(_w[offset + j]) * _x[j];
+		//tmp += vec4(_w[offset+j*4+0], _w[offset+j*4+1], _w[offset+j*4+2], _w[offset+j*4+3]) * _x[j];
+		tmp += vec4(_w[offset + j]) * _x[j];
 		//tmp += matrixCompMult(_w[offset + j], _x[j]);
 	}
 	_o[id] = tmp.x+tmp.y+tmp.z+tmp.w;

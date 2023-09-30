@@ -114,11 +114,11 @@ void vulkan_surface_delete(VkSurfaceKHR face)
 
 
 int checkDeviceProperties(VkPhysicalDevice device) {
+	printf("vkGetPhysicalDeviceProperties:\n");
 	VkPhysicalDeviceProperties prop;
 	vkGetPhysicalDeviceProperties(device, &prop);
 
 	int score = -1;
-	printf("vkGetPhysicalDeviceProperties:\n");
 	printf("	apiver=%x\n", prop.apiVersion);
 	printf("	drvver=%x\n", prop.driverVersion);
 	printf("	vendor=%x\n", prop.vendorID);
@@ -151,13 +151,32 @@ int checkDeviceProperties(VkPhysicalDevice device) {
 	printf("\n");
 	return score;
 }
+int checkPhysicalDeviceMemory(VkPhysicalDevice pdev)
+{
+	printf("vkGetPhysicalDeviceMemoryProperties:\n");
+	VkPhysicalDeviceMemoryProperties memProperties;
+	vkGetPhysicalDeviceMemoryProperties(pdev, &memProperties);
+
+	for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+		VkMemoryHeap heap = memProperties.memoryHeaps[i];
+		VkDeviceSize size = heap.size;
+		if(heap.flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT){
+			printf("gpumem: %lld MB\n", size>>20);
+		}
+		else{
+			printf("pinmem: %lld MB\n", size>>20);
+		}
+	}
+	printf("\n");
+	return 0;
+}
 int checkDeviceExtensionProperties(VkPhysicalDevice device, void* name) {
+	printf("vkEnumerateDeviceExtensionProperties:\n");
 	uint32_t cnt;
 	vkEnumerateDeviceExtensionProperties(device, 0, &cnt, 0);
 
 	VkExtensionProperties ext[cnt];
 	vkEnumerateDeviceExtensionProperties(device, 0, &cnt, ext);
-	printf("vkEnumerateDeviceExtensionProperties:\n");
 
 	int j;
 	int ret = -1;
@@ -180,6 +199,7 @@ int checkDeviceExtensionProperties(VkPhysicalDevice device, void* name) {
 int checkPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice device, VkSurfaceKHR face, int what){
 	//printf("dev=%p\n",device);
 
+	printf("vkGetPhysicalDeviceQueueFamilyProperties:\n");
 	uint32_t cnt = 0;
 	vkGetPhysicalDeviceQueueFamilyProperties(device, &cnt, 0);
 
@@ -193,7 +213,6 @@ int checkPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice device, VkSurfaceK
 	int firstgraphic = -1;
 	int firstpresent = -1;
 	VkBool32 supportsurface = 0;
-	printf("vkGetPhysicalDeviceQueueFamilyProperties:\n");
 	for(j=0;j<cnt;j++) {
 		printf("%d:	%d=", j, fam[j].queueFlags);
 		if(fam[j].queueFlags & VK_QUEUE_VIDEO_ENCODE_BIT_KHR){	//64
@@ -251,6 +270,7 @@ int checkPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice device, VkSurfaceK
 }
 int checkSwapChain(VkPhysicalDevice device, VkSurfaceKHR face) {
 	//format
+	printf("vkGetPhysicalDeviceSurfaceFormatsKHR:\n");
 	uint32_t formatCount;
 	vkGetPhysicalDeviceSurfaceFormatsKHR(device, face, &formatCount, 0);
 	if(0 == formatCount)return -1;
@@ -259,13 +279,13 @@ int checkSwapChain(VkPhysicalDevice device, VkSurfaceKHR face) {
 	vkGetPhysicalDeviceSurfaceFormatsKHR(device, face, &formatCount, formats);
 
 	int j;
-	printf("vkGetPhysicalDeviceSurfaceFormatsKHR:\n");
 	for(j=0;j<formatCount;j++){
 		printf("%d:	format=%08x,colorspace=%08x\n", j, formats[j].format, formats[j].colorSpace);
 	}
 	printf("\n");
 
 	//presentmode
+	printf("vkGetPhysicalDeviceSurfacePresentModesKHR:\n");
 	uint32_t presentModeCount;
 	vkGetPhysicalDeviceSurfacePresentModesKHR(device, face, &presentModeCount, 0);
 	if(0 == presentModeCount)return -2;
@@ -273,7 +293,6 @@ int checkSwapChain(VkPhysicalDevice device, VkSurfaceKHR face) {
 	VkPresentModeKHR presentModes[presentModeCount];
 	vkGetPhysicalDeviceSurfacePresentModesKHR(device, face, &presentModeCount, presentModes);
 
-	printf("vkGetPhysicalDeviceSurfacePresentModesKHR:\n");
 	for(j=0;j<formatCount;j++){
 		printf("%d:	%08x=", j, presentModes[j]);
 		switch(presentModes[j]){
@@ -321,12 +340,14 @@ void* initphysicaldevice(int what, VkSurfaceKHR face) {
 	printf("vkEnumeratePhysicalDevices:\n");
 
 	int j,best=-1;
-	int chkdev,chkext,chkfam,chksur;
+	int chkdev,chkext,chkmem;
+	int chkfam,chksur;
 	physicaldevice = VK_NULL_HANDLE;
 	for(j=0;j<count;j++) {
 		printf("%d:physicaldevice{\n", j);
 		chkdev = checkDeviceProperties(devs[j]);
 		chkext = checkDeviceExtensionProperties(devs[j], VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+		chkmem = checkPhysicalDeviceMemory(devs[j]);
 		chkfam = checkPhysicalDeviceQueueFamilyProperties(devs[j], face, what);
 		if( (chkdev > 0) && (chkext > 0) && (chkfam > 0) && (best < 0) ){
 			if(face){
