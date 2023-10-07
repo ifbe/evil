@@ -158,14 +158,27 @@ int checkPhysicalDeviceMemory(VkPhysicalDevice pdev)
 	vkGetPhysicalDeviceMemoryProperties(pdev, &memProperties);
 
 	for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+		VkMemoryType type = memProperties.memoryTypes[i];
+		printf("type %d: index=%x, flag=%x(\n", i, type.heapIndex, type.propertyFlags);
+		if(type.propertyFlags&VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)printf("VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT ");
+		if(type.propertyFlags&VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)printf("VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT ");
+		if(type.propertyFlags&VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)printf("VK_MEMORY_PROPERTY_HOST_COHERENT_BIT ");
+		if(type.propertyFlags&VK_MEMORY_PROPERTY_HOST_CACHED_BIT)printf("VK_MEMORY_PROPERTY_HOST_CACHED_BIT ");
+		if(type.propertyFlags&VK_MEMORY_PROPERTY_PROTECTED_BIT)printf("VK_MEMORY_PROPERTY_PROTECTED_BIT ");
+		if(type.propertyFlags&VK_MEMORY_PROPERTY_DEVICE_COHERENT_BIT_AMD)printf("VK_MEMORY_PROPERTY_DEVICE_COHERENT_BIT_AMD ");
+		if(type.propertyFlags&VK_MEMORY_PROPERTY_DEVICE_UNCACHED_BIT_AMD)printf("VK_MEMORY_PROPERTY_DEVICE_UNCACHED_BIT_AMD ");
+		if(type.propertyFlags&VK_MEMORY_PROPERTY_RDMA_CAPABLE_BIT_NV)printf("VK_MEMORY_PROPERTY_RDMA_CAPABLE_BIT_NV ");
+		printf(")\n");
+	}
+
+	for (uint32_t i = 0; i < memProperties.memoryHeapCount; i++) {
 		VkMemoryHeap heap = memProperties.memoryHeaps[i];
 		VkDeviceSize size = heap.size;
-		if(heap.flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT){
-			printf("gpumem: %lld MB\n", size>>20);
-		}
-		else{
-			printf("pinmem: %lld MB\n", size>>20);
-		}
+		printf("heap %d: size=%lldMB, flag=%x(", i, size>>20, heap.flags);
+		if(heap.flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)printf("VK_MEMORY_HEAP_DEVICE_LOCAL_BIT ");
+		if(heap.flags & VK_MEMORY_HEAP_MULTI_INSTANCE_BIT)printf("VK_MEMORY_HEAP_MULTI_INSTANCE_BIT ");
+		if(heap.flags & VK_MEMORY_HEAP_MULTI_INSTANCE_BIT_KHR)printf("VK_MEMORY_HEAP_MULTI_INSTANCE_BIT_KHR ");
+		printf(")\n");
 	}
 	printf("\n");
 	return 0;
@@ -1072,11 +1085,12 @@ struct vkbuf cpuin={};
 struct vkbuf cpulogit={};
 struct vkbuf cpubuf[32*4]={};
 //
+#define GPUMEM_MAX 48
 struct vkbuf gpuout={};
 struct vkbuf gpuin={};
 struct vkbuf gpulogit={};
-struct vkbuf gpubuf[32*4]={};
-#define GPUMEM_MAX 48
+struct vkbuf gputmpbuf[4]={};
+struct vkbuf gpubuf[GPUMEM_MAX]={};
 
 
 
@@ -1096,6 +1110,7 @@ void pinmem_malloc(struct vkbuf* vb, int sz)
 	);
 	vb->size = sz;
 	printf("pinmem: fd=%p,mem=%p\n", vb->buffer, vb->memory);
+	if(0 == vb->memory)exit(-1);
 }
 void gpumem_malloc(struct vkbuf* vb, int sz)
 {
@@ -1112,6 +1127,7 @@ void gpumem_malloc(struct vkbuf* vb, int sz)
 	);
 	vb->size = sz;
 	printf("gpumem: fd=%p,mem=%p\n", vb->buffer, vb->memory);
+	if(0 == vb->memory)exit(-1);
 }
 struct vkbuf* pinmem_get(int handle)
 {
@@ -1120,9 +1136,8 @@ struct vkbuf* pinmem_get(int handle)
 }
 struct vkbuf* gpumem_get(int handle)
 {
-	if(32000==handle)return &gpulogit;
-
-	int which = (handle < GPUMEM_MAX) ? handle : GPUMEM_MAX+(handle&3);
+	if(32000 == handle)return &gpulogit;
+	if(handle >= GPUMEM_MAX)return &gputmpbuf[handle&3];
 	return &gpubuf[handle];
 }
 struct vkbuf* pinmem_create_or_get(int handle, int size)
@@ -1210,27 +1225,35 @@ void vulkan_upload(__bf16* w, int n, int d, int handle)
 
 	struct vkbuf* gb = gpumem_create_or_get(handle, size);
 /*
-	//compute work
-	VkCommandBufferBeginInfo cmdBufbeginInfo = {};
-	cmdBufbeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	int ret = vkBeginCommandBuffer(commandBuffer, &cmdBufbeginInfo);
+	if( (handle<GPUMEM_MAX) | (handle==32000) ){
+		//compute work
+		VkCommandBufferBeginInfo cmdBufbeginInfo = {};
+		cmdBufbeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+		int ret = vkBeginCommandBuffer(commandBuffer, &cmdBufbeginInfo);
 
-	//command copy from cpu to gpu
-	VkBufferCopy vectorcopyregion = {};
-	vectorcopyregion.size = vectorbuffersize;
-	vkCmdCopyBuffer(commandBuffer, vb->buffer, gb->buffer, 1, &vectorcopyregion);
+		//command copy from cpu to gpu
+		VkBufferCopy region = {};
+		region.size = size;
+		vkCmdCopyBuffer(commandBuffer, vb->buffer, gb->buffer, 1, &region);
 
-	ret = vkEndCommandBuffer(commandBuffer);
+		//
+		ret = vkEndCommandBuffer(commandBuffer);
 
-	// Submit compute work
-	vkResetFences(logicaldevice, 1, &computefence);
-	const VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
-	VkSubmitInfo computeSubmitInfo = {};
-	computeSubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	computeSubmitInfo.pWaitDstStageMask = &waitStageMask;
-	computeSubmitInfo.commandBufferCount = 1;
-	computeSubmitInfo.pCommandBuffers = &commandBuffer;
-	vkQueueSubmit(computeQueue, 1, &computeSubmitInfo, computefence);*/
+		// Submit compute work
+		vkResetFences(logicaldevice, 1, &computefence);
+		const VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+		VkSubmitInfo computeSubmitInfo = {};
+		computeSubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		computeSubmitInfo.pWaitDstStageMask = &waitStageMask;
+		computeSubmitInfo.commandBufferCount = 1;
+		computeSubmitInfo.pCommandBuffers = &commandBuffer;
+		vkQueueSubmit(computeQueue, 1, &computeSubmitInfo, computefence);
+
+		vkDestroyBuffer(logicaldevice, vb->buffer, 0);
+		vkFreeMemory(logicaldevice, vb->memory, 0);
+
+		gb->stat = 1;
+	}*/
 }
 void vulkan_upload2(
 	__bf16* w0, int n0, int d0, int handle0,
@@ -1282,7 +1305,39 @@ void vulkan_upload2(
 
 	//printf("%f,%f,%f,%f\n", (t1-t0)*1e-9, (t2-t1)*1e-9, (t3-t2)*1e-9, (t4-t3)*1e-9);
 
+
+
+
 	struct vkbuf* gb = gpumem_create_or_get(handle0, size);
+/*	if( (handle0<GPUMEM_MAX) | (handle0==32000) ){
+		//compute work
+		VkCommandBufferBeginInfo cmdBufbeginInfo = {};
+		cmdBufbeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+		int ret = vkBeginCommandBuffer(commandBuffer, &cmdBufbeginInfo);
+
+		//command copy from cpu to gpu
+		VkBufferCopy region = {};
+		region.size = size;
+		vkCmdCopyBuffer(commandBuffer, vb->buffer, gb->buffer, 1, &region);
+
+		//
+		ret = vkEndCommandBuffer(commandBuffer);
+
+		// Submit compute work
+		vkResetFences(logicaldevice, 1, &computefence);
+		const VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+		VkSubmitInfo computeSubmitInfo = {};
+		computeSubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		computeSubmitInfo.pWaitDstStageMask = &waitStageMask;
+		computeSubmitInfo.commandBufferCount = 1;
+		computeSubmitInfo.pCommandBuffers = &commandBuffer;
+		vkQueueSubmit(computeQueue, 1, &computeSubmitInfo, computefence);
+
+		vkDestroyBuffer(logicaldevice, vb->buffer, 0);
+		vkFreeMemory(logicaldevice, vb->memory, 0);
+
+		gb->stat = 1;
+	}*/
 }
 void vulkan_upload3(
 	__bf16* w0, int n0, int d0, int handle0,
@@ -1336,7 +1391,39 @@ void vulkan_upload3(
 
 	//printf("%f,%f,%f,%f\n", (t1-t0)*1e-9, (t2-t1)*1e-9, (t3-t2)*1e-9, (t4-t3)*1e-9);
 
+
+
+
 	struct vkbuf* gb = gpumem_create_or_get(handle0, size);
+/*	if( (handle0<GPUMEM_MAX) | (handle0==32000) ){
+		//compute work
+		VkCommandBufferBeginInfo cmdBufbeginInfo = {};
+		cmdBufbeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+		int ret = vkBeginCommandBuffer(commandBuffer, &cmdBufbeginInfo);
+
+		//command copy from cpu to gpu
+		VkBufferCopy region = {};
+		region.size = size;
+		vkCmdCopyBuffer(commandBuffer, vb->buffer, gb->buffer, 1, &region);
+
+		//
+		ret = vkEndCommandBuffer(commandBuffer);
+
+		// Submit compute work
+		vkResetFences(logicaldevice, 1, &computefence);
+		const VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+		VkSubmitInfo computeSubmitInfo = {};
+		computeSubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		computeSubmitInfo.pWaitDstStageMask = &waitStageMask;
+		computeSubmitInfo.commandBufferCount = 1;
+		computeSubmitInfo.pCommandBuffers = &commandBuffer;
+		vkQueueSubmit(computeQueue, 1, &computeSubmitInfo, computefence);
+
+		vkDestroyBuffer(logicaldevice, vb->buffer, 0);
+		vkFreeMemory(logicaldevice, vb->memory, 0);
+
+		gb->stat = 1;
+	}*/
 }
 void vulkan_myctx_create()
 {
@@ -1395,9 +1482,17 @@ void cpu_compute(float* tmp0, float* tmp1, float* tmp2)
 }
 void gpu_compute(int handle)
 {
-	int x,y;
+	//int x,y;
+	int needcopy = 0;
 	struct vkbuf* pb = pinmem_get(handle);
-	struct vkbuf* gb = pinmem_get(handle);
+	struct vkbuf* gb = pb;
+	if( (handle==32000) | (handle<GPUMEM_MAX) ){	//if (use dgpu && handle < GPUMEM_MAX)
+		gb = gpumem_get(handle);
+		if(gb->stat == 0){
+			needcopy = 1;
+			gb->stat = 1;
+		}
+	}
 
 	//update data
 	VkDescriptorBufferInfo bufferDescriptor[3] = {};
@@ -1429,18 +1524,11 @@ void gpu_compute(int handle)
 	vectorcopyregion.size = vectorbuffersize;
 	vkCmdCopyBuffer(commandBuffer, cpuin.buffer, gpuin.buffer, 1, &vectorcopyregion);
 
-	int needcopy = 1;
-	if( (handle < GPUMEM_MAX) | (handle == 32000) ){
-		if(gb->stat == 1)needcopy = 0;
-		else{
-			printf("copying %d\n", handle);
-			gb->stat = 1;
-		}
-	}
 	if(needcopy){
-	VkBufferCopy matrixcopyregion = {};
-	matrixcopyregion.size = matrixbuffersize;
-	vkCmdCopyBuffer(commandBuffer, pb->buffer, gb->buffer, 1, &matrixcopyregion);
+		printf("copying %d\n", handle);
+		VkBufferCopy matrixcopyregion = {};
+		matrixcopyregion.size = matrixbuffersize;
+		vkCmdCopyBuffer(commandBuffer, pb->buffer, gb->buffer, 1, &matrixcopyregion);
 	}
 
 	// Barrier to ensure that input buffer transfer is finished before compute shader reads from it

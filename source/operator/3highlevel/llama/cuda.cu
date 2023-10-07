@@ -96,10 +96,10 @@ extern "C"{
 #define DEBUG_MALLOC 1
 #define MATRIXCOPY_EARLY 1
 #define OPTIMISE_TRANSPOSE 0	//not working
-#define OPTIMISE_RESIDENTPINMEM_32LAYER4ROUND 1		//consume gpumem = 12G
-#define OPTIMISE_RESIDENTPINMEM_LOGITS        1		//consume pinmem = 4096*32000*2
-#define OPTIMISE_RESIDENTGPUMEM_32LAYER4ROUND 0		//consume gpumem = 12G
-#define OPTIMISE_RESIDENTGPUMEM_LOGITS        1		//consume gpumem = 4096*32000*2
+#define OPTIMISE_RESIDENTPINMEM_MATRIX 1		//consume gpumem = 12G
+#define OPTIMISE_RESIDENTPINMEM_LOGITS 1		//consume pinmem = 4096*32000*2
+#define OPTIMISE_RESIDENTGPUMEM_MATRIX 0		//consume gpumem = 12G
+#define OPTIMISE_RESIDENTGPUMEM_LOGITS 1		//consume gpumem = 4096*32000*2
 //
 static cudaStream_t stream[2];
 #define QUEUE_KERN 0
@@ -128,7 +128,7 @@ static __nv_bfloat16* gpumem_logits = 0;
 
 
 				//pinmem is big enough
-				#if OPTIMISE_RESIDENTPINMEM_32LAYER4ROUND==1
+				#if OPTIMISE_RESIDENTPINMEM_MATRIX==1
 static __nv_bfloat16* pinmem[32*4]={};	//llama2 7b: layer=32
 #define LAYER_0 0
 #define LAYER_1 1
@@ -207,7 +207,7 @@ void maybe_start_copy_cpu2pin(int handle)
 
 
 				//gpumem is big enough
-				#if OPTIMISE_RESIDENTGPUMEM_32LAYER4ROUND==1
+				#if OPTIMISE_RESIDENTGPUMEM_MATRIX==1
 static __nv_bfloat16* gpumem[32*4]={};	//llama2 7b: layer=32
 
 __nv_bfloat16* gpumem_get(int handle)
@@ -239,7 +239,8 @@ __nv_bfloat16* gpumem_create_or_get(int handle, int size)
 				//gpumem is insufficient
 				#else
 #define GPUMEM_COUNT_LIMIT 48		//gtx1060 only have 6g gram
-static __nv_bfloat16* gpumem[GPUMEM_COUNT_LIMIT+4] = {};	//each layer 4 muladd
+static __nv_bfloat16* gpumem[GPUMEM_COUNT_LIMIT] = {};	//each layer 4 muladd
+static __nv_bfloat16* gpumem_staging[4];
 
 __nv_bfloat16* gpumem_get(int handle)
 {
@@ -247,8 +248,9 @@ __nv_bfloat16* gpumem_get(int handle)
 		return gpumem_logits;
 	}
 
-	int k = (handle < GPUMEM_COUNT_LIMIT) ? handle : GPUMEM_COUNT_LIMIT+handle%4;
-	return gpumem[k];
+	if(handle >= GPUMEM_COUNT_LIMIT)return gpumem_staging[handle%4];
+
+	return gpumem[handle];
 }
 __nv_bfloat16* gpumem_create_or_get(int handle, int size)
 {
@@ -261,7 +263,16 @@ __nv_bfloat16* gpumem_create_or_get(int handle, int size)
 		return gpumem_logits;
 	}
 
-	int k = (handle < GPUMEM_COUNT_LIMIT) ? handle : GPUMEM_COUNT_LIMIT+handle%4;
+	if(handle >= GPUMEM_COUNT_LIMIT){
+		int k = handle&3;
+		if(0 == gpumem_staging[k]){
+			ret = cudaMalloc((void **)&gpumem_staging[k], size);
+			if(DEBUG_MALLOC)printf("gpumem_create_or_get2: k=%d, ret=%d\n", k, ret);
+		}
+		return gpumem_staging[k];
+	}
+
+	int k = handle;
 	if(0 == gpumem[k]){
 		ret = cudaMalloc((void **)&gpumem[k], size);
 		if(DEBUG_MALLOC)printf("gpumem_create_or_get3: k=%d, ret=%d\n", k, ret);
@@ -271,9 +282,14 @@ __nv_bfloat16* gpumem_create_or_get(int handle, int size)
 
 struct pendingcopyh2d{
 	int size;
-}pending_data[32*4+4] = {};
+}pending_data[32*4] = {};
 int gpumem_count_max = 0;
 int gpumem_resident_MB = 0;
+
+//1.h2d copy will not overlap on 2 stream
+//2.h2d copy will not preempt
+//3.compute will not begin until all copy are done(including in other stream)
+//so the copy must happen right after calling kernel compute
 void maybe_start_copy_pin2gpu(int handle)
 {
 	/*
@@ -360,9 +376,8 @@ void cuda_compute(int handle)
 	else{
 		muladd_kernel<<<blocks, threads, 0, stream[QUEUE_KERN]>>>(gpuout, gpuvec, gpumat, xdim, ydim);
 	}
-#if OPTIMISE_RESIDENTGPUMEM_32LAYER4ROUND!=1
+#if OPTIMISE_RESIDENTGPUMEM_MATRIX!=1
 	maybe_start_copy_pin2gpu(handle);
-	maybe_delete_unused_pinmem(handle);
 #endif
 
 	time[3] = time_in_ns();
@@ -402,7 +417,7 @@ __declspec(dllexport) void cudamath_upload(unsigned short* wbuf, int n, int d, i
 
 	int evid = (handle==SPECIAL_HANDLE_FOR_LOGITS) ? 4 : (handle&3);
 	__nv_bfloat16* gpumat = gpumem_get(handle);
-#if OPTIMISE_RESIDENTGPUMEM_32LAYER4ROUND==1
+#if OPTIMISE_RESIDENTGPUMEM_MATRIX==1
 	if(0 == gpumat){
 		gpumat = gpumem_create_or_get(handle, size);
 		if(DEBUG_MALLOC)printf("gpumem: handle=%d,size=%x,addr=%p\n", handle, size, gpumat);
@@ -420,8 +435,10 @@ __declspec(dllexport) void cudamath_upload(unsigned short* wbuf, int n, int d, i
 		if( (handle==SPECIAL_HANDLE_FOR_LOGITS) | (handle<GPUMEM_COUNT_LIMIT) ){
 			gpumem_resident_MB += size>>20;
 			if(DEBUG_MALLOC)printf("gpumem_resident_MB=%d\n",gpumem_resident_MB);
-			cudaMemcpyAsync(gpumat, cpumat, size, cudaMemcpyHostToDevice, stream[QUEUE_COPY]);
+			//cudaMemcpyAsync(gpumat, cpumat, size, cudaMemcpyHostToDevice, stream[QUEUE_COPY]);
+			cudaMemcpy(gpumat, cpumat, size, cudaMemcpyHostToDevice);
 			cudaEventRecord(copyevent[evid], stream[QUEUE_COPY]);
+			maybe_delete_unused_pinmem(handle);
 		}
 	}
 	if(handle!=SPECIAL_HANDLE_FOR_LOGITS){
@@ -431,12 +448,6 @@ __declspec(dllexport) void cudamath_upload(unsigned short* wbuf, int n, int d, i
 		if(handle==GPUMEM_COUNT_LIMIT){
 			cudaMemcpyAsync(gpumat, cpumat, size, cudaMemcpyHostToDevice, stream[QUEUE_COPY]);
 			cudaEventRecord(copyevent[evid], stream[QUEUE_COPY]);
-		}
-		else if(handle>GPUMEM_COUNT_LIMIT){
-			//1.h2d copy will not overlap on 2 stream
-			//2.h2d copy will not preempt
-			//3.compute will not begin until all copy are done(including in other stream)
-			//so the copy must happen right after calling kernel compute
 		}
 	}
 #endif
@@ -462,7 +473,7 @@ __declspec(dllexport) void cudamath_upload2(
 
 	int evid = (handle0==SPECIAL_HANDLE_FOR_LOGITS) ? 4 : (handle0&3);
 	__nv_bfloat16* gpumat = gpumem_get(handle0);
-#if OPTIMISE_RESIDENTGPUMEM_32LAYER4ROUND==1
+#if OPTIMISE_RESIDENTGPUMEM_MATRIX==1
 	if(0 == gpumat){
 		gpumat = gpumem_create_or_get(handle0, size);
 		if(DEBUG_MALLOC)printf("gpumem: handle=%d,size=%x,addr=%p\n", handle0, size, gpumat);
@@ -480,8 +491,10 @@ __declspec(dllexport) void cudamath_upload2(
 		if( (handle0==SPECIAL_HANDLE_FOR_LOGITS) | (handle0<GPUMEM_COUNT_LIMIT) ){
 			gpumem_resident_MB += size>>20;
 			if(DEBUG_MALLOC)printf("gpumem_resident_MB=%d\n",gpumem_resident_MB);
-			cudaMemcpyAsync(gpumat, cpumat, size, cudaMemcpyHostToDevice, stream[QUEUE_COPY]);
+			//cudaMemcpyAsync(gpumat, cpumat, size, cudaMemcpyHostToDevice, stream[QUEUE_COPY]);
+			cudaMemcpy(gpumat, cpumat, size, cudaMemcpyHostToDevice);
 			cudaEventRecord(copyevent[evid], stream[QUEUE_COPY]);
+			maybe_delete_unused_pinmem(handle0);
 		}
 	}
 	if(handle0!=SPECIAL_HANDLE_FOR_LOGITS){
@@ -491,12 +504,6 @@ __declspec(dllexport) void cudamath_upload2(
 		if(handle0==GPUMEM_COUNT_LIMIT){
 			cudaMemcpyAsync(gpumat, cpumat, size, cudaMemcpyHostToDevice, stream[QUEUE_COPY]);
 			cudaEventRecord(copyevent[evid], stream[QUEUE_COPY]);
-		}
-		else if(handle0>GPUMEM_COUNT_LIMIT){
-			//1.h2d copy will not overlap on 2 stream
-			//2.h2d copy will not preempt
-			//3.compute will not begin until all copy are done(including in other stream)
-			//so the copy must happen right after calling kernel compute
 		}
 	}
 #endif
@@ -525,7 +532,7 @@ __declspec(dllexport) void cudamath_upload3(
 
 	int evid = (handle0==SPECIAL_HANDLE_FOR_LOGITS) ? 4 : (handle0&3);
 	__nv_bfloat16* gpumat = gpumem_get(handle0);
-#if OPTIMISE_RESIDENTGPUMEM_32LAYER4ROUND==1
+#if OPTIMISE_RESIDENTGPUMEM_MATRIX==1
 	if(0 == gpumat){
 		gpumat = gpumem_create_or_get(handle0, size);
 		if(DEBUG_MALLOC)printf("gpumem: handle=%d,size=%x,addr=%p\n", handle0, size, gpumat);
@@ -543,8 +550,10 @@ __declspec(dllexport) void cudamath_upload3(
 		if( (handle0==SPECIAL_HANDLE_FOR_LOGITS) | (handle0<GPUMEM_COUNT_LIMIT) ){
 			gpumem_resident_MB += size>>20;
 			if(DEBUG_MALLOC)printf("gpumem_resident_MB=%d\n",gpumem_resident_MB);
-			cudaMemcpyAsync(gpumat, cpumat, size, cudaMemcpyHostToDevice, stream[QUEUE_COPY]);
+			//cudaMemcpyAsync(gpumat, cpumat, size, cudaMemcpyHostToDevice, stream[QUEUE_COPY]);
+			cudaMemcpy(gpumat, cpumat, size, cudaMemcpyHostToDevice);
 			cudaEventRecord(copyevent[evid], stream[QUEUE_COPY]);
+			maybe_delete_unused_pinmem(handle0);
 		}
 	}
 	if(handle0!=SPECIAL_HANDLE_FOR_LOGITS){
@@ -554,12 +563,6 @@ __declspec(dllexport) void cudamath_upload3(
 		if(handle0==GPUMEM_COUNT_LIMIT){
 			cudaMemcpyAsync(gpumat, cpumat, size, cudaMemcpyHostToDevice, stream[QUEUE_COPY]);
 			cudaEventRecord(copyevent[evid], stream[QUEUE_COPY]);
-		}
-		else if(handle0>GPUMEM_COUNT_LIMIT){
-			//1.h2d copy will not overlap on 2 stream
-			//2.h2d copy will not preempt
-			//3.compute will not begin until all copy are done(including in other stream)
-			//so the copy must happen right after calling kernel compute
 		}
 	}
 #endif
@@ -682,7 +685,7 @@ __declspec(dllexport) void cudamath_exit()
 
 	cudaFree(gpuvec);
 	cudaFree(gpuout);
-#if OPTIMISE_RESIDENTGPUMEM_32LAYER4ROUND==1
+#if OPTIMISE_RESIDENTGPUMEM_MATRIX==1
 	for(int j=0;j<32*4;j++)cudaFree(gpumem[j]);
 #else
 	for(int j=0;j<4;j++)cudaFree(gpumem[j]);
@@ -690,7 +693,7 @@ __declspec(dllexport) void cudamath_exit()
 
 	cudaFreeHost(cpuvec);
 	cudaFreeHost(cpuout);
-#if OPTIMISE_RESIDENTPINMEM_32LAYER4ROUND==1
+#if OPTIMISE_RESIDENTPINMEM_MATRIX==1
 	for(int j=0;j<32*4;j++)cudaFreeHost(pinmem[j]);
 #else
 	for(int j=0;j<4;j++)cudaFreeHost(pinmem[j]);
