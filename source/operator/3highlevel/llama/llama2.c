@@ -836,7 +836,7 @@ typedef struct {
 	// query (dim,)
 	u64 q_size;
 	RUNSTATE_FLOATTYPE *q_data;
-
+/*
 	// key (dim,)
 	u64 k_size;
 	RUNSTATE_FLOATTYPE *k_data;
@@ -844,7 +844,7 @@ typedef struct {
 	// value (dim,)
 	u64 v_size;
 	RUNSTATE_FLOATTYPE *v_data;
-
+*/
 	// buffer for scores/attention values (n_heads, seq_len)
 	u64 att_size;
 	RUNSTATE_FLOATTYPE *att_data;
@@ -896,7 +896,7 @@ void llama_initstate(modelinfo* mi, RunState* rs) {
 	next = offs + rs->q_size;
 	printf("[%16llx,%16llx)%16lldMB        q\n", offs, next, rs->q_size>>20);
 	offs = next;
-
+/*
 	rs->k_size = kv_dim * sizeof(RUNSTATE_FLOATTYPE);
 	next = offs + rs->k_size;
 	printf("[%16llx,%16llx)%16lldMB        k\n", offs, next, rs->k_size>>20);
@@ -906,7 +906,7 @@ void llama_initstate(modelinfo* mi, RunState* rs) {
 	next = offs + rs->v_size;
 	printf("[%16llx,%16llx)%16lldMB        v\n", offs, next, rs->v_size>>20);
 	offs = next;
-
+*/
 	rs->att_size = mi->n_heads * mi->seq_len * sizeof(RUNSTATE_FLOATTYPE);
 	next = offs + rs->att_size;
 	printf("[%16llx,%16llx)%16lldMB        att\n", offs, next, rs->att_size>>20);
@@ -936,8 +936,8 @@ void llama_initstate(modelinfo* mi, RunState* rs) {
 	rs->hb_data = malloc( rs->hb_size);
 	rs->hb2_data = malloc( rs->hb2_size);
 	rs->q_data = malloc( rs->q_size);
-	rs->k_data = malloc( rs->k_size);
-	rs->v_data = malloc( rs->v_size);
+	//rs->k_data = malloc( rs->k_size);
+	//rs->v_data = malloc( rs->v_size);
 	rs->att_data = malloc( rs->att_size);
 	rs->logits_data = malloc( rs->logits_size);
 	rs->key_cache_data = malloc( rs->key_cache_size);
@@ -949,8 +949,8 @@ void llama_initstate(modelinfo* mi, RunState* rs) {
 		!rs->hb_data ||
 		!rs->hb2_data ||
 		!rs->q_data ||
-		!rs->k_data ||
-		!rs->v_data ||
+	//	!rs->k_data ||
+	//	!rs->v_data ||
 		!rs->att_data ||
 		!rs->logits_data ||
 		!rs->key_cache_data ||
@@ -1184,11 +1184,14 @@ void transformer_eachlayer(RUNSTATE_FLOATTYPE* x, int pos, modelinfo* mi, RunSta
 	RUNSTATE_FLOATTYPE* rs_xb = rs->xb_data;
 	RUNSTATE_FLOATTYPE* rs_xb2 = rs->xb2_data;
 	RUNSTATE_FLOATTYPE* rs_q = rs->q_data;
-	RUNSTATE_FLOATTYPE* rs_k = rs->k_data;
-	RUNSTATE_FLOATTYPE* rs_v = rs->v_data;
 	RUNSTATE_FLOATTYPE* rs_att = rs->att_data;
 	RUNSTATE_FLOATTYPE* rs_key_cache = rs->key_cache_data;
 	RUNSTATE_FLOATTYPE* rs_value_cache = rs->value_cache_data;
+
+	// key and value point to the kv cache
+	int loff = layer * mi->seq_len * kv_dim; // kv cache layer offset for convenience
+	RUNSTATE_FLOATTYPE* rs_k = rs_key_cache + loff + pos * kv_dim;
+	RUNSTATE_FLOATTYPE* rs_v = rs_value_cache + loff + pos * kv_dim;
 
 	// attention rmsnorm
 	rmsnorm(rs_xb, x, w_rms_att_weight, dim);
@@ -1221,13 +1224,6 @@ void transformer_eachlayer(RUNSTATE_FLOATTYPE* x, int pos, modelinfo* mi, RunSta
 			vec[i+1] = v0 * fci + v1 * fcr;
 		}
 	}
-
-	// save key,value at this time step (pos) to our kv cache
-	int loff = layer * mi->seq_len * kv_dim; // kv cache layer offset for convenience
-	RUNSTATE_FLOATTYPE* key_cache_row = rs_key_cache + loff + pos * kv_dim;
-	RUNSTATE_FLOATTYPE* value_cache_row = rs_value_cache + loff + pos * kv_dim;
-	memcpy(key_cache_row, rs_k, kv_dim*sizeof(*key_cache_row));
-	memcpy(value_cache_row, rs_v, kv_dim*sizeof(*value_cache_row));
 
 	// multihead attention. iterate over all heads
 	int h;
