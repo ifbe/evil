@@ -101,6 +101,8 @@ extern "C"{
 #define OPTIMISE_RESIDENTGPUMEM_MATRIX 0		//consume gpumem = 12G
 #define OPTIMISE_RESIDENTGPUMEM_LOGITS 1		//consume gpumem = 4096*32000*2
 //
+#define SPECIAL_HANDLE_FOR_LOGITS 32000
+//
 static cudaStream_t stream[2];
 #define QUEUE_KERN 0
 #define QUEUE_COPY 1
@@ -122,7 +124,8 @@ static __nv_bfloat16* pinmem_logits = 0;
 static float *gpuout = 0;
 static float *gpuvec = 0;
 static __nv_bfloat16* gpumem_logits = 0;
-#define SPECIAL_HANDLE_FOR_LOGITS 32000
+//
+int gpumem_resident_MB = 0;
 
 
 
@@ -284,7 +287,6 @@ struct pendingcopyh2d{
 	int size;
 }pending_data[32*4] = {};
 int gpumem_count_max = 0;
-int gpumem_resident_MB = 0;
 
 //1.h2d copy will not overlap on 2 stream
 //2.h2d copy will not preempt
@@ -403,18 +405,23 @@ void cuda_compute(int handle)
 __declspec(dllexport) void cudamath_upload(unsigned short* wbuf, int n, int d, int handle)
 {
 	int size = 2 * n * d;
+
+	//pinmem get
 	__nv_bfloat16* cpumat = pinmem_get(handle);
 	if(0 == cpumat){
 		cpumat = pinmem_create_or_get(handle, size);
-		if(DEBUG_MALLOC)printf("cpumem: handle=%d,size=%x,addr=%p\n", handle, size, cpumat);
-		if(OPTIMISE_TRANSPOSE){
-			cudamath_bf16transpose((unsigned short*)cpumat, wbuf, n, d, 0, d);
-		}
-		else{
-			cudamath_bf16copy((unsigned short*)cpumat, wbuf, n*d);
-		}
 	}
 
+	//pinmem copy every upload
+	if(DEBUG_MALLOC)printf("cpumem: handle=%d,size=%x,addr=%p\n", handle, size, cpumat);
+	if(OPTIMISE_TRANSPOSE){
+		cudamath_bf16transpose((unsigned short*)cpumat, wbuf, n, d, 0, d);
+	}
+	else{
+		cudamath_bf16copy((unsigned short*)cpumat, wbuf, n*d);
+	}
+
+	//gpumem get
 	int evid = (handle==SPECIAL_HANDLE_FOR_LOGITS) ? 4 : (handle&3);
 	__nv_bfloat16* gpumat = gpumem_get(handle);
 #if OPTIMISE_RESIDENTGPUMEM_MATRIX==1
@@ -425,16 +432,19 @@ __declspec(dllexport) void cudamath_upload(unsigned short* wbuf, int n, int d, i
 		gpumem_resident_MB += size>>20;
 		if(DEBUG_MALLOC)printf("gpumem_resident_MB=%d\n",gpumem_resident_MB);
 
-		cudaMemcpyAsync(gpumat, cpumat, size, cudaMemcpyHostToDevice, stream[QUEUE_COPY]);
+		//gpumem copy only when first malloc
+		cudaMemcpy(gpumat, cpumat, size, cudaMemcpyHostToDevice);
 		cudaEventRecord(copyevent[evid], stream[QUEUE_COPY]);
 	}
 #else
 	if(0 == gpumat){
 		gpumat = gpumem_create_or_get(handle, size);
 		if(DEBUG_MALLOC)printf("gpumem: handle=%d,size=%x,addr=%p\n", handle, size, gpumat);
+		gpumem_resident_MB += size>>20;
+		if(DEBUG_MALLOC)printf("gpumem_resident_MB=%d\n",gpumem_resident_MB);
+
+		//gpumem copy only when first malloc
 		if( (handle==SPECIAL_HANDLE_FOR_LOGITS) | (handle<GPUMEM_COUNT_LIMIT) ){
-			gpumem_resident_MB += size>>20;
-			if(DEBUG_MALLOC)printf("gpumem_resident_MB=%d\n",gpumem_resident_MB);
 			//cudaMemcpyAsync(gpumat, cpumat, size, cudaMemcpyHostToDevice, stream[QUEUE_COPY]);
 			cudaMemcpy(gpumat, cpumat, size, cudaMemcpyHostToDevice);
 			cudaEventRecord(copyevent[evid], stream[QUEUE_COPY]);
@@ -457,20 +467,25 @@ __declspec(dllexport) void cudamath_upload2(
 	unsigned short* w1, int n1, int d1, int handle1)
 {
 	int size = 2 * n0 * (d0+d1);
+
+	//pinmem get
 	__nv_bfloat16* cpumat = pinmem_get(handle0);
 	if(0 == cpumat){
 		cpumat = pinmem_create_or_get(handle0, size);
-		if(DEBUG_MALLOC)printf("cpumem: handle=%d,size=%x,addr=%p\n", handle0, size, cpumat);
-		if(OPTIMISE_TRANSPOSE){
-			cudamath_bf16transpose((unsigned short*)cpumat, w0, n0, d0,  0, d0+d1);
-			cudamath_bf16transpose((unsigned short*)cpumat, w1, n1, d1, d0, d0+d1);
-		}
-		else{
-			cudamath_bf16copy((unsigned short*)&cpumat[    0], w0, n0*d0);
-			cudamath_bf16copy((unsigned short*)&cpumat[n0*d0], w1, n1*d1);
-		}
 	}
 
+	//pinmem copy every upload
+	if(DEBUG_MALLOC)printf("cpumem: handle=%d,size=%x,addr=%p\n", handle0, size, cpumat);
+	if(OPTIMISE_TRANSPOSE){
+		cudamath_bf16transpose((unsigned short*)cpumat, w0, n0, d0,  0, d0+d1);
+		cudamath_bf16transpose((unsigned short*)cpumat, w1, n1, d1, d0, d0+d1);
+	}
+	else{
+		cudamath_bf16copy((unsigned short*)&cpumat[    0], w0, n0*d0);
+		cudamath_bf16copy((unsigned short*)&cpumat[n0*d0], w1, n1*d1);
+	}
+
+	//gpumem get
 	int evid = (handle0==SPECIAL_HANDLE_FOR_LOGITS) ? 4 : (handle0&3);
 	__nv_bfloat16* gpumat = gpumem_get(handle0);
 #if OPTIMISE_RESIDENTGPUMEM_MATRIX==1
@@ -481,16 +496,20 @@ __declspec(dllexport) void cudamath_upload2(
 		gpumem_resident_MB += size>>20;
 		if(DEBUG_MALLOC)printf("gpumem_resident_MB=%d\n",gpumem_resident_MB);
 
-		cudaMemcpyAsync(gpumat, cpumat, size, cudaMemcpyHostToDevice, stream[QUEUE_COPY]);
+		//gpumem copy only when first malloc
+		cudaMemcpy(gpumat, cpumat, size, cudaMemcpyHostToDevice);
 		cudaEventRecord(copyevent[evid], stream[QUEUE_COPY]);
 	}
 #else
 	if(0 == gpumat){
 		gpumat = gpumem_create_or_get(handle0, size);
 		if(DEBUG_MALLOC)printf("gpumem: handle=%d,size=%x,addr=%p\n", handle0, size, gpumat);
+		gpumem_resident_MB += size>>20;
+		if(DEBUG_MALLOC)printf("gpumem_resident_MB=%d\n",gpumem_resident_MB);
+
+		//gpumem copy only when first malloc
 		if( (handle0==SPECIAL_HANDLE_FOR_LOGITS) | (handle0<GPUMEM_COUNT_LIMIT) ){
-			gpumem_resident_MB += size>>20;
-			if(DEBUG_MALLOC)printf("gpumem_resident_MB=%d\n",gpumem_resident_MB);
+			//gpumem copy only when first malloc
 			//cudaMemcpyAsync(gpumat, cpumat, size, cudaMemcpyHostToDevice, stream[QUEUE_COPY]);
 			cudaMemcpy(gpumat, cpumat, size, cudaMemcpyHostToDevice);
 			cudaEventRecord(copyevent[evid], stream[QUEUE_COPY]);
@@ -514,22 +533,27 @@ __declspec(dllexport) void cudamath_upload3(
 	unsigned short* w2, int n2, int d2, int handle2)
 {
 	int size = 2 * n0 * (d0+d1+d2);
+
+	//pinmem get
 	__nv_bfloat16* cpumat = pinmem_get(handle0);
 	if(0 == cpumat){
 		cpumat = pinmem_create_or_get(handle0, size);
-		if(DEBUG_MALLOC)printf("cpumem: handle=%d,size=%x,addr=%p\n", handle0, size, cpumat);
-		if(OPTIMISE_TRANSPOSE){
-			cudamath_bf16transpose((unsigned short*)cpumat, w0, n0, d0,     0, d0+d1+d2);
-			cudamath_bf16transpose((unsigned short*)cpumat, w1, n1, d1,    d0, d0+d1+d2);
-			cudamath_bf16transpose((unsigned short*)cpumat, w2, n2, d2, d0+d1, d0+d1+d2);
-		}
-		else{
-			cudamath_bf16copy((unsigned short*)&cpumat[          0], w0, n0*d0);
-			cudamath_bf16copy((unsigned short*)&cpumat[      n0*d0], w1, n1*d1);
-			cudamath_bf16copy((unsigned short*)&cpumat[n0*d0+n1*d1], w2, n2*d2);
-		}
 	}
 
+	//pinmem copy every upload
+	if(DEBUG_MALLOC)printf("cpumem: handle=%d,size=%x,addr=%p\n", handle0, size, cpumat);
+	if(OPTIMISE_TRANSPOSE){
+		cudamath_bf16transpose((unsigned short*)cpumat, w0, n0, d0,     0, d0+d1+d2);
+		cudamath_bf16transpose((unsigned short*)cpumat, w1, n1, d1,    d0, d0+d1+d2);
+		cudamath_bf16transpose((unsigned short*)cpumat, w2, n2, d2, d0+d1, d0+d1+d2);
+	}
+	else{
+		cudamath_bf16copy((unsigned short*)&cpumat[          0], w0, n0*d0);
+		cudamath_bf16copy((unsigned short*)&cpumat[      n0*d0], w1, n1*d1);
+		cudamath_bf16copy((unsigned short*)&cpumat[n0*d0+n1*d1], w2, n2*d2);
+	}
+
+	//gpumem get
 	int evid = (handle0==SPECIAL_HANDLE_FOR_LOGITS) ? 4 : (handle0&3);
 	__nv_bfloat16* gpumat = gpumem_get(handle0);
 #if OPTIMISE_RESIDENTGPUMEM_MATRIX==1
@@ -540,16 +564,19 @@ __declspec(dllexport) void cudamath_upload3(
 		gpumem_resident_MB += size>>20;
 		if(DEBUG_MALLOC)printf("gpumem_resident_MB=%d\n",gpumem_resident_MB);
 
-		cudaMemcpyAsync(gpumat, cpumat, size, cudaMemcpyHostToDevice, stream[QUEUE_COPY]);
+		//gpumem copy only when first malloc
+		cudaMemcpy(gpumat, cpumat, size, cudaMemcpyHostToDevice);
 		cudaEventRecord(copyevent[evid], stream[QUEUE_COPY]);
 	}
 #else
 	if(0 == gpumat){
 		gpumat = gpumem_create_or_get(handle0, size);
 		if(DEBUG_MALLOC)printf("gpumem: handle=%d,size=%x,addr=%p\n", handle0, size, gpumat);
+		gpumem_resident_MB += size>>20;
+		if(DEBUG_MALLOC)printf("gpumem_resident_MB=%d\n",gpumem_resident_MB);
+
+		//gpumem copy only when first malloc
 		if( (handle0==SPECIAL_HANDLE_FOR_LOGITS) | (handle0<GPUMEM_COUNT_LIMIT) ){
-			gpumem_resident_MB += size>>20;
-			if(DEBUG_MALLOC)printf("gpumem_resident_MB=%d\n",gpumem_resident_MB);
 			//cudaMemcpyAsync(gpumat, cpumat, size, cudaMemcpyHostToDevice, stream[QUEUE_COPY]);
 			cudaMemcpy(gpumat, cpumat, size, cudaMemcpyHostToDevice);
 			cudaEventRecord(copyevent[evid], stream[QUEUE_COPY]);
