@@ -70,7 +70,7 @@ void calc_1(FILE* fi, FILE* fo, int cntone, int cntall)
 	}
 	free(ptr);
 }
-void quantization(int argc, char** argv)
+void llama_quanti(int argc, char** argv)
 {
 	if(argc < 3){
 		printf("./a.out fp32tobf16 in.bin out.bin\n");

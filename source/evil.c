@@ -53,7 +53,7 @@ int route(int argc,char** argv);
 int serve(int argc,char** argv);
 int substr(int argc,char** argv);
 //
-int quantization(int argc,char** argv);
+int mnist(int argc,char** argv);
 int llama(int argc,char** argv);
 
 
@@ -202,8 +202,8 @@ int main(int argc, char** argv)
 	}
 
 	//operate highlevel
-	else if(strncmp(argv[1], "quan", 4) == 0){
-		quantization(argc-1, argv+1);
+	else if(strncmp(argv[1], "mnist", 5) == 0){
+		mnist(argc-1, argv+1);
 	}
 	else if(strncmp(argv[1], "llama", 5) == 0){
 		llama(argc-1, argv+1);

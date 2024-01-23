@@ -1,3 +1,7 @@
+LINUXVULKAN:=/opt/vulkansdk/1.3.268.0/x86_64
+MACVULKAN:=/Users/ifbe/VulkanSDK/1.3.268.1/macOS
+WINVULKAN:=C:\VulkanSDK\1.3.268.0
+
 CC:=gcc		#/usr/local/opt/llvm/bin/clang
 CF:=
 
@@ -73,8 +77,12 @@ source/operator/2indite/kirchhoff/kirchhoff.c \
 source/operator/2indite/route/route.c \
 source/operator/2indite/serve/serve.c \
 source/operator/2indite/substr/substr.c \
+source/operator/3highlevel/llama/infer.c \
 source/operator/3highlevel/llama/quanti.c \
 source/operator/3highlevel/llama/llama2.c \
+source/operator/3highlevel/mnist/infer.c \
+source/operator/3highlevel/mnist/train.c \
+source/operator/3highlevel/mnist/mnist.c \
 source/evil.c
 OBJ:=$(patsubst %.c,%.o,$(SRC))
 
@@ -93,7 +101,7 @@ cli-fastnativeomp:
 	make -s cli CF="-march=native -Ofast -fopenmp"
 
 cli-fastnative-wincuda:
-	nvcc --default-stream per-thread --shared source/operator/3highlevel/llama/cuda.cu -o cuda.dll
+	nvcc --default-stream per-thread --shared source/operator/3highlevel/llama/backend/cuda.cu -o cuda.dll
 	$(CC) -march=native -Ofast -DBACKEND_CUDA -o a.exe \
 	source/operator/2indite/render/cli.c \
 	source/operator/2indite/serve/none.c \
@@ -103,7 +111,7 @@ cli-fastnative-wincuda:
 cli-fastnative-remotegpu:
 	$(CC) -march=native -Ofast -fopenmp -DBACKEND_REMOTEGPU -o a.exe \
 	$(SRC) \
-	source/operator/3highlevel/llama/remotegpu.c \
+	source/operator/3highlevel/llama/backend/remotegpu.c \
 	source/operator/2indite/render/cli.c \
 	source/operator/2indite/serve/none.c \
 	-Isource/libunit -Isource -lm
@@ -112,7 +120,7 @@ cli-fast-winvulkan:
 	C:\VulkanSDK\1.3.261.1\Bin\glslc.exe shader.comp -o shader.comp.spv
 	$(CC) -Ofast -DBACKEND_VULKAN -o a.exe \
 	$(SRC) \
-	source/operator/3highlevel/llama/vulkan.c \
+	source/operator/3highlevel/llama/backend/vulkan.c \
 	source/operator/2indite/render/cli.c \
 	source/operator/2indite/serve/none.c \
 	-IC:\VulkanSDK\1.3.261.1\Include -LC:\VulkanSDK\1.3.261.1\Lib -lvulkan-1 \
@@ -121,7 +129,7 @@ cli-nativeomp-winvulkan:
 	C:\VulkanSDK\1.3.261.1\Bin\glslc.exe shader.comp -o shader.comp.spv
 	$(CC) -march=native -Ofast -fopenmp -DBACKEND_VULKAN -o a.exe \
 	$(SRC) \
-	source/operator/3highlevel/llama/vulkan.c \
+	source/operator/3highlevel/llama/backend/vulkan.c \
 	source/operator/2indite/render/cli.c \
 	source/operator/2indite/serve/none.c \
 	-IC:\VulkanSDK\1.3.261.1\Include -LC:\VulkanSDK\1.3.261.1\Lib -lvulkan-1 \
@@ -130,16 +138,16 @@ cli-nativeomp-macvulkan:
 	glslangValidator --target-env vulkan1.2 shader.comp -o shader.comp.spv
 	$(CC) -march=native -Ofast -fopenmp -DBACKEND_VULKAN -o a.exe \
 	$(SRC) \
-	source/operator/3highlevel/llama/vulkan.c \
+	source/operator/3highlevel/llama/backend/vulkan.c \
 	source/operator/2indite/render/cli.c \
 	source/operator/2indite/serve/none.c \
-	-I/Users/ifbe/VulkanSDK/1.3.261.1/macOS/include -L/Users/ifbe/VulkanSDK/1.3.261.1/macOS/lib -lvulkan \
+	-I$(MACVULKAN)/include -L$(MACVULKAN)/lib -lvulkan \
 	-Isource/libunit -Isource -lm
 cli-nativeomp-linuxvulkan:
 	/opt/vulkansdk/1.3.261.1/x86_64/bin/glslc shader.comp -o shader.comp.spv
 	$(CC) -march=native -Ofast -fopenmp -DBACKEND_VULKAN -o a.exe \
 	$(SRC) \
-	source/operator/3highlevel/llama/vulkan.c \
+	source/operator/3highlevel/llama/backend/vulkan.c \
 	source/operator/2indite/render/cli.c \
 	source/operator/2indite/serve/none.c \
 	-I/opt/vulkansdk/1.3.261.1/x86_64/include -L/opt/vulkansdk/1.3.261.1/x86_64/lib -lvulkan \
