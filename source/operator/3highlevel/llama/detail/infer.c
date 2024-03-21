@@ -1165,8 +1165,9 @@ void dequantization(RUNSTATE_FLOATTYPE* dst, MODELWEIGHT_FLOATTYPE* src, int cnt
 	int j;
 	for(j=0;j<cnt;j++)dst[j] = src[j];
 }
-void transformer_eachlayer(RUNSTATE_FLOATTYPE* x, int pos, modelinfo* mi, RunState* rs, int layer)
+void transformer_eachlayer(modelinfo* mi, RunState* rs, int pos, int layer)
 {
+	RUNSTATE_FLOATTYPE* rs_x = rs->x_data;
 //----------------first stage----------------
 	u64 ta = time_in_ns();
 
@@ -1194,7 +1195,7 @@ void transformer_eachlayer(RUNSTATE_FLOATTYPE* x, int pos, modelinfo* mi, RunSta
 	RUNSTATE_FLOATTYPE* rs_v = rs_value_cache + loff + pos * kv_dim;
 
 	// attention rmsnorm
-	rmsnorm(rs_xb, x, w_rms_att_weight, dim);
+	rmsnorm(rs_xb, rs_x, w_rms_att_weight, dim);
 
 	u64 tb = time_in_ns();
 	tatotb += tb-ta;
@@ -1276,7 +1277,7 @@ void transformer_eachlayer(RUNSTATE_FLOATTYPE* x, int pos, modelinfo* mi, RunSta
 
 	// residual connection back into x
 	for (int i = 0; i < dim; i++) {
-		x[i] += rs_xb2[i];
+		rs_x[i] += rs_xb2[i];
 	}
 
 	u64 tf = time_in_ns();
@@ -1301,7 +1302,7 @@ void transformer_eachlayer(RUNSTATE_FLOATTYPE* x, int pos, modelinfo* mi, RunSta
 	RUNSTATE_FLOATTYPE* rs_hb2 = rs->hb2_data;
 
 	// ffn rmsnorm
-	rmsnorm(rs_xb, x, w_rms_ffn_weight, dim);
+	rmsnorm(rs_xb, rs_x, w_rms_ffn_weight, dim);
 
 	u64 tB = time_in_ns();
 	tAtotB += tB-tA;
@@ -1336,13 +1337,13 @@ void transformer_eachlayer(RUNSTATE_FLOATTYPE* x, int pos, modelinfo* mi, RunSta
 
 	// residual connection
 	for (int i = 0; i < dim; i++) {
-		x[i] += rs_xb[i];
+		rs_x[i] += rs_xb[i];
 	}
 
 	u64 tF = time_in_ns();
 	tEtotF += tF-tE;
 }
-void transformer(int token, int pos, modelinfo* mi, RunState* rs) {
+void transformer(modelinfo* mi, RunState* rs, int pos, int token) {
 	u64 t0 = time_in_ns();
 
 	int dim = mi->dim;
@@ -1361,7 +1362,7 @@ void transformer(int token, int pos, modelinfo* mi, RunState* rs) {
 
 	// forward all the layers
 	for(int l = 0; l < mi->n_layers; l++) {
-		transformer_eachlayer(rs_x, pos, mi, rs, l);
+		transformer_eachlayer(mi, rs, pos, l);
 	}
 
 	u64 t2 = time_in_ns();
@@ -1430,7 +1431,7 @@ void llama_runmodel(modelinfo* mi, RunState* rs, tokeninfo* ti, TokenState* ts)
 		//printf("pos=%d,steps=%d\n",pos,steps);
 
 		// forward the transformer to get logits for the next token
-		transformer(token, pos, mi, rs);
+		transformer(mi, rs, pos, token);
 
 		if(pos < ts->num_prompt_tokens) {
 			// if we are still processing the input prompt, force the next prompt token

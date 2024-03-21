@@ -77,12 +77,13 @@ source/operator/2indite/kirchhoff/kirchhoff.c \
 source/operator/2indite/route/route.c \
 source/operator/2indite/serve/serve.c \
 source/operator/2indite/substr/substr.c \
-source/operator/3highlevel/llama/infer.c \
-source/operator/3highlevel/llama/quanti.c \
 source/operator/3highlevel/llama/llama2.c \
-source/operator/3highlevel/mnist/infer.c \
-source/operator/3highlevel/mnist/train.c \
+source/operator/3highlevel/llama/detail/quanti.c \
+source/operator/3highlevel/llama/detail/infer.c \
+source/operator/3highlevel/llama/detail/train.c \
 source/operator/3highlevel/mnist/mnist.c \
+source/operator/3highlevel/mnist/detail/infer.c \
+source/operator/3highlevel/mnist/detail/train.c \
 source/evil.c
 OBJ:=$(patsubst %.c,%.o,$(SRC))
 
