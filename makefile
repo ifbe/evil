@@ -82,6 +82,7 @@ source/operator/3highlevel/llama/detail/quanti.c \
 source/operator/3highlevel/llama/detail/infer.c \
 source/operator/3highlevel/llama/detail/train.c \
 source/operator/3highlevel/mnist/mnist.c \
+source/operator/3highlevel/mnist/detail/data.c \
 source/operator/3highlevel/mnist/detail/infer.c \
 source/operator/3highlevel/mnist/detail/train.c \
 source/evil.c
