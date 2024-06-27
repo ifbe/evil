@@ -266,6 +266,9 @@ typedef struct{
 	int vocab_size; // vocabulary size, usually 256 (byte-level)
 	int seq_len; // max sequence length
 
+	int llamaversion;
+	float ropefreq;
+
 	// token embedding table
 	unsigned long long token_embedding_table_offs;
 	unsigned long long token_embedding_table_size;    // (vocab_size, dim)
@@ -377,14 +380,16 @@ void llama_initmodel(char* modelpath, modelinfo* mi)
 	printf("[%16llx,%16llx)%16lldMB        wq\n", offs, next, mi->wq_size>>20);
 	offs = next;
 
+	int kv_dim = (mi->dim * mi->n_kv_heads) / mi->n_heads;
+
 	mi->wk_offs = offs;
-	mi->wk_size = (u64)mi->n_layers * mi->dim * mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
+	mi->wk_size = (u64)mi->n_layers * mi->dim * kv_dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	next += mi->wk_size;
 	printf("[%16llx,%16llx)%16lldMB        wk\n", offs, next, mi->wk_size>>20);
 	offs = next;
 
 	mi->wv_offs = offs;
-	mi->wv_size = (u64)mi->n_layers * mi->dim * mi->dim * sizeof(MODELWEIGHT_FLOATTYPE);
+	mi->wv_size = (u64)mi->n_layers * mi->dim * kv_dim * sizeof(MODELWEIGHT_FLOATTYPE);
 	next += mi->wv_size;
 	printf("[%16llx,%16llx)%16lldMB        wv\n", offs, next, mi->wv_size>>20);
 	offs = next;
@@ -1036,7 +1041,6 @@ int bpe_encode(unsigned char *text, char **vocab, float *vocab_scores, int vocab
 	unsigned char* str_buffer = malloc((max_token_length*2+1) * sizeof(char)); // *2 for concat, +1 for null terminator
 
 	// first encode every individual byte in the input string
-	*n_tokens = 0; // the number of tokens
 	for (unsigned char *c = text; *c != '\0'; c++) {
 		if(*c >= 0xf0){
 			memcpy(str_buffer, c, 4);
@@ -1102,15 +1106,18 @@ int bpe_encode(unsigned char *text, char **vocab, float *vocab_scores, int vocab
 	free(str_buffer);
 	return 1;
 }
-int llama_prompt(modelinfo* mi, tokeninfo* tk, TokenState* ts, char* prompt)
+int llama_prompt_llama(modelinfo* mi, tokeninfo* tk, TokenState* ts, char* prompt)
 {
 	printf("--------prompt--------\n");
 	if(NULL == prompt){
 		goto theend;
 	}
 
+	ts->num_prompt_tokens = 0;
+
 	int ret = bpe_encode((u8*)prompt, tk->vocab, tk->vocab_scores, mi->vocab_size, tk->max_token_length, ts->prompt_tokens, &ts->num_prompt_tokens);
-	if(ret<0)return -1;
+
+	//debug
 	for(int j=0;j<ts->num_prompt_tokens;j++){
 		if(DEBUG_PROMPT){
 			int t = ts->prompt_tokens[j];
@@ -1119,7 +1126,84 @@ int llama_prompt(modelinfo* mi, tokeninfo* tk, TokenState* ts, char* prompt)
 			printf("\n");
 		}
 	}
+theend:
+	printf("\n");
+	return ts->num_prompt_tokens;
+}
+int llama_prompt_llama2(modelinfo* mi, tokeninfo* tk, TokenState* ts, char* prompt)
+{
+	printf("--------prompt--------\n");
+	if(NULL == prompt){
+		goto theend;
+	}
 
+	ts->num_prompt_tokens = 0;
+
+	int ret = 0;
+	ret = bpe_encode((u8*)"[inst]", tk->vocab, tk->vocab_scores, mi->vocab_size, tk->max_token_length, ts->prompt_tokens, &ts->num_prompt_tokens);
+	ret = bpe_encode((u8*)prompt, tk->vocab, tk->vocab_scores, mi->vocab_size, tk->max_token_length, ts->prompt_tokens, &ts->num_prompt_tokens);
+	ret = bpe_encode((u8*)"[/inst]", tk->vocab, tk->vocab_scores, mi->vocab_size, tk->max_token_length, ts->prompt_tokens, &ts->num_prompt_tokens);
+
+	//debug
+	for(int j=0;j<ts->num_prompt_tokens;j++){
+		if(DEBUG_PROMPT){
+			int t = ts->prompt_tokens[j];
+			printf("%d: token=%d, string=", j, t);
+			output(tk->vocab[t], strlen(tk->vocab[t]));
+			printf("\n");
+		}
+	}
+theend:
+	printf("\n");
+	return ts->num_prompt_tokens;
+}
+int llama_prompt_llama3(modelinfo* mi, tokeninfo* tk, TokenState* ts, char* prompt)
+{
+	printf("--------prompt--------\n");
+	if(NULL == prompt){
+		goto theend;
+	}
+
+	ts->num_prompt_tokens = 0;
+
+	ts->prompt_tokens[ts->num_prompt_tokens++] = 128000; // "<|begin_of_text|>"
+
+	//1.system talk
+	ts->prompt_tokens[ts->num_prompt_tokens++] = 128006; // "<|start_header_id|>"
+	ts->prompt_tokens[ts->num_prompt_tokens++] = 9125;   // "system"
+	ts->prompt_tokens[ts->num_prompt_tokens++] = 128007; // "<|end_header_id|>"
+	ts->prompt_tokens[ts->num_prompt_tokens++] = 271;    // "\n\n"
+	if(0){
+		//system token
+	}
+	ts->prompt_tokens[ts->num_prompt_tokens++] = 128009; // "<|eot_id|>"
+
+	//2.user talk
+	ts->prompt_tokens[ts->num_prompt_tokens++] = 128006; // "<|start_header_id|>"
+	ts->prompt_tokens[ts->num_prompt_tokens++] = 882;    // "user"
+	ts->prompt_tokens[ts->num_prompt_tokens++] = 128007; // "<|end_header_id|>"
+	ts->prompt_tokens[ts->num_prompt_tokens++] = 271;    // "\n\n"
+	if(1){
+		int ret = bpe_encode((u8*)prompt, tk->vocab, tk->vocab_scores, mi->vocab_size, tk->max_token_length, ts->prompt_tokens, &ts->num_prompt_tokens);
+		if(ret<0)return -1;
+	}
+	ts->prompt_tokens[ts->num_prompt_tokens++] = 128009; // "<|eot_id|>"
+
+	//3.llama talk
+	ts->prompt_tokens[ts->num_prompt_tokens++] = 128006; // "<|start_header_id|>"
+	ts->prompt_tokens[ts->num_prompt_tokens++] = 78191;  // "assistant"
+	ts->prompt_tokens[ts->num_prompt_tokens++] = 128007; // "<|end_header_id|>"
+	ts->prompt_tokens[ts->num_prompt_tokens++] = 271;    // "\n\n"
+
+	//debug
+	for(int j=0;j<ts->num_prompt_tokens;j++){
+		if(DEBUG_PROMPT){
+			int t = ts->prompt_tokens[j];
+			printf("%d: token=%d, string=", j, t);
+			output(tk->vocab[t], strlen(tk->vocab[t]));
+			printf("\n");
+		}
+	}
 theend:
 	printf("\n");
 	return ts->num_prompt_tokens;
@@ -1212,7 +1296,7 @@ void transformer_eachlayer(modelinfo* mi, RunState* rs, int pos, int layer)
 	// RoPE relative positional encoding: complex-valued rotate q and k by freq_cis in each head
 	for (int i = 0; i < dim; i+=2) {
 		int head_dim = i % head_size;
-		float freq = 1.0f / powf(10000.0f, head_dim / (float)head_size);
+		float freq = 1.0f / powf(mi->ropefreq, head_dim / (float)head_size);
 		float val = pos * freq;
 		float fcr = cosf(val);
 		float fci = sinf(val);
@@ -1497,21 +1581,39 @@ int getinputincludingcrlf(char* str, int len)
 void llama_infer(int argc, char** argv)
 {
 	modelinfo model;
+	char* modelpath = argv[1];
+	if(0 == strncmp(argv[1], "llama3=", 7)){
+		printf("this is llama3 model\n");
+		modelpath = argv[1]+7;
+		model.ropefreq = 500000.0;
+		model.llamaversion = 3;
+	}
+	else if(0 == strncmp(argv[1], "llama2=", 7)){
+		printf("this is llama2 model\n");
+		modelpath = argv[1]+7;
+		model.ropefreq = 10000.0;
+		model.llamaversion = 2;
+	}
+	else{
+		model.ropefreq = 10000.0;
+		model.llamaversion = 0;
+	}
+
 #ifdef BACKEND_VULKAN
 	void* ins = vulkan_init(0, 0);
 	if(0 == ins)return;
 	vulkan_myctx_create(0, 0);
-	llama_initmodel(argv[1], &model);
-	uploadall(argv[1], &model);
+	llama_initmodel(modelpath, &model);
+	uploadall(modelpath, &model);
 #elif BACKEND_CUDA
 	cudamath_init();
-	llama_initmodel(argv[1], &model);
-	uploadall(argv[1], &model);
+	llama_initmodel(modelpath, &model);
+	uploadall(modelpath, &model);
 #elif BACKEND_REMOTEGPU
 	remotegpu_init();
-	llama_initmodel(argv[1], &model);
+	llama_initmodel(modelpath, &model);
 #else
-	llama_initmodel(argv[1], &model);
+	llama_initmodel(modelpath, &model);
 #endif
 
 	RunState modelstate;
@@ -1532,7 +1634,17 @@ void llama_infer(int argc, char** argv)
 		printu8(str);
 		printf("\n");
 
-		ret = llama_prompt(&model, &token, &tokenstate, str);
+		switch(model.llamaversion){
+		case 3:
+			ret = llama_prompt_llama3(&model, &token, &tokenstate, str);
+			break;
+		case 2:
+			ret = llama_prompt_llama2(&model, &token, &tokenstate, str);
+			break;
+		default:
+			ret = llama_prompt_llama(&model, &token, &tokenstate, str);
+			break;
+		}
 		if(ret<0)continue;
 
 		llama_runmodel(&model, &modelstate, &token, &tokenstate);

@@ -7,7 +7,7 @@ typedef unsigned short u16;
 
 
 const char* validationLayers[] = {
-    "VK_LAYER_KHRONOS_validation"
+	"VK_LAYER_KHRONOS_validation"
 };
 
 
@@ -551,7 +551,7 @@ int initlogicaldevice(int what, VkSurfaceKHR face) {
 		VkCommandPoolCreateInfo poolInfo = {};
 		poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 		poolInfo.queueFamilyIndex = computeindex;
-        poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+		poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 		if (vkCreateCommandPool(logicaldevice, &poolInfo, 0, &computePool) != VK_SUCCESS) {
 			printf("error@vkCreateCommandPool\n");
 		}
@@ -1068,8 +1068,8 @@ void createcomputepipeline()
 
 #define SHADER_FLOATTYPE _Float16
 //
-int xdim = 16384;		//11008
-int ydim = 32000;
+int xdim = 16384;		//llama2=11008, llama3=14336
+int ydim = 131072;      //llama2=32000, llama3=128256
 int outputbuffersize = 0;
 int vectorbuffersize = 0;
 int matrixbuffersize = 0;
@@ -1085,7 +1085,7 @@ struct vkbuf cpuin={};
 struct vkbuf cpulogit={};
 struct vkbuf cpubuf[32*4]={};
 //
-#define GPUMEM_MAX 48
+#define GPUMEM_MAX 36
 struct vkbuf gpuout={};
 struct vkbuf gpuin={};
 struct vkbuf gpulogit={};
@@ -1110,7 +1110,10 @@ void pinmem_malloc(struct vkbuf* vb, int sz)
 	);
 	vb->size = sz;
 	printf("pinmem: fd=%p,mem=%p\n", vb->buffer, vb->memory);
-	if(0 == vb->memory)exit(-1);
+	if(0 == vb->memory){
+		printf("pinmem_malloc failed\n");
+		exit(-1);
+	}
 }
 void gpumem_malloc(struct vkbuf* vb, int sz)
 {
@@ -1127,7 +1130,10 @@ void gpumem_malloc(struct vkbuf* vb, int sz)
 	);
 	vb->size = sz;
 	printf("gpumem: fd=%p,mem=%p\n", vb->buffer, vb->memory);
-	if(0 == vb->memory)exit(-1);
+	if(0 == vb->memory){
+		printf("gpumem_malloc failed\n");
+		exit(-1);
+	}
 }
 struct vkbuf* pinmem_get(int handle)
 {

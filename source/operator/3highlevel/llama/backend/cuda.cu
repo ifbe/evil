@@ -41,9 +41,10 @@ __global__ void muladd_kernel(float* out, float* vec, __nv_bfloat16* mat, int xd
 	float f = 0.0;
 #pragma unroll
 	for(x=0;x<xdim;x+=4){
-		float2 w0w1 = __bfloat1622float2(*(reinterpret_cast<__nv_bfloat162*>(&mat[idx*xdim + x+0])));
-		float2 w2w3 = __bfloat1622float2(*(reinterpret_cast<__nv_bfloat162*>(&mat[idx*xdim + x+2])));
-		float4 weight = make_float4(w0w1.x, w0w1.y, w2w3.x, w2w3.y);
+		//float2 w0w1 = __bfloat1622float2(*(reinterpret_cast<__nv_bfloat162*>(&mat[idx*xdim + x+0])));
+		//float2 w2w3 = __bfloat1622float2(*(reinterpret_cast<__nv_bfloat162*>(&mat[idx*xdim + x+2])));
+		//float4 weight = make_float4(w0w1.x, w0w1.y, w2w3.x, w2w3.y);
+		float4 weight = make_float4(mat[idx*xdim + x+0], mat[idx*xdim + x+1], mat[idx*xdim + x+2], mat[idx*xdim + x+3]);
 		float4 xyzw = *(reinterpret_cast<float4*>(&vec[x+0]));
 		f += weight.x*xyzw.x + weight.y*xyzw.y + weight.z*xyzw.z + weight.w*xyzw.w;
 	}
@@ -110,8 +111,8 @@ static cudaStream_t stream[2];
 static cudaEvent_t event[5];
 static cudaEvent_t copyevent[5];
 //
-static int xdim = 16384;
-static int ydim = 32000;
+static int xdim = 16384;	//llama2=11008, llama3=14336
+static int ydim = 131072;	//llama2=32000, llama3=128256
 //
 static int outbyte = ydim * sizeof(float);
 static int vecbyte = xdim * sizeof(float);
@@ -241,7 +242,7 @@ __nv_bfloat16* gpumem_create_or_get(int handle, int size)
 
 				//gpumem is insufficient
 				#else
-#define GPUMEM_COUNT_LIMIT 48		//gtx1060 only have 6g gram
+#define GPUMEM_COUNT_LIMIT 36		//gtx1060 only have 6g gram
 static __nv_bfloat16* gpumem[GPUMEM_COUNT_LIMIT] = {};	//each layer 4 muladd
 static __nv_bfloat16* gpumem_staging[4];
 
