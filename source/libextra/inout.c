@@ -63,7 +63,7 @@ void output(u8* buf, int len)
 	for(j=0;j<len;j++)
 	{
 		//printf("(%02x)",buf[j]);
-		if(buf[j] < 0x80)
+		if( (buf[j] < 0x80) | (j+1>=len) )
 		{
 			printf("%c", buf[j]);
 		}

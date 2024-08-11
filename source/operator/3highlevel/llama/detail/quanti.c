@@ -4,6 +4,8 @@ typedef unsigned char u8;
 typedef unsigned short u16;
 typedef unsigned int u32;
 typedef unsigned long long u64;
+void output(void*, int);
+
 
 #define DEBUG_MINMAX 0
 
@@ -172,10 +174,10 @@ void llama_quanti(int argc, char** argv)
 	fclose(fi);
 }
 
-void llama_info(int argc, char** argv)
+void llama_info_model(int argc, char** argv)
 {
 	if(argc < 2){
-		printf("./a.out fp32tobf16 in.bin\n");
+		printf("./a.out infomodel in.bf16\n");
 		return;
 	}
 
@@ -282,4 +284,61 @@ void llama_info(int argc, char** argv)
 	}
 
 	printf("size=%lld(%llx)\n", pos, pos);
+}
+
+void llama_info_token(int argc, char** argv)
+{
+	if(argc < 2){
+		printf("./a.out infotoken tokenizer.bin\n");
+		return;
+	}
+
+	int ret;
+	FILE *file = fopen(argv[1], "rb");
+
+	unsigned int max_token_length;
+	if (fread(&max_token_length, sizeof(int), 1, file) != 1) { printf("failed read\n"); return; }
+	printf("max_token_length=%d\n",max_token_length);
+
+	int idx = 0;
+	float f32;
+	int len;
+	u8 vocab[256];
+	while(1) {
+		ret = fread(&f32, sizeof(float), 1, file);
+		if (ret != 1) {
+			if(ret == EOF)printf("%d:finish\n", idx);
+			else printf("%d:failed\n", idx);
+			break;
+		}
+
+		ret = fread(&len, sizeof(int), 1, file);
+		if (ret != 1) {
+			if(ret == EOF)printf("%d:finish\n", idx);
+			else printf("%d:failed\n", idx);
+			break;
+		}
+
+		ret = fread(vocab, len, 1, file);
+		if (ret != 1) {
+			if(ret == EOF)printf("%d:finish\n", idx);
+			else printf("%d:failed\n", idx);
+			break;
+		}
+		vocab[len] = '\0'; // add the string terminating token
+
+		printf("%d: score=%f, hex=", idx, f32);
+		for(ret=0;ret<len;ret++)printf("%02x",vocab[ret]);
+		printf(", string=");
+		if(0){		//vocab[0]<0x80){
+			printf("%.*s", len, vocab);
+		}
+		else{
+			output(vocab, len);
+		}
+		printf("\n");
+		idx++;
+	}
+
+	fclose(file);
 }

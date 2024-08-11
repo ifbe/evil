@@ -1011,8 +1011,18 @@ void llama_inittokenizer(char* tokenpath, modelinfo* mi, tokeninfo* ti)
 
 
 typedef struct {
+  float prob;
+  int index;
+} ProbIndex; // struct used when sorting probabilities during top-p sampling
+
+typedef struct {
 	int num_prompt_tokens;
 	int* prompt_tokens;
+
+	float temperature;
+	float topp;
+
+	ProbIndex *probindex;
 } TokenState;
 void llama_initprompt(modelinfo* mi, TokenState* ts)
 {
@@ -1021,6 +1031,13 @@ void llama_initprompt(modelinfo* mi, TokenState* ts)
 	ts->prompt_tokens = (int*)malloc(mi->seq_len * sizeof(int));
 	ts->num_prompt_tokens = 0;
 	printf("size=%d,addr=%p\n", ts->num_prompt_tokens, ts->prompt_tokens);
+
+	ts->temperature = 1.0;
+	ts->topp = 0.9;
+	printf("temp=%f,topp=%f\n", ts->temperature, ts->topp);
+
+	ts->probindex = malloc(mi->vocab_size * sizeof(ProbIndex));
+	printf("vocabsize=%d, probindex=%p\n", mi->vocab_size, ts->probindex);
 
 	printf("\n");
 }
@@ -1113,7 +1130,8 @@ int llama_prompt_llama(modelinfo* mi, tokeninfo* tk, TokenState* ts, char* promp
 		goto theend;
 	}
 
-	ts->num_prompt_tokens = 0;
+	ts->prompt_tokens[0] = 1;	//BOS
+	ts->num_prompt_tokens = 1;
 
 	int ret = bpe_encode((u8*)prompt, tk->vocab, tk->vocab_scores, mi->vocab_size, tk->max_token_length, ts->prompt_tokens, &ts->num_prompt_tokens);
 
@@ -1137,7 +1155,8 @@ int llama_prompt_llama2(modelinfo* mi, tokeninfo* tk, TokenState* ts, char* prom
 		goto theend;
 	}
 
-	ts->num_prompt_tokens = 0;
+	ts->prompt_tokens[0] = 1;	//BOS
+	ts->num_prompt_tokens = 1;
 
 	int ret = 0;
 	ret = bpe_encode((u8*)"[inst]", tk->vocab, tk->vocab_scores, mi->vocab_size, tk->max_token_length, ts->prompt_tokens, &ts->num_prompt_tokens);
@@ -1166,34 +1185,36 @@ int llama_prompt_llama3(modelinfo* mi, tokeninfo* tk, TokenState* ts, char* prom
 
 	ts->num_prompt_tokens = 0;
 
+	//0.begin of text
 	ts->prompt_tokens[ts->num_prompt_tokens++] = 128000; // "<|begin_of_text|>"
+	ts->prompt_tokens[ts->num_prompt_tokens++] = 271;    // "\n\n"
 
 	//1.system talk
 	ts->prompt_tokens[ts->num_prompt_tokens++] = 128006; // "<|start_header_id|>"
 	ts->prompt_tokens[ts->num_prompt_tokens++] = 9125;   // "system"
 	ts->prompt_tokens[ts->num_prompt_tokens++] = 128007; // "<|end_header_id|>"
-	ts->prompt_tokens[ts->num_prompt_tokens++] = 271;    // "\n\n"
 	if(0){
 		//system token
 	}
 	ts->prompt_tokens[ts->num_prompt_tokens++] = 128009; // "<|eot_id|>"
+	ts->prompt_tokens[ts->num_prompt_tokens++] = 271;    // "\n\n"
 
 	//2.user talk
 	ts->prompt_tokens[ts->num_prompt_tokens++] = 128006; // "<|start_header_id|>"
 	ts->prompt_tokens[ts->num_prompt_tokens++] = 882;    // "user"
 	ts->prompt_tokens[ts->num_prompt_tokens++] = 128007; // "<|end_header_id|>"
-	ts->prompt_tokens[ts->num_prompt_tokens++] = 271;    // "\n\n"
 	if(1){
 		int ret = bpe_encode((u8*)prompt, tk->vocab, tk->vocab_scores, mi->vocab_size, tk->max_token_length, ts->prompt_tokens, &ts->num_prompt_tokens);
 		if(ret<0)return -1;
 	}
 	ts->prompt_tokens[ts->num_prompt_tokens++] = 128009; // "<|eot_id|>"
+	ts->prompt_tokens[ts->num_prompt_tokens++] = 271;    // "\n\n"
 
 	//3.llama talk
 	ts->prompt_tokens[ts->num_prompt_tokens++] = 128006; // "<|start_header_id|>"
 	ts->prompt_tokens[ts->num_prompt_tokens++] = 78191;  // "assistant"
 	ts->prompt_tokens[ts->num_prompt_tokens++] = 128007; // "<|end_header_id|>"
-	ts->prompt_tokens[ts->num_prompt_tokens++] = 271;    // "\n\n"
+	//ts->prompt_tokens[ts->num_prompt_tokens++] = 271;    // "\n\n"
 
 	//debug
 	for(int j=0;j<ts->num_prompt_tokens;j++){
@@ -1464,18 +1485,10 @@ void transformer(modelinfo* mi, RunState* rs, int pos, int token) {
 	u64 t4 = time_in_ns();
 	t3tot4 += t4-t3;
 }
-int sample(RUNSTATE_FLOATTYPE* probabilities, int n) {
-	// sample index from probabilities, they must sum to 1
-	float r = random_f32();
-	float cdf = 0.0f;
-	for (int i = 0; i < n; i++) {
-		cdf += probabilities[i];
-		if (r < cdf) {
-			return i;
-		}
-	}
-	return n - 1; // in case of rounding errors
-}
+
+
+
+
 int argmax(RUNSTATE_FLOATTYPE* v, int n) {
 	// return argmax of v in elements 0..n
 	int max_i = 0;
@@ -1488,10 +1501,145 @@ int argmax(RUNSTATE_FLOATTYPE* v, int n) {
 	}
 	return max_i;
 }
+int sample_mult(RUNSTATE_FLOATTYPE* probabilities, int n, float coin) {
+	// sample index from probabilities, they must sum to 1
+	float cdf = 0.0f;
+	for (int i = 0; i < n; i++) {
+		cdf += probabilities[i];
+		if (coin < cdf) {
+			return i;
+		}
+	}
+	return n - 1; // in case of rounding errors
+}
+
+void probindex_sort(ProbIndex* probindex, int l0, int r0)
+{
+	if(l0 >= r0)return;
+
+	float prob= probindex[l0].prob;
+	int index = probindex[l0].index;
+	if(l0+1 == r0){
+		if(probindex[l0].prob < probindex[r0].prob){
+			probindex[l0].prob = probindex[r0].prob;
+			probindex[l0].index= probindex[r0].index;
+			probindex[r0].prob = prob;
+			probindex[r0].index= index;
+		}
+		return;
+	}
+
+	int l = l0;
+	int r = r0;
+	while(l < r){
+		while((l<r) && (probindex[r].prob <= prob))r--;
+		if(l < r){
+			probindex[l].prob = probindex[r].prob;
+			probindex[l].index= probindex[r].index;
+			l++;
+		}
+		while((l<r) && (probindex[l].prob >= prob))l++;
+		if(l < r){
+			probindex[r].prob = probindex[l].prob;
+			probindex[r].index= probindex[l].index;
+			r--;
+		}
+	}
+	probindex[l].prob = prob;
+	probindex[l].index= index;
+	probindex_sort(probindex, l0, l-1);
+	probindex_sort(probindex, l+1, r0);
+}
+int sample_topp(RUNSTATE_FLOATTYPE* probabilities, int n, float coin, TokenState* ts) {
+	//1.find
+	float cutoff = (1.0f - ts->topp) / (n - 1);
+	int sz = 0;
+	for (int i = 0; i < n; i++) {
+		if(probabilities[i] < cutoff)continue;
+
+		ts->probindex[sz].index = i;
+		ts->probindex[sz].prob = probabilities[i];
+		sz++;
+	}
+
+	//2.sort
+	probindex_sort(ts->probindex, 0, sz-1);
+	//printf("<%f,%f,%f,%f>", ts->probindex[0].prob, ts->probindex[1].prob, ts->probindex[2].prob, ts->probindex[3].prob);
+
+	//3.truncate
+	float cumulative_prob = 0.0f;
+	int last_idx = sz - 1; // in case of rounding errors consider all elements
+	for (int i = 0; i < sz; i++) {
+		cumulative_prob += ts->probindex[i].prob;
+		if (cumulative_prob > ts->topp) {
+			last_idx = i;
+			break; // we've exceeded topp by including last_idx
+		}
+	}
+
+	//4.sample
+	float r = coin * cumulative_prob;
+	float cdf = 0.0f;
+	for (int i = 0; i <= last_idx; i++) {
+		cdf += ts->probindex[i].prob;
+		if(r < cdf)return ts->probindex[i].index;
+	}
+
+	return n - 1; // in case of rounding errors
+}
 
 
 
 
+void llama_print(char* token_str)
+{
+	//printf("%s", token_str);
+	if(0 == strncmp(token_str, "<0x0A>", 6))token_str = "\n";
+	output(token_str, strlen(token_str));
+	fflush(stdout);
+}
+void debug_top3(tokeninfo* ti, RUNSTATE_FLOATTYPE* rs_logits, int cnt)
+{
+	int j;
+	int idx0,idx1,idx2;
+	RUNSTATE_FLOATTYPE top0 = -1000,top1 = -1000,top2 = -1000;
+	for(j=0;j<cnt;j++){
+		if(rs_logits[j] > top0){
+			top2 = top1;
+			top1 = top0;
+			top0 = rs_logits[j];
+			idx2 = idx1;
+			idx1 = idx0;
+			idx0 = j;
+		}
+		else if(rs_logits[j] > top1){
+			top2 = top1;
+			top1 = rs_logits[j];
+			idx2 = idx1;
+			idx1 = j;
+		}
+		else if(rs_logits[j] > top2){
+			top2 = rs_logits[j];
+			idx2 = j;
+		}
+	}
+	//printf("[%d=%f,%d=%f,%d=%f]", idx0,top0, idx1,top1, idx2,top2);
+
+	printf("<");
+	printf("%d=%f=", idx0,top0);
+	output(ti->vocab[idx0], strlen(ti->vocab[idx0]));
+	printf("/");
+	printf("%d=%f=", idx1,top1);
+	output(ti->vocab[idx1], strlen(ti->vocab[idx1]));
+	printf("/");
+	printf("%d=%f=", idx2,top2);
+	output(ti->vocab[idx2], strlen(ti->vocab[idx2]));
+	printf(">");
+}
+
+
+#define end_of_text 128001
+#define eot_id 128009
 void llama_runmodel(modelinfo* mi, RunState* rs, tokeninfo* ti, TokenState* ts)
 {
 	printf("--------runmodel--------\n");
@@ -1503,54 +1651,59 @@ void llama_runmodel(modelinfo* mi, RunState* rs, tokeninfo* ti, TokenState* ts)
 	tatotb = tbtotc = tctotd = tdtote = tetotf = 0;
 	tAtotB = tBtotC = tCtotD = tDtotE = tEtotF = 0;
 
-	// start the main loop
+	//prompt
 	int next;        // will store the next token in the sequence
-	int token = 1;   // init with token 1 (=BOS), as done in Llama-2 sentencepiece tokenizer
 	int pos = 0;     // position in the sequence
-	//printf("<s>\n"); // explicit print the initial BOS token for stylistic symmetry reasons
-
-	float temperature = 1.0;
-	int steps = mi->seq_len;
-	while (pos < steps) {
-		//printf("pos=%d,steps=%d\n",pos,steps);
-
-		// forward the transformer to get logits for the next token
-		transformer(mi, rs, pos, token);
-
-		if(pos < ts->num_prompt_tokens) {
-			// if we are still processing the input prompt, force the next prompt token
-			next = ts->prompt_tokens[pos];
-		} else {
-			// sample the next token
-			if (temperature == 0.0f) {
-				// greedy argmax sampling: take the token with the highest probability
-				next = argmax(rs_logits, mi->vocab_size);
-			} else {
-				// apply the temperature to the logits
-				for (int q=0; q<mi->vocab_size; q++) { rs_logits[q] /= temperature; }
-				// apply softmax to the logits to get the probabilities for next token
-				softmax(rs_logits, mi->vocab_size);
-				// we sample from this distribution to get the next token
-				next = sample(rs_logits, mi->vocab_size);
-			}
-		}
+	while(pos < ts->num_prompt_tokens){
+		next = ts->prompt_tokens[pos];
+		llama_print(ti->vocab[next]);
+		transformer(mi, rs, pos, next);
 		pos++;
-
-		if(2 >= next)break;
-
-		// following BOS token (1), sentencepiece decoder strips any leading whitespace (see PR #89)
-		char *token_str = (token == 1 && ti->vocab[next][0] == ' ') ? ti->vocab[next]+1 : ti->vocab[next];
-		//printf("%s", token_str);
-		if(0 == strncmp(token_str, "<0x0A>", 6))token_str = "\n";
-		output(token_str, strlen(token_str));
-		fflush(stdout);
-		token = next;
 
 		// init our timer here because the first iteration is slow due to memmap
 		if (start == 0) { start = time_in_ns(); }
 	}
+
+	//answer
+	int steps = mi->seq_len;
+	while (pos < steps) {
+		//printf("pos=%d,steps=%d\n",pos,steps);
+
+		// sample the next token
+		if (ts->temperature == 0.0f) {
+			// greedy argmax sampling: take the token with the highest probability
+			next = argmax(rs_logits, mi->vocab_size);
+		} else {
+			// apply the temperature to the logits
+			for (int q=0; q<mi->vocab_size; q++) { rs_logits[q] /= ts->temperature; }
+			// apply softmax to the logits to get the probabilities for next token
+			softmax(rs_logits, mi->vocab_size);
+			//debug_top3(ti, rs_logits, mi->vocab_size);
+
+			// we sample from this distribution to get the next token
+			float coin = random_f32();
+			if(ts->topp <= 0 || ts->topp >= 1) {
+				next = sample_mult(rs_logits, mi->vocab_size, coin);
+			}
+			else{
+				next = sample_topp(rs_logits, mi->vocab_size, coin, ts);
+			}
+		}
+//fprintf(stderr, "<%d>", next);
+		if(2 >= next)break;
+		if((end_of_text==next)|(eot_id==next))break;
+
+		// following BOS token (1), sentencepiece decoder strips any leading whitespace (see PR #89)
+		char *token_str = ti->vocab[next];
+		llama_print(token_str);
+
+		// forward the transformer to get logits for the next token
+		transformer(mi, rs, pos, next);
+		pos++;
+	}
 	printf("\n\n");
 
+	//evaluate
 	if (pos > 1) {
 		u64 end = time_in_ns();
 		printf("--------evaluate--------\n");
