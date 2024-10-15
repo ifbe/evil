@@ -33,65 +33,83 @@ source/libextra/2d.c \
 source/libextra/3d.c \
 source/libextra/force.c \
 source/libextra/inout.c \
-source/parser/1assembly/disasm/disasm.c \
-source/parser/1assembly/disasm/exe/elf.c \
-source/parser/1assembly/disasm/exe/mac.c \
-source/parser/1assembly/disasm/exe/pe.c \
-source/parser/1assembly/disasm/obj/obj.c \
-source/parser/1assembly/disasm/cpu/arm64.c \
-source/parser/1assembly/disasm/cpu/x8664.c \
-source/parser/1assembly/reverse/follow/arm64.c \
-source/parser/1assembly/reverse/follow/x8664.c \
-source/parser/1assembly/reverse/travel/arm64.c \
-source/parser/1assembly/reverse/travel/x8664.c \
-source/parser/2cfamily/compile/compile.c \
-source/parser/2cfamily/compile/asm/nasm.c \
-source/parser/2cfamily/compile/asm/gas.c \
-source/parser/2cfamily/compile/c/c.c \
-source/parser/2cfamily/learn/learn.c \
-source/parser/2cfamily/learn/circuit/cir.c \
-source/parser/2cfamily/learn/circuit/dsn.c \
-source/parser/2cfamily/learn/circuit/brd.c \
-source/parser/2cfamily/learn/data/dts.c \
-source/parser/2cfamily/learn/data/utf8.c \
-source/parser/2cfamily/learn/map/map.c \
-source/parser/2cfamily/learn/model/3d.c \
-source/parser/2cfamily/learn/model/stl.c \
-source/parser/2cfamily/learn/prog/asm.c \
-source/parser/2cfamily/learn/prog/c.c \
-source/parser/2cfamily/learn/prog/h.c \
-source/parser/2cfamily/learn/prog/cpp.c \
-source/parser/2cfamily/learn/prog/hpp.c \
-source/parser/2cfamily/learn/prog/java.c \
-source/parser/2cfamily/learn/test/none.c \
-source/parser/2cfamily/learn/test/count.c \
-source/parser/2cfamily/learn/test/include.c \
-source/operator/0format/conv.c \
-source/operator/0format/format.c \
-source/operator/1easyop/create.c \
-source/operator/1easyop/delete.c \
-source/operator/1easyop/search.c \
-source/operator/1easyop/modify.c \
-source/operator/2indite/render/render.c \
-source/operator/2indite/kirchhoff/kirchhoff.c \
-source/operator/2indite/route/route.c \
-source/operator/2indite/serve/serve.c \
-source/operator/2indite/substr/substr.c \
-source/operator/3highlevel/llama/llama2.c \
-source/operator/3highlevel/llama/detail/quanti.c \
-source/operator/3highlevel/llama/detail/infer.c \
-source/operator/3highlevel/llama/detail/train.c \
-source/operator/3highlevel/mnist/mnist.c \
-source/operator/3highlevel/mnist/detail/data.c \
-source/operator/3highlevel/mnist/detail/infer.c \
-source/operator/3highlevel/mnist/detail/train.c \
+source/1parser/0format/conv.c \
+source/1parser/0format/format.c \
+source/1parser/1assembly/analyse/follow/arm64.c \
+source/1parser/1assembly/analyse/follow/x8664.c \
+source/1parser/1assembly/analyse/travel/arm64.c \
+source/1parser/1assembly/analyse/travel/x8664.c \
+source/1parser/1assembly/assembly/cpu/arm64.c \
+source/1parser/1assembly/assembly/cpu/x8664.c \
+source/1parser/1assembly/assembly/exe/elf.c \
+source/1parser/1assembly/assembly/exe/mac.c \
+source/1parser/1assembly/assembly/exe/pe.c \
+source/1parser/1assembly/assembly/obj/obj.c \
+source/1parser/1assembly/assembly/assembly.c \
+source/1parser/1assembly/assembly/disasm.c \
+source/1parser/2cfamily/compile/asm/gas.c \
+source/1parser/2cfamily/compile/asm/nasm.c \
+source/1parser/2cfamily/compile/c/c.c \
+source/1parser/2cfamily/compile/compile.c \
+source/1parser/3human/novel/novel.c \
+source/1parser/3human/poetry/poetry.c \
+source/2learn/learn/circuit/brd.c \
+source/2learn/learn/circuit/cir.c \
+source/2learn/learn/circuit/dsn.c \
+source/2learn/learn/data/dts.c \
+source/2learn/learn/data/html.c \
+source/2learn/learn/data/json.c \
+source/2learn/learn/data/utf8.c \
+source/2learn/learn/data/xaml.c \
+source/2learn/learn/data/xml.c \
+source/2learn/learn/learn.c \
+source/2learn/learn/map/map.c \
+source/2learn/learn/model/3d.c \
+source/2learn/learn/model/stl.c \
+source/2learn/learn/prog/asm.c \
+source/2learn/learn/prog/c.c \
+source/2learn/learn/prog/cpp.c \
+source/2learn/learn/prog/go.c \
+source/2learn/learn/prog/h.c \
+source/2learn/learn/prog/hpp.c \
+source/2learn/learn/prog/java.c \
+source/2learn/learn/prog/js.c \
+source/2learn/learn/prog/perl.c \
+source/2learn/learn/prog/php.c \
+source/2learn/learn/prog/python.c \
+source/2learn/learn/prog/ruby.c \
+source/2learn/learn/script/bash.c \
+source/2learn/learn/script/bat.c \
+source/2learn/learn/script/make.c \
+source/2learn/learn/script/marco.c \
+source/2learn/learn/test/count.c \
+source/2learn/learn/test/include.c \
+source/2learn/learn/test/none.c \
+source/2learn/operate/easyop/create.c \
+source/2learn/operate/easyop/delete.c \
+source/2learn/operate/easyop/modify.c \
+source/2learn/operate/easyop/search.c \
+source/2learn/operate/kirchhoff/kirchhoff.c \
+source/2learn/operate/render/render.c \
+source/2learn/operate/route/route.c \
+source/2learn/operate/serve/serve.c \
+source/2learn/operate/substr/substr.c \
+source/3highlevel/llama/backend/remotegpu.c \
+source/3highlevel/llama/detail/infer.c \
+source/3highlevel/llama/detail/quanti.c \
+source/3highlevel/llama/detail/train.c \
+source/3highlevel/llama/llama2.c \
+source/3highlevel/mnist/detail/data.c \
+source/3highlevel/mnist/detail/infer.c \
+source/3highlevel/mnist/detail/train.c \
+source/3highlevel/mnist/mnist.c \
 source/evil.c
 OBJ:=$(patsubst %.c,%.o,$(SRC))
 
 cli:
 	$(CC) $(CF) -o a.exe $(SRC) \
-	source/operator/2indite/render/cli.c \
-	source/operator/2indite/serve/none.c \
+	source/2learn/operate/render/cli.c \
+	source/2learn/operate/serve/none.c \
 	-Isource/libunit -Isource -lm
 cli-fast:
 	make -s cli CF="-Ofast"
@@ -119,7 +137,7 @@ cli-fastnative-remotegpu:
 	-Isource/libunit -Isource -lm
 
 cli-fast-winvulkan:
-	${WINVULKAN}\Bin\glslc.exe shader.comp -o shader.comp.spv
+	${WINVULKAN}\Bin\glslc.exe source/operator/3highlevel/llama/backend/shader.comp -o shader.comp.spv
 	$(CC) -Ofast -DBACKEND_VULKAN -o a.exe \
 	$(SRC) \
 	source/operator/3highlevel/llama/backend/vulkan.c \
@@ -128,7 +146,7 @@ cli-fast-winvulkan:
 	-I${WINVULKAN}\Include -L${WINVULKAN}\Lib -lvulkan-1 \
 	-Isource/libunit -Isource -lm
 cli-nativeomp-winvulkan:
-	${WINVULKAN}\Bin\glslc.exe shader.comp -o shader.comp.spv
+	${WINVULKAN}\Bin\glslc.exe source/operator/3highlevel/llama/backend/shader.comp -o shader.comp.spv
 	$(CC) -march=native -Ofast -fopenmp -DBACKEND_VULKAN -o a.exe \
 	$(SRC) \
 	source/operator/3highlevel/llama/backend/vulkan.c \
@@ -137,7 +155,7 @@ cli-nativeomp-winvulkan:
 	-I${WINVULKAN}\Include -L${WINVULKAN}\Lib -lvulkan-1 \
 	-Isource/libunit -Isource -lm
 cli-nativeomp-macvulkan:
-	glslangValidator --target-env vulkan1.2 shader.comp -o shader.comp.spv
+	glslangValidator --target-env vulkan1.2 source/operator/3highlevel/llama/backend/shader.comp -o shader.comp.spv
 	$(CC) -march=native -Ofast -fopenmp -DBACKEND_VULKAN -o a.exe \
 	$(SRC) \
 	source/operator/3highlevel/llama/backend/vulkan.c \
@@ -146,7 +164,7 @@ cli-nativeomp-macvulkan:
 	-I$(MACVULKAN)/include -L$(MACVULKAN)/lib -lvulkan \
 	-Isource/libunit -Isource -lm
 cli-nativeomp-linuxvulkan:
-	${LINUXVULKAN}/x86_64/bin/glslc shader.comp -o shader.comp.spv
+	${LINUXVULKAN}/x86_64/bin/glslc source/operator/3highlevel/llama/backend/shader.comp -o shader.comp.spv
 	$(CC) -march=native -Ofast -fopenmp -DBACKEND_VULKAN -o a.exe \
 	$(SRC) \
 	source/operator/3highlevel/llama/backend/vulkan.c \

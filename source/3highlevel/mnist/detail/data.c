@@ -187,6 +187,7 @@ err2:
 	mnist_label_close();
 err1:
 	mnist_image_close();
+	return 0;
 }
 int mnist_exit(struct mnist_runstate* rs)
 {

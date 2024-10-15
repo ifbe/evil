@@ -1492,7 +1492,7 @@ void transformer(modelinfo* mi, RunState* rs, int pos, int token) {
 int argmax(RUNSTATE_FLOATTYPE* v, int n) {
 	// return argmax of v in elements 0..n
 	int max_i = 0;
-	MODELWEIGHT_FLOATTYPE max_p = v[0];
+	RUNSTATE_FLOATTYPE max_p = v[0];
 	for (int i = 1; i < n; i++) {
 		if (v[i] > max_p) {
 			max_i = i;

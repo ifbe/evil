@@ -97,4 +97,5 @@ int mnist_infer(int argc, char** argv)
 	}
 
 	mnist_exit(&rs);
+	return 0;
 }

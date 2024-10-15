@@ -103,4 +103,5 @@ int mnist_train(int argc, char** argv)
 	mnist_model_save(rs.modelpath);
 
 	mnist_exit(&rs);
+	return 0;
 }

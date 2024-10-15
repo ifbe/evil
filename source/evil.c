@@ -28,6 +28,7 @@ void relation_delete();
 void worker_create();
 void worker_delete();
 //
+int assembly(int argc,char** argv);
 int disasm(int argc,char** argv);
 int disasm_arm64(int argc,char** argv);
 int disasm_x8664(int argc,char** argv);
@@ -127,9 +128,15 @@ int main(int argc, char** argv)
 		return 0;
 	}
 
-	//parse binary
+	//operate simple
+	else if(strcmp(argv[1], "conv") == 0){
+		conv(argc-1, argv+1);
+	}
+	else if(strcmp(argv[1], "format") == 0){
+		format(argc-1, argv+1);
+	}
 
-	//parse assembly
+	//parse binary
 	else if(strcmp(argv[1], "disasm_arm64") == 0){
 		disasm_arm64(argc-1, argv+1);
 	}
@@ -152,22 +159,17 @@ int main(int argc, char** argv)
 		travel_x8664(argc-1, argv+1);
 	}
 
+	//parse assembly
+	else if(strncmp(argv[1], "assembly", 3) == 0){
+		assembly(argc-1, argv+1);
+	}
+
 	//parse c
 	else if(strcmp(argv[1], "learn") == 0){
 		learn(argc-1, argv+1);
 	}
 	else if(strcmp(argv[1], "compile") == 0){
 		compile(argc-1, argv+1);
-	}
-
-	//parse humanlang
-
-	//operate simple
-	else if(strcmp(argv[1], "conv") == 0){
-		conv(argc-1, argv+1);
-	}
-	else if(strcmp(argv[1], "format") == 0){
-		format(argc-1, argv+1);
 	}
 
 	//operate database
@@ -208,6 +210,8 @@ int main(int argc, char** argv)
 	else if(strncmp(argv[1], "llama", 5) == 0){
 		llama(argc-1, argv+1);
 	}
+
+	//parse humanlang
 
 	//wrong usage
 	else{

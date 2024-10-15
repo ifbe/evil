@@ -2518,6 +2518,31 @@ theend:
 
 
 
+struct offlen{
+	u8 off;
+	u8 len;
+}__attribute__((packed));
+void assembly_mov(u8* buf, int len, struct offlen* tab, int cnt)
+{
+	printf("dst=%.*s, src=%.*s\n", tab[1].len, buf+tab[1].off, tab[3].len, buf+tab[3].off);
+}
+void assembly_add(u8* buf, int len, struct offlen* tab, int cnt)
+{
+	printf("dst=%.*s, op0=%.*s, op1=%.*s\n", tab[1].len, buf+tab[1].off, tab[3].len, buf+tab[3].off, tab[5].len, buf+tab[5].off);
+}
+void assembly_x8664(u8* buf, int len, struct offlen* tab, int cnt)
+{
+	int j;
+	for(j=0;j<cnt;j++){
+		printf("%d: %.*s\n", j, tab[j].len, buf+tab[j].off);
+	}
+	if(0 == strncmp((char*)buf+tab[0].off, "mov", 3)){
+		assembly_mov(buf, len, tab, cnt);
+	}
+	if(0 == strncmp((char*)buf+tab[0].off, "add", 3)){
+		assembly_add(buf, len, tab, cnt);
+	}
+}
 /*
 	if((0x09 == p[0])&&(0xc0 == (p[2]&0xc0)))
 	{
