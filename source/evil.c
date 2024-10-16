@@ -28,7 +28,8 @@ void relation_delete();
 void worker_create();
 void worker_delete();
 //
-int assembly(int argc,char** argv);
+int assembly_arm64(int argc,char** argv);
+int assembly_x8664(int argc,char** argv);
 int disasm(int argc,char** argv);
 int disasm_arm64(int argc,char** argv);
 int disasm_x8664(int argc,char** argv);
@@ -160,8 +161,11 @@ int main(int argc, char** argv)
 	}
 
 	//parse assembly
-	else if(strncmp(argv[1], "assembly", 3) == 0){
-		assembly(argc-1, argv+1);
+	else if(strncmp(argv[1], "asm_arm64", 9) == 0){
+		assembly_arm64(argc-1, argv+1);
+	}
+	else if(strncmp(argv[1], "asm_x8664", 9) == 0){
+		assembly_x8664(argc-1, argv+1);
 	}
 
 	//parse c

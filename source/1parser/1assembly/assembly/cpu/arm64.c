@@ -2511,3 +2511,120 @@ release:
 theend:
 	close(fd);
 }
+
+
+
+
+struct offlen{
+	u8 off;
+	u8 len;
+}__attribute__((packed));
+void assembly_arm64_orr(u8* buf, int len, struct offlen* tab, int cnt)
+{
+	printf("dst=%.*s, src=%.*s\n", tab[0].len, buf+tab[0].off, tab[2].len, buf+tab[2].off);
+	u8* dst0b = buf+tab[0].off;
+	int dst0l = tab[0].len;
+	u8* src0b = buf+tab[2].off;
+	int src0l = tab[2].len;
+
+	u32 bin = 0;
+	if( ('x'==dst0b[0]) && ('x'==src0b[0]) ){		//x is 64 bit
+		int d0 = atoi((char*)dst0b+1);
+		int s0 = atoi((char*)src0b+1);
+		bin |= (d0<<0);
+		bin |= (0x1f<<5);
+		bin |= (s0<<16);
+		bin |= 0xaa000000;
+		disasm_arm64_one(bin, 0);
+	}
+	if( ('w'==dst0b[0]) && ('w'==src0b[0]) ){		//w is 32 bit
+		int d0 = atoi((char*)dst0b+1);
+		int s0 = atoi((char*)src0b+1);
+		bin |= (d0<<0);
+		bin |= (0x1f<<5);
+		bin |= (s0<<16);
+		bin |= 0x2a000000;
+		disasm_arm64_one(bin, 0);
+	}
+}
+void assembly_arm64_add(u8* buf, int len, struct offlen* tab, int cnt)
+{
+	printf("dst=%.*s, src0=%.*s, src1=%.*s\n", tab[0].len, buf+tab[0].off, tab[2].len, buf+tab[2].off, tab[4].len, buf+tab[4].off);
+	u8* dst0b = buf+tab[0].off;
+	int dst0l = tab[0].len;
+	u8* src0b = buf+tab[2].off;
+	int src0l = tab[2].len;
+	u8* src1b = buf+tab[4].off;
+	int src1l = tab[4].len;
+
+	u32 bin = 0;
+	if( ('x'==dst0b[0]) && ('x'==src0b[0]) ){		//x is 64 bit
+		int d0 = atoi((char*)dst0b+1);
+		int s0 = atoi((char*)src0b+1);
+		int s1 = atoi((char*)src1b+1);
+		bin |= (d0<<0);
+		bin |= (s0<<5);
+		bin |= (s1<<16);
+		bin |= 0x8b000000;
+		disasm_arm64_one(bin, 0);
+	}
+	if( ('w'==dst0b[0]) && ('w'==src0b[0]) ){		//w is 32 bit
+		int d0 = atoi((char*)dst0b+1);
+		int s0 = atoi((char*)src0b+1);
+		int s1 = atoi((char*)src1b+1);
+		bin |= (d0<<0);
+		bin |= (s0<<5);
+		bin |= (s1<<16);
+		bin |= 0x0b000000;
+		disasm_arm64_one(bin, 0);
+	}
+}
+void assembly_arm64_sub(u8* buf, int len, struct offlen* tab, int cnt)
+{
+	printf("dst=%.*s, src0=%.*s, src1=%.*s\n", tab[0].len, buf+tab[0].off, tab[2].len, buf+tab[2].off, tab[4].len, buf+tab[4].off);
+	u8* dst0b = buf+tab[0].off;
+	int dst0l = tab[0].len;
+	u8* src0b = buf+tab[2].off;
+	int src0l = tab[2].len;
+	u8* src1b = buf+tab[4].off;
+	int src1l = tab[4].len;
+
+	u32 bin = 0;
+	if( ('x'==dst0b[0]) && ('x'==src0b[0]) ){		//x is 64 bit
+		int d0 = atoi((char*)dst0b+1);
+		int s0 = atoi((char*)src0b+1);
+		int s1 = atoi((char*)src1b+1);
+		bin |= (d0<<0);
+		bin |= (s0<<5);
+		bin |= (s1<<16);
+		bin |= 0xcb000000;
+		disasm_arm64_one(bin, 0);
+	}
+	if( ('w'==dst0b[0]) && ('w'==src0b[0]) ){		//w is 32 bit
+		int d0 = atoi((char*)dst0b+1);
+		int s0 = atoi((char*)src0b+1);
+		int s1 = atoi((char*)src1b+1);
+		bin |= (d0<<0);
+		bin |= (s0<<5);
+		bin |= (s1<<16);
+		bin |= 0x4b000000;
+		disasm_arm64_one(bin, 0);
+	}
+}
+void assembly_compile_arm64(u8* buf, int len, struct offlen* tab, int cnt)
+{
+	int j;
+	for(j=0;j<cnt;j++){
+		printf("%d: %.*s\n", j, tab[j].len, buf+tab[j].off);
+	}
+	if( (0 == strncmp((char*)buf+tab[0].off, "mov", 3)) |
+		(0 == strncmp((char*)buf+tab[0].off, "orr", 3)) ){
+		assembly_arm64_orr(buf, len, &tab[1], cnt-1);
+	}
+	if(0 == strncmp((char*)buf+tab[0].off, "add", 3)){
+		assembly_arm64_add(buf, len, &tab[1], cnt-1);
+	}
+	if(0 == strncmp((char*)buf+tab[0].off, "sub", 3)){
+		assembly_arm64_sub(buf, len, &tab[1], cnt-1);
+	}
+}

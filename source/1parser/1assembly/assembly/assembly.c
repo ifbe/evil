@@ -19,16 +19,19 @@
 #endif
 int hexstr2u32(void* str, void* dat);
 
+#define CPU_X8664 0
+#define CPU_ARM64 1
 struct offlen{
 	u8 off;
 	u8 len;
 }__attribute__((packed));
-void assembly_x8664(u8* buf, int len, struct offlen* tab, int cnt);
+void assembly_compile_x8664(u8* buf, int len, struct offlen* tab, int cnt);
+void assembly_compile_arm64(u8* buf, int len, struct offlen* tab, int cnt);
 
 
 
 
-void assembly_oneline(u8* buf, int len)
+void assembly_oneline(u8* buf, int len, int cpu)
 {
 	int cnt = 0;
 	struct offlen tab[16];
@@ -65,21 +68,28 @@ void assembly_oneline(u8* buf, int len)
 	}
 	printf("\n");
 
-	assembly_x8664(buf,len, tab,cnt);
+	switch(cpu){
+	case CPU_X8664:
+		assembly_compile_x8664(buf,len, tab,cnt);
+		break;
+	case CPU_ARM64:
+		assembly_compile_arm64(buf,len, tab,cnt);
+		break;
+	}
 }
-void parseassembly(u8* buf, int len)
+void parseassembly(u8* buf, int len, int cpu)
 {
 	printf("len=%d\n", len);
 	int j,k=0;
 	for(j=0;j<len;j++){
 		if('\n' == buf[j]){
 			//printf("%.*s\n", j-k, buf+k);
-			assembly_oneline(buf+k, j-k);
+			assembly_oneline(buf+k, j-k, cpu);
 			k = j+1;
 		}
 	}
 }
-void assembly(int argc, char** argv)
+void assembly_arm64(int argc, char** argv)
 {
 	u32 at = 0;
 	u32 sz = 0x100000;
@@ -109,7 +119,44 @@ void assembly(int argc, char** argv)
 		goto release;
 	}
 
-	parseassembly(buf, ret);
+	parseassembly(buf, ret, CPU_ARM64);
+
+release:
+	free(buf);
+theend:
+	close(fd);
+}
+void assembly_x8664(int argc, char** argv)
+{
+	u32 at = 0;
+	u32 sz = 0x100000;
+	if(argc < 2)return;
+
+	int fd = open(argv[1] , O_RDONLY|O_BINARY);
+	if(fd <= 0){
+		printf("errno=%d@open\n", errno);
+		return;
+	}
+
+	u8* buf = malloc(sz);
+        if(0 == buf){
+		printf("errno=%d@malloc\n", errno);
+		goto theend;
+	}
+
+	int ret = lseek(fd, at, SEEK_SET);
+	if(ret < 0){
+		printf("errno=%d@lseek\n", errno);
+		goto release;
+	}
+
+	ret = read(fd, buf, sz);
+	if(ret <= 0){
+		printf("errno=%d@read\n", errno);
+		goto release;
+	}
+
+	parseassembly(buf, ret, CPU_X8664);
 
 release:
 	free(buf);

@@ -1,0 +1,6 @@
+mov w9 = w17
+mov x8 = x14
+add w8 = w9 + w10
+add x17 = x23 + x28
+sub w18 = w19 - w11
+sub x7 = x3 - x8
