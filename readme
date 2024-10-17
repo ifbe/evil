@@ -1,11 +1,14 @@
-evil: tear-it-down
-	dis assembler
-	code analyser
-	...
+step-by-step understand world and make change
 
-
-live: build-it-up
-	boot loader
-	mosfet cpu
-	simple filesystem
-	...
+lv0:
+	simple parse or modify
+lv1:
+	assembler, disassembler, compiler, discompiler
+lv2:
+	learn from something, store to memory, make some work
+lv3:
+	ai(s) like llm can understand and work better
+lv?:
+	give this brain a body?
+lv∞:
+	give this monster a plannet?

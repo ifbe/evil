@@ -1,3 +1,28 @@
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#if (defined(_WIN32) || defined(__WIN32__))
+#define mkdir(A, B) mkdir(A)
+#endif
+//
+void filedata_create();
+void filedata_delete();
+void filemd5_create();
+void filemd5_delete();
+//
+void funcdata_create();
+void funcdata_delete();
+void funcindex_create();
+void funcindex_delete();
+//
+void strdata_create();
+void strdata_delete();
+void strhash_create();
+void strhash_delete();
+//
+void relation_create();
+void relation_delete();
+//
 void chipdata_start(int);
 void chipdata_stop();
 void chipindex_start(int);
@@ -28,12 +53,51 @@ void strhash_start(int);
 void strhash_stop();
 void relation_start(int);
 void relation_stop();
+//
+void learn_init(){
+	mkdir(".42", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
+	mkdir(".42/chip", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
+	mkdir(".42/file", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
+	mkdir(".42/func", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
+	mkdir(".42/pin", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
+	mkdir(".42/point", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
+	mkdir(".42/shape", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
+	mkdir(".42/str", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
+	mkdir(".42/wav", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
+	mkdir(".42/wire", S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
+
+
+	filemd5_create();
+	filedata_create();
+
+	funcindex_create();
+	funcdata_create();
+
+	strhash_create();
+	strdata_create();
+
+	relation_create();
+}
+void learn_exit(){
+	relation_delete();
+
+	strhash_delete();
+	strdata_delete();
+
+	funcindex_delete();
+	funcdata_delete();
+
+	filemd5_delete();
+	filedata_delete();
+}
 
 
 
 
 void readthemall(int j)
 {
+	learn_init();
+
 	//chipdata_start(j);
 	chipindex_start(j);
 
@@ -59,6 +123,8 @@ void readthemall(int j)
 }
 void writethemall(int unused)
 {
+	relation_stop();
+
 	//chipdata_stop();
 	chipindex_stop();
 
@@ -80,5 +146,5 @@ void writethemall(int unused)
 	strdata_stop();
 	strhash_stop();
 
-	relation_stop();
+	learn_exit();
 }
