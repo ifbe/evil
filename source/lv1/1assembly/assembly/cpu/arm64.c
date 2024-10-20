@@ -60,6 +60,38 @@ struct arm64_adcs{
 	u32 op_0x0 :1;
 	u32 sf :1;
 };
+struct arm64_add_imm{
+	u32 Rd :5;
+	u32 Rn :5;
+	u32 imm12 :12;
+	u32 shift :2;
+	u32 b24_b28_0x11 :5;
+	u32 S_0x0 :1;
+	u32 op_0x0 :1;
+	u32 sf :1;
+};	//	Rd=Rn+imm
+int arm64_add_imm_encode(struct arm64_add_imm* code, int o0, int i0, int imm, int s, int sf){
+	if(imm >> 24)return 0;
+	else if(0 == (imm >> 12)){	//hi12 = 0
+		code->shift = 0;
+		code->imm12 = imm;
+	}
+	else if(0 == (imm & 0xfff)){	//hi12 > 0, lo12 = 0
+		code->shift = 1;
+		code->imm12 = imm>>12;
+	}
+	else{	//hi12 > 0, lo12 > 0
+		return 0;
+	}
+
+	code->Rd = o0;
+	code->Rn = i0;
+	code->b24_b28_0x11 = 0x11;
+	code->S_0x0 = s;
+	code->op_0x0 = 0;
+	code->sf = sf;
+	return 1;
+}
 struct arm64_add_regext{
 	u32 Rd :5;
 	u32 Rn :5;
@@ -70,7 +102,20 @@ struct arm64_add_regext{
 	u32 S_0x0 :1;
 	u32 op_0x0 :1;
 	u32 sf :1;
-};
+};	//	Rd=Rn+Rm(ext)
+int arm64_add_regext_encode(struct arm64_add_regext* code, int o0, int i0, int ix, int option, int sh, int s, int sf){
+	code->Rd = o0;
+	code->Rn = i0;
+	code->Rm = ix;
+	code->option = option;	//0=uxtb, 1=uxth, 2=uxtw, 3=uxtx, 4=sxtb, 5=sxth, 6=sxtw, 7=sxtx
+	code->imm3 = sh;
+
+	code->b21_b28_0x59 = 0x59;
+	code->S_0x0 = s;
+	code->op_0x0 = 0;
+	code->sf = sf;
+	return 1;
+}
 struct arm64_add_regshift{
 	u32 Rd :5;
 	u32 Rn :5;
@@ -82,17 +127,21 @@ struct arm64_add_regshift{
 	u32 S_0x0 :1;
 	u32 op_0x0 :1;
 	u32 sf :1;
-};
-struct arm64_add_immediate{
-	u32 Rd :5;
-	u32 Rn :5;
-	u32 imm12 :12;
-	u32 shift :2;
-	u32 b24_b28_0x11 :5;
-	u32 S_0x0 :1;
-	u32 op_0x0 :1;
-	u32 sf :1;
-};
+};	//	Rd=Rn+Rm>>sh
+int arm64_add_regshift_encode(struct arm64_add_regshift* code, int o0, int i0, int ix, int sh, int shtype, int s, int sf){
+	code->Rd = o0;
+	code->Rn = i0;
+	code->Rm = ix;
+	code->imm6 = sh;
+	code->shift = shtype;	//0=lsl, 1=lsr, 2=asr, 3=undef
+
+	code->b21_0x0 = 0;
+	code->b24_b28_0x0b = 0xb;
+	code->S_0x0 = s;
+	code->op_0x0 = 0;
+	code->sf = sf;
+	return 1;
+}
 struct arm64_add_scalar{
 	u32 Rd :5;
 	u32 Rn :5;
@@ -116,6 +165,1164 @@ struct arm64_add_vector{
 	u32 Q :1;
 	u32 b31_0x0 :1;
 };
+struct arm64_addg{
+	u32 Xd :5;
+	u32 Xn :5;
+	u32 uimm4 :4;
+	u32 b41_b15_0x0 :2;
+	u32 uimm6 :6;
+	u32 b22_b31_0x246 :10;
+};
+struct arm64_addp_sclar{
+	u32 Rd :5;
+	u32 Rn :5;
+	u32 b10_b21_0xc6e :12;
+	u32 size :2;
+	u32 b24_b31_0x5e :8;
+};
+struct arm64_addp_vector{
+	u32 Rd :5;
+	u32 Rn :5;
+	u32 b10_b15_0x2f :6;
+	u32 Rm :5;
+	u32 b21_0x1 :1;
+	u32 size :2;
+	u32 b24_b29_0x0e :6;
+	u32 Q :1;
+	u32 b31_0x0 :1;
+};
+struct arm64_adds_imm{
+	u32 Rd :5;
+	u32 Rn :5;
+	u32 imm12 :12;
+	u32 shift :2;
+	u32 b24_b28_0x11 :5;
+	u32 S_0x1 :1;
+	u32 op_0x0 :1;
+	u32 sf :1;
+};
+struct arm64_adds_regext{
+	u32 Rd :5;
+	u32 Rn :5;
+	u32 imm3 :3;
+	u32 option :3;
+	u32 Rm :5;
+	u32 b21_b28_0x59 :8;
+	u32 S_0x1 :1;
+	u32 op_0x0 :1;
+	u32 sf :1;
+};
+struct arm64_adds_regshift{
+	u32 Rd :5;
+	u32 Rn :5;
+	u32 imm6 :6;
+	u32 Rm :5;
+	u32 b21_0x0 :1;
+	u32 size :2;
+	u32 b24_b28_0x0b :5;
+	u32 S_0x1 :1;
+	u32 op_0x0 :1;
+	u32 sf :1;
+};
+struct arm64_addv{
+	u32 Rd :5;
+	u32 Rn :5;
+	u32 b10_b21_0xc6e :12;
+	u32 size :2;
+	u32 b24_b29_0x0e :6;
+	u32 Q_0x0 :1;
+	u32 b31_0x0 :1;
+};
+struct arm64_adr{
+	u32 Rd :5;
+	u32 immhi :19;
+	u32 b24_b28_0x10 :5;
+	u32 immlo :2;
+	u32 op_0x0 :1;
+};
+struct arm64_adrp{
+	u32 Rd :5;
+	u32 immhi :19;
+	u32 b24_b28_0x10 :5;
+	u32 immlo :2;
+	u32 op_0x1 :1;
+};
+struct arm64_and_imm{
+	u32 Rd :5;
+	u32 Rn :5;
+	u32 imms :6;
+	u32 immr :6;
+	u32 N :1;
+	u32 b23_b28_0x24 :6;
+	u32 opc_0x0 :2;
+	u32 sf :1;
+};
+struct arm64_and_regshift{
+	u32 Rd :5;
+	u32 Rn :5;
+	u32 imm6 :6;
+	u32 Rm :5;
+	u32 N_0x0 :1;
+	u32 shift :2;
+	u32 b24_b28_0x0a :5;
+	u32 opc_0x0 :2;
+	u32 sf :1;
+};
+struct arm64_and_vector{
+	u32 Rd :5;
+	u32 Rn :5;
+	u32 b10_b15_0x07 :6;
+	u32 Rm :5;
+	u32 b21_0x1 :1;
+	u32 size :2;
+	u32 b24_b29_0x0e :6;
+	u32 Q :1;
+	u32 b31_0x0 :1;
+};
+struct arm64_ands_imm{
+	u32 Rd :5;
+	u32 Rn :5;
+	u32 imms :6;
+	u32 immr :6;
+	u32 N :1;
+	u32 b23_b28_0x24 :6;
+	u32 opc_0x3 :2;
+	u32 sf :1;
+};
+struct arm64_ands_regshift{
+	u32 Rd :5;
+	u32 Rn :5;
+	u32 imm6 :6;
+	u32 Rm :5;
+	u32 N_0x0 :1;
+	u32 shift :2;
+	u32 b24_b28_0x0a :5;
+	u32 opc_0x3 :2;
+	u32 sf :1;
+};
+struct arm64_asr_imm{
+	u32 Rd :5;
+	u32 Rn :5;
+	u32 imms :6;	//[b010,b14]=0x1f, b15=x
+	u32 immr :6;
+	u32 N :1;
+	u32 b23_b28_0x26 :6;
+	u32 opc_0x0 :2;
+	u32 sf :1;
+};
+struct arm64_asr_reg{
+	u32 Rd :5;
+	u32 Rn :5;
+	u32 op2 :2;
+	u32 b12_b15_0x2 :4;
+	u32 Rm :5;
+	u32 b21_b30_0x0d6 :10;
+	u32 sf :1;
+};
+struct arm64_asrv{
+	u32 Rd :5;
+	u32 Rn :5;
+	u32 op2 :2;
+	u32 b12_b15_0x2 :4;
+	u32 Rm :5;
+	u32 b21_b30_0x0d6 :10;
+	u32 sf :1;
+};
+//at is sys
+//autda,autdza
+//autdb,autdzb
+//autia,autia1716,autiasp,autiaz,autiza
+//autib,autib1716,autibsp,autibz,autizb
+//axflag
+struct arm64_b{
+	u32 imm26 :26;
+	u32 b26_b30_0x5 :5;
+	u32 op_0x0 :1;
+};
+struct arm64_b_cond{
+	u32 cond :4;
+	u32 b4_0x0 :1;
+	u32 imm19 :19;
+	u32 b24_b31_0x54 :8;
+};
+//bfc
+//bfi
+//bfm
+//bfxil
+//bic
+//bics
+//bl
+struct arm64_b_lr{		//call Rn
+	u32 Rm :5;
+	u32 Rn :5;
+	u32 M :1;
+	u32 A :1;
+	u32 b12_b20_0x1f0 :9;
+	u32 op_0x1 :2;
+	u32 b23_0x0 :1;
+	u32 Z_0x0 :1;
+	u32 b25_b31_0x6b :7;
+};
+//blraa,blraaz,blrab,blrabz
+struct arm64_b_r{		//jmp Rn
+	u32 Rm :5;
+	u32 Rn :5;
+	u32 M :1;
+	u32 A :1;
+	u32 b12_b20_0x1f0 :9;
+	u32 op_0x0 :2;
+	u32 b23_0x0 :1;
+	u32 Z_0x0 :1;
+	u32 b25_b31_0x6b :7;
+};
+//braa,braaz,brab,brabz
+struct arm64_brk{
+	u32 b0_b4_0x0 :5;
+	u32 imm16 :16;
+	u32 b21_b31_0x6a1 :11;
+};
+struct arm64_bsl{		//bitwise select
+	u32 Rd :5;
+	u32 Rn :5;
+	u32 b10_b15_0x7 :6;
+	u32 Rm :5;
+	u32 b21_0x1 :1;
+	u32 opc2_0x1 :2;
+	u32 b24_b29_0x2e :6;
+	u32 Q :1;
+	u32 b31_0x0 :1;
+};
+//bti
+//cas,casa,casal,casl
+//casb,casab,casalb,caslb
+//cash,casah,casalh,caslh
+//casp,caspa,caspal,caspl
+struct arm64_cbnz{
+	u32 Rt :5;
+	u32 imm19 :19;
+	u32 op_0x1 :1;
+	u32 b25_b30_0x1a :6;
+	u32 sf :1;
+};
+struct arm64_cbz{
+	u32 Rt :5;
+	u32 imm19 :19;
+	u32 op_0x0 :1;
+	u32 b25_b30_0x1a :6;
+	u32 sf :1;
+};
+struct arm64_ccmn_imm{
+	u32 nzcv :4;
+	u32 b4_0x0 :1;
+	u32 Rn :5;
+	u32 b10_0x0 :1;
+	u32 b11_0x1 :1;
+	u32 cond :4;
+	u32 imm5 :5;
+	u32 b21_b29_0x1d2 :9;
+	u32 op_0x0 :1;
+	u32 sf :1;
+};
+struct arm64_ccmn_reg{
+	u32 nzcv :4;
+	u32 b4_0x0 :1;
+	u32 Rn :5;
+	u32 b10_0x0 :1;
+	u32 b11_0x0 :1;
+	u32 cond :4;
+	u32 Rm :5;
+	u32 b21_b29_0x1d2 :9;
+	u32 op_0x0 :1;
+	u32 sf :1;
+};
+struct arm64_ccmp_imm{
+	u32 nzcv :4;
+	u32 b4_0x0 :1;
+	u32 Rn :5;
+	u32 b10_0x0 :1;
+	u32 b11_0x1 :1;
+	u32 cond :4;
+	u32 imm5 :5;
+	u32 b21_b29_0x1d2 :9;
+	u32 op_0x1 :1;
+	u32 sf :1;
+};
+struct arm64_ccmp_reg{
+	u32 nzcv :4;
+	u32 b4_0x0 :1;
+	u32 Rn :5;
+	u32 b10_0x0 :1;
+	u32 b11_0x0 :1;
+	u32 cond :4;
+	u32 Rm :5;
+	u32 b21_b29_0x1d2 :9;
+	u32 op_0x1 :1;
+	u32 sf :1;
+};
+//cfinv
+//cfp
+//cinc
+//cinv
+//clrex
+//cls
+//clz
+//cmn_imm is adds_imm
+//cmn_regext is adds_regext
+//cmn_regsh is adds_regsh
+//cmp_imm: subs_imm.Rd=0x1f
+//cmp_regext: subs_regext.Rd=0x1f
+//cmp_regsh: subs_regsh.Rd=0x1f
+//cmpp
+//cmtst
+//cneg
+//cnt
+//cpp
+//crc32b,crc32h,crc32w,crc32x
+//crc32cb,crc32ch,crc32cw,crc32cx
+//csdb
+//csel
+//cset
+//csetm
+//csinc
+//csinv
+//csneg
+//dc aliasof sys
+//dcps1
+//dcps2
+//dcps3
+struct arm64_dmb{
+	u32 b0_b4_0x1f :5;
+	u32 opc_0x1 :2;
+	u32 b7_0x1 :1;
+	u32 CRm :4;
+	u32 b12_b31_0xd5033 :20;
+};
+struct arm64_drps{
+	u32 b0_b31_0xd6bf03e0;
+};
+struct arm64_dsb{
+	u32 b0_b4_0x1f :5;
+	u32 opc_0x0 :2;
+	u32 b7_0x1 :1;
+	u32 CRm :4;
+	u32 b12_b31_0xd5033 :20;
+};
+struct arm64_dup_element{
+	u32 Rd :5;
+	u32 Rn :5;
+	u32 b10_b15_0x3 :6;
+	u32 imm5 :5;
+	u32 b21_b31_0x2f0 :11;
+};
+struct arm64_dup_general{
+	u32 Rd :5;
+	u32 Rn :5;
+	u32 b10_b15_0x1 :6;
+	u32 imm5 :5;
+	u32 b21_b29_0x70 :9;
+	u32 Q :1;
+	u32 b31_0x0 :1;
+};
+//dvp aliasof sys
+struct arm64_eon_regshift{
+	u32 Rd :5;
+	u32 Rn :5;
+	u32 imm6 :6;
+	u32 Rm :5;
+	u32 N_0x1 :1;
+	u32 shift :2;
+	u32 b24_b28_0xa :5;
+	u32 opc_0x2 :2;
+	u32 sf :1;
+};
+struct arm64_eor3{
+	u32 Rd :5;
+	u32 Rn :5;
+	u32 Ra :5;
+	u32 b15_0x0 :1;
+	u32 Rm :5;
+	u32 b21_b21_0x670 :11;
+};
+struct arm64_eor_vector{
+	u32 Rd :5;
+	u32 Rn :5;
+	u32 b10_b15_0x7 :6;
+	u32 Rm :5;
+	u32 b21_0x1 :1;
+	u32 opc2_0x0 :2;
+	u32 b24_b29_0x2e :6;
+	u32 Q :1;
+	u32 b31_0x0 :1;
+};
+struct arm64_eor_imm{
+	u32 Rd :5;
+	u32 Rn :5;
+	u32 imms :6;
+	u32 immr :6;
+	u32 N :1;
+	u32 b23_b28_0x24 :6;
+	u32 opc_0x2 :2;
+	u32 sf :1;
+};
+struct arm64_eor_regshift{
+	u32 Rd :5;
+	u32 Rn :5;
+	u32 imm6 :6;
+	u32 Rm :5;
+	u32 N_0x0 :1;
+	u32 shift :2;
+	u32 b24_b28_0xa :5;
+	u32 opc_0x2 :2;
+	u32 sf :1;
+};
+struct arm64_eret{
+	u32 op4_0x0 :5;
+	u32 Rn_0x1f :5;
+	u32 M_0x0 :1;
+	u32 A_0x0 :1;
+	u32 b12_b31_0xd69f0 :20;
+};
+//eretaa,eretab
+struct arm64_esb{
+	u32 b0_b4_0x1f :5;
+	u32 op2_0x0 :3;
+	u32 CRm_0x2 :4;
+	u32 b12_b31_0xd5032 :20;
+};
+//ext
+//extr
+//fabd
+//fabs
+//facge
+//facgt
+//fadd
+//faddp
+//fcadd
+//fccmp
+//fccmpe
+//fcmeq
+//fcmge
+//fcmgt
+//fcmla
+//fcmle
+//fcmlt
+//fcmp
+//fcmpe
+//fcsel
+//fcvt
+//fcvtas
+//fcvtau
+//fcvtl,fcvtl2
+//fcvtms
+//fcvtmu
+//fcvtn,fcvtn2
+//fcvtns
+//fcvtnu
+//fcvtps
+//fcvtpu
+//fcvtxn,fcvtxn2
+//fcvtzs
+//fcvtzu
+//fdiv
+//fjcvtzs
+//fmadd
+//fmax
+//fmaxnm
+//fmaxnmp
+//fmaxnmv
+//fmaxp
+//fmaxv
+//fmin
+//fminnm
+//fminnmp
+//fminnmv
+//fminp
+//fminv
+//fmla
+//fmlal,fmlal2
+//fmls
+//fmlsl,fmlsl2
+//fmov
+//fmsub
+//fmul
+//fmulx
+//fneg
+//fnmadd
+//fnmsub
+//fnmul
+//frecpe
+//frecps
+//frecpx
+//frint32x
+//frint32z
+//frint64x
+//frint64z
+//frinta
+//frinti
+//frintm
+//frintn
+//frintp
+//frintx
+//frintz
+//frsqrte
+//frsqrts
+//fsqrt
+//fsub
+//gmi
+//hint
+struct arm64_hlt{
+	u32 b0_b4_0x0 :5;
+	u32 imm16 :16;
+	u32 b21_b31_0x6a2 :11;
+};
+struct arm64_hvc{
+	u32 b0_b4_0x2 :5;
+	u32 imm16 :16;
+	u32 b21_b31_0x6a2 :11;
+};
+//ic aliasof sys
+//ins_element aliasof mov_element
+//ins_general aliasof mov_general
+//irg
+struct arm64_isb{
+	u32 b0_b4_0x1f :5;
+	u32 opc_0x2 :2;
+	u32 CRm :4;
+	u32 b12_b31_0xd5033 :20;
+};
+//ld1
+//ld1r
+//ld2
+//ld2r
+//ld3
+//ld3r
+//ld4
+//ld4r
+//ldadd,ldadda,ldaddal,ldaddl
+//ldaddb,ldaddab,ldaddalb,ldaddlb
+//ldaddh,ldaddah,ldaddalh,ldaddlh
+//ldapr
+//ldaprb
+//ldaprh
+//ldapur
+//ldapurb
+//ldapurh
+//ldapursb
+//ldapursh
+//ldapursw
+//ldar
+//ldarb
+//ldarh
+//ldaxp
+//ldaxr
+//ldaxrb
+//ldaxrh
+//ldclr,ldclra,ldclral,ldclrl
+//ldclrb,ldclrab,ldclralb,ldclrlb
+//ldclrh,ldclrah,ldclralh,ldclrlh
+//ldeor,ldeora,ldeoral,ldeorl
+//ldeorb,ldeorab,ldeoralb,ldeorlb
+//ldeorh,ldeorah,ldeoralh,ldeorlh
+//ldg
+//ldgv
+//ldlar
+//ldlarb
+//ldlarh
+//ldnp
+//ldnp
+//ldp
+//ldpsw
+struct arm64_ldr_imm_fp{
+	u32 Rt :5;
+	u32 Rn :5;
+	u32 b10_b11_0x1 :2;
+	u32 imm9 :9;
+	u32 b21_0x0 :1;
+	u32 opc_0xx1 :2;
+	u32 b24_b29_0x3c :6;
+	u32 size :2;
+};
+struct arm64_ldr_imm{
+	u32 Rt :5;
+	u32 Rn :5;
+	u32 b10_b11_0x1 :2;
+	u32 imm9 :9;
+	u32 b21_0x0 :1;
+	u32 opc_0x01 :2;
+	u32 b24_b29_0x38 :6;
+	u32 size_0x1x :2;
+};
+struct arm64_ldr_rel_fp{
+	u32 Rt :5;
+	u32 imm19 :19;
+	u32 b24_b29_0x18 :6;
+	u32 opc_0x0x :2;
+};
+struct arm64_ldr_rel{
+	u32 Rt :5;
+	u32 imm19 :19;
+	u32 b24_b29_0x18 :6;
+	u32 opc_0x0x :2;
+};
+struct arm64_ldr_reg_fp{
+	u32 Rt :5;
+	u32 Rn :5;
+	u32 b10_b11_0x2 :2;
+	u32 S :1;
+	u32 option :3;
+	u32 Rm :5;
+	u32 b21_0x1 :1;
+	u32 opc_0xx1 :2;
+	u32 b24_b29_0x3c :6;
+	u32 size :2;
+};
+struct arm64_ldr_reg{
+	u32 Rt :5;
+	u32 Rn :5;
+	u32 b10_b11_0x2 :2;
+	u32 S :1;
+	u32 option :3;
+	u32 Rm :5;
+	u32 b21_0x1 :1;
+	u32 opc_0xx1 :2;
+	u32 b24_b29_0x38 :6;
+	u32 size_0x1x :2;
+};
+//ldraa,ldrab
+//ldrb_imm
+//ldrb_reg
+//ldrh_imm
+//ldrh_reg
+//ldrsb_imm
+//ldrsb_reg
+//ldrsh_imm
+//ldrsh_reg
+//ldrsw_imm
+//ldrsw_rel
+//ldrsw_reg
+//ldset,ldseta,ldsetal,ldsetl
+//ldsetb,ldsetab,ldsetalb,ldsetlb
+//ldseth,ldsetah,ldsetalh,ldsetlh
+//ldsmax,ldsmaxa,ldsmaxal,ldsmaxl
+//ldsmaxb,ldsmaxab,ldsmaxalb,ldsmaxlb
+//ldsmaxh,ldsmaxah,ldsmaxalh,ldsmaxlh
+//ldsmin,ldsmina,ldsminal,ldsminl
+//ldsminb,ldsminab,ldsminalb,ldsminlb
+//ldsminh,ldsminah,ldsminalh,ldsminlh
+//ldtr
+//ldtrb
+//ldtrh
+//ldtrsb
+//ldtrsh
+//ldtrsw
+//ldumax,ldumaxa,ldumaxal,ldumaxl
+//ldumaxb,ldumaxab,ldumaxalb,ldumaxlh
+//ldumaxh,ldumaxah,ldumaxalh,ldumaxlh
+//ldumin,ldumina,lduminal,lduminl
+//lduminb,lduminab,lduminalb,lduminlb
+//lduminh,lduminah,lduminalh,lduminlh
+//ldur_fp
+//ldur
+//ldurb
+//ldursh
+//ldursw
+//ldxr
+//ldxrb
+struct arm64_lsl_reg{
+	u32 Rd :5;
+	u32 Rn :5;
+	u32 op2_0x0 :2;
+	u32 b12_b15_0x2 :4;
+	u32 Rm :5;
+	u32 b21_b30_0xd6 :10;
+	u32 sf :1;
+};
+struct arm64_lsl_imm{
+	u32 Rd :5;
+	u32 Rn :5;
+	u32 imms :6;
+	u32 immr :6;
+	u32 N :1;
+	u32 b23_b28_0x26 :6;
+	u32 opc_0x2 :2;
+	u32 sf :1;
+};
+struct arm64_lsv{
+	u32 Rd :5;
+	u32 Rn :5;
+	u32 op2_0x0 :2;
+	u32 b12_b15_0x2 :4;
+	u32 Rm :5;
+	u32 b21_b30_0xd6 :10;
+	u32 sf :1;
+};
+struct arm64_lsr_reg{
+	u32 Rd :5;
+	u32 Rn :5;
+	u32 op2_0x1 :2;
+	u32 b12_b15_0x2 :4;
+	u32 Rm :5;
+	u32 b21_b30_0xd6 :10;
+	u32 sf :1;
+};
+struct arm64_lsr_imm{
+	u32 Rd :5;
+	u32 Rn :5;
+	u32 imms :6;
+	u32 immr :6;
+	u32 N :1;
+	u32 b23_b28_0x26 :6;
+	u32 opc_0x2 :2;
+	u32 sf :1;
+};
+struct arm64_lsrv{
+	u32 Rd :5;
+	u32 Rn :5;
+	u32 op2_0x1 :2;
+	u32 b12_b15_0x2 :4;
+	u32 Rm :5;
+	u32 b21_b30_0xd6 :10;
+	u32 sf :1;
+};
+//madd
+//mla_element
+//mla_vector
+//mls_element
+//mls_vector
+//mneg
+//mov_sp aliasof add_imm
+//mov_scalar
+//mov_element
+//mov_general
+//mov_invimm
+//mov_imm
+//mov_vector
+//mov_bitmaskimm
+//mov_reg
+//mov_general
+//movi
+//movk
+//movn
+//movz
+//mrs
+//msr_imm
+//msr_reg
+//msub
+//mul_element
+//mul_vector
+struct arm64_mul{
+	u32 Rd :5;
+	u32 Rn :5;
+	u32 Ra_1f :5;
+	u32 o0 :1;
+	u32 Rm :5;
+	u32 b21_b30_0xd8 :10;
+	u32 sf :1;
+};
+//mvn
+//mvni
+//neg_vector
+//neg_regshift
+//negs
+//ngc
+//ngcs
+struct arm64_nop{
+	u32 b0_b4_0x1f :5;
+	u32 op2_0x0 :3;
+	u32 CRm :4;
+	u32 b12_b31_0xd5032 :20;
+};
+//not_vector
+//orn_vector
+//orn_regshift
+//orr_vecimm
+//orr_vecreg
+//orr_imm
+//orr_regshift
+//pacda,pacdza
+//pacdb,pacdzb
+//pacga
+//pacia,pacia1716,paciasp,paciaz,paciza
+//pacib,pacib1716,pacibsp,pacibz,pacizb
+//pmul
+//pmull,pmull2
+//prfm_imm
+//prfm_literal
+//prfm_reg
+//prfm_unscaledoffset
+//psb_csync
+//pssbb
+//raddhn,raddhn2
+//rax1
+//rbit_vector
+//rbit
+struct arm64_ret{
+	u32 Rm_0x0 :5;
+	u32 Rn :5;
+	u32 M_0x0 :1;
+	u32 A_0x0 :1;
+	u32 b12_b15_0x0 :4;
+	u32 b16_b20_0x1f :5;
+	u32 op_0x2 :2;
+	u32 b23_0x0 :1;
+	u32 Z_0x0 :1;
+	u32 b25_b31_0x6b :7;
+};
+//regaa,regab
+//rev
+//rev16_vector
+//rev16
+//rev32_vector
+//rev32
+//rev64
+//rmif
+struct arm64_ror_imm{
+	u32 Rd :5;
+	u32 Rn :5;
+	u32 imms :6;
+	u32 Rm :5;
+	u32 b21_0x0 :1;
+	u32 N :1;
+	u32 b12_0x30_0x27 :8;
+	u32 sf :1;
+};
+struct arm64_ror_reg{
+	u32 Rd :5;
+	u32 Rn :5;
+	u32 op2_0x3 :2;
+	u32 b12_b15_0x2 :4;
+	u32 Rm :5;
+	u32 b21_b30_0xd6 :10;
+	u32 sf :1;
+};
+struct arm64_rorv{
+	u32 Rd :5;
+	u32 Rn :5;
+	u32 op2_0x3 :2;
+	u32 b12_b15_0x3 :4;
+	u32 Rm :5;
+	u32 b21_b30_0xd6 :10;
+	u32 sf :1;
+};
+//rshrn,rshrn2
+//rsubhn,rsubhn2
+//saba
+//sabal,sabal2
+//sabd
+//sabdl,sabdl2
+//sadalp
+//saddl,saddl2
+//saddlp
+//saddlv
+//saddw,saddw2
+//sb
+//sbc
+//sbcs
+//sbfiz
+//sbfm
+//sbfx
+//scvtf_vec_fp
+//scvtf_vec_int
+//scvtf_scalar_fp
+//scvtf_scalar_int
+//sdiv
+//sdot_element
+//sdot_vec
+//setf8,setf16
+//sev
+//sevl
+//sha1c
+//sha1h
+//sha1m
+//sha1p
+//sha1su0
+//sha1su1
+//sha256h2
+//sha256h
+//sha256su0
+//sha256su1
+//sha512h2
+//sha512h
+//sha512su0
+//sha512su1
+//shadd
+struct arm64_shl_scalar{
+	u32 Rd :5;
+	u32 Rn :5;
+	u32 b10_b15_0x15 :6;
+	u32 immb :3;
+	u32 immh :4;
+	u32 b23_b31_0xbe :9;
+};
+struct arm64_shl_vector{
+	u32 Rd :5;
+	u32 Rn :5;
+	u32 b10_b15_0x15 :6;
+	u32 immb :3;
+	u32 immh :4;
+	u32 b23_b29_0x1e :7;
+	u32 Q :1;
+	u32 b31_0x0 :1;
+};
+//shll,shll2
+//shrn,shrn2
+//shsub
+//sli
+//sm3partw1
+//sm3partw2
+//sm3ss1
+//sm3tt1a
+//sm3tt1b
+//sm3tt2a
+//sm3tt2b
+//sm4e
+//sm4ekey
+//smaddl
+//smax
+//smaxp
+//smaxv
+//smc
+//smin
+//sminp
+//sminv
+//smlal,smlal2
+//smlsl,smlsl2
+//smnegl
+//smov
+//smsubl
+//smulh
+//smull,smull2
+//smull
+//sqabs
+//sqadd
+//sqdmlal,sqdmlal2
+//sqdmlsl,sqdmlsl2
+//sqdmulh
+//sqdmull,sqdmull2
+//sqneg
+//sqrdmlah
+//sqrdmlsh
+//sqrdmulh
+//sqrshl
+//sqrshrn,sqrshrn2
+//sqrshrun,sqrshrun2
+//sqshl_imm
+//sqshlu
+//sqshrn,sqshrn2
+//sqshrun,sqshrun2
+//sqsub
+//sqxtn,sqxtn2
+//sqxtun,sqxtun2
+//srhadd
+//sri
+//srshl
+//srshr
+//srsra
+//ssbb
+//sshl
+//sshll,sshll2
+//sshr
+//ssra
+//ssubl,ssubl2
+//ssubw,ssubw2
+//st1
+//st2
+//st2g
+//st3
+//st4
+//stadd,staddl
+//staddb,staddlb
+//staddh,staddlh
+//stclr,stclrl
+//stclrb,stclrlb
+//stclrh,stclrlh
+//steor,steorl
+//steorb,steorlb
+//steorh,steorlh
+//stg
+//stgp
+//stgv
+//stllr
+//stllrb
+//stllrh
+//stlr
+//stlrb
+//stlrh
+//stlur
+//stlurb
+//stlurh
+//stlxp
+//stlxr
+//stlxrb
+//stlxrh
+//stnp
+//stnp
+//stp_fp
+//stp
+//str_fp
+//str_imm
+//str_regfp
+//str_reg
+//strb_imm
+//strb_reg
+//strh_imm
+//strh_reg
+//stset,stsetl
+//stsetb,stsetlb
+//stseth,stsetlh
+//stsmax,stsmaxl
+//stsmaxb,stsmaxlb
+//stsmin,stsminl
+//stsminb,stsminlb
+//stsminh,stsminlh
+//sttr
+//sttrb
+//sttrh
+//stumax,stumaxl
+//stumaxb,stumaxlb
+//stumaxh,stumaxlh
+//stumin,stuminl
+//stuminb,stuminlh
+//stuminh,stuminlh
+//stur_fp
+//stur
+//sturb
+//sturh
+//stxp
+//stxr
+//stxrb
+//stxrh
+//stz2g
+//stzg
+struct arm64_sub_imm{
+	u32 Rd :5;
+	u32 Rn :5;
+	u32 imm12 :12;
+	u32 shift :2;
+	u32 b24_b28_0x11 :5;
+	u32 S_0x0 :1;
+	u32 op_0x1 :1;
+	u32 sf :1;
+};	//	Rd=Rn-imm
+int arm64_sub_imm_encode(struct arm64_sub_imm* code, int o0, int i0, int imm, int s, int sf){
+	if(imm >> 24)return 0;
+	else if(0 == (imm >> 12)){	//hi12 = 0
+		code->shift = 0;
+		code->imm12 = imm;
+	}
+	else if(0 == (imm & 0xfff)){	//hi12 > 0, lo12 = 0
+		code->shift = 1;
+		code->imm12 = imm>>12;
+	}
+	else{	//hi12 > 0, lo12 > 0
+		return 0;
+	}
+
+	code->Rd = o0;
+	code->Rn = i0;
+	code->b24_b28_0x11 = 0x11;
+	code->S_0x0 = s;
+	code->op_0x1 = 1;
+	code->sf = sf;
+	return 1;
+}
+struct arm64_sub_regext{
+	u32 Rd :5;
+	u32 Rn :5;
+	u32 imm3 :3;
+	u32 option :3;
+	u32 Rm :5;
+	u32 b21_b28_0x59 :8;
+	u32 S_0x0 :1;
+	u32 op_0x1 :1;
+	u32 sf :1;
+};	//	Rd=Rn-Rm(ext)
+int arm64_sub_regext_encode(struct arm64_sub_regext* code, int o0, int i0, int ix, int option, int sh, int s, int sf){
+	code->Rd = o0;
+	code->Rn = i0;
+	code->Rm = ix;
+	code->option = option;	//0=uxtb, 1=uxth, 2=uxtw, 3=uxtx, 4=sxtb, 5=sxth, 6=sxtw, 7=sxtx
+	code->imm3 = sh;
+
+	code->b21_b28_0x59 = 0x59;
+	code->S_0x0 = s;
+	code->op_0x1 = 1;
+	code->sf = sf;
+	return 1;
+}
+struct arm64_sub_regshift{
+	u32 Rd :5;
+	u32 Rn :5;
+	u32 imm6 :6;
+	u32 Rm :5;
+	u32 b21_0x0 :1;
+	u32 shift :2;
+	u32 b24_b28_0x0b :5;
+	u32 S_0x0 :1;
+	u32 op_0x1 :1;
+	u32 sf :1;
+};	//	Rd=Rn-Rm>>sh
+int arm64_sub_regshift_encode(struct arm64_sub_regshift* code, int o0, int i0, int ix, int sh, int shtype, int s, int sf){
+	code->Rd = o0;
+	code->Rn = i0;
+	code->Rm = ix;
+	code->imm6 = sh;
+	code->shift = shtype;	//0=lsl, 1=lsr, 2=asr, 3=undef
+
+	code->b21_0x0 = 0;
+	code->b24_b28_0x0b = 0xb;
+	code->S_0x0 = s;
+	code->op_0x1 = 1;
+	code->sf = sf;
+	return 1;
+}
+struct arm64_sub_scalar{
+	u32 Rd :5;
+	u32 Rn :5;
+	u32 b10_b15_0x21 :6;
+	u32 Rm :5;
+	u32 b21_0x1 :1;
+	u32 size :2;
+	u32 b24_b28_0x1e :5;
+	u32 U_0x1 :1;
+	u32 b30_b31_0x1 :2;
+};
+struct arm64_sub_vector{
+	u32 Rd :5;
+	u32 Rn :5;
+	u32 b10_b15_0x21 :6;
+	u32 Rm :5;
+	u32 b21_0x1 :1;
+	u32 size :2;
+	u32 b24_b28_0x0e :5;
+	u32 U_0x1 :1;
+	u32 Q :1;
+	u32 b31_0x0 :1;
+};
+//subg
+//subhn,subhn2
+//subp
+//subps
+//subs_imm: sub_imm + Sflag
+//subs_regext: sub_regext + Sflag
+//subs_regshift: sub_regshift + Sflag
+//suqadd
+struct arm64_svc{
+	u32 b0_b4_0x1 :5;
+	u32 imm16 :16;
+	u32 b21_b31_0x6a0 :11;
+};
+//swp,swpa,swpal,swpl
+//swpb,swpab,swpalb,swplb
+//swph,swpah,swpalh,swplh
+//sxtb
+//sxth
+//sxtl,sxtl2
+//sxtw
+//sys
+//sysl
+//
+
 
 
 
@@ -2304,6 +3511,58 @@ theend:
 }
 
 
+u32 arm64_str2data(u8* p){
+	char* buf = (char*)p;
+	if( ('0' == buf[0]) && ('x' == buf[1]) )return strtol((char*)buf+2, 0, 16);
+	else return atoi((char*)buf);
+}
+void str2type(u8* p, int* t0, int* t1){
+	if( ('l'==p[0]) && ('s'==p[1]) && ('l'==p[2]) ){
+		*t0 = 1;
+		*t1 = 0;
+	}
+	if( ('l'==p[0]) && ('s'==p[1]) && ('r'==p[2]) ){
+		*t0 = 1;
+		*t1 = 1;
+	}
+	if( ('a'==p[0]) && ('s'==p[1]) && ('r'==p[2]) ){
+		*t0 = 1;
+		*t1 = 2;
+	}
+
+	if( ('u'==p[0]) && ('x'==p[1]) && ('t'==p[2]) && ('b'==p[3]) ){
+		*t0 = 2;
+		*t1 = 0;
+	}
+	if( ('u'==p[0]) && ('x'==p[1]) && ('t'==p[2]) && ('h'==p[3]) ){
+		*t0 = 2;
+		*t1 = 1;
+	}
+	if( ('u'==p[0]) && ('x'==p[1]) && ('t'==p[2]) && ('w'==p[3]) ){
+		*t0 = 2;
+		*t1 = 2;
+	}
+	if( ('u'==p[0]) && ('x'==p[1]) && ('t'==p[2]) && ('x'==p[3]) ){
+		*t0 = 2;
+		*t1 = 3;
+	}
+	if( ('s'==p[0]) && ('x'==p[1]) && ('t'==p[2]) && ('b'==p[3]) ){
+		*t0 = 2;
+		*t1 = 4;
+	}
+	if( ('s'==p[0]) && ('x'==p[1]) && ('t'==p[2]) && ('h'==p[3]) ){
+		*t0 = 2;
+		*t1 = 5;
+	}
+	if( ('s'==p[0]) && ('x'==p[1]) && ('t'==p[2]) && ('w'==p[3]) ){
+		*t0 = 2;
+		*t1 = 6;
+	}
+	if( ('s'==p[0]) && ('x'==p[1]) && ('t'==p[2]) && ('x'==p[3]) ){
+		*t0 = 2;
+		*t1 = 7;
+	}
+}
 
 
 struct offlen{
@@ -2312,7 +3571,9 @@ struct offlen{
 }__attribute__((packed));
 void assembly_arm64_orr(u8* buf, int len, struct offlen* tab, int cnt)
 {
-	printf("dst=%.*s, src=%.*s\n", tab[0].len, buf+tab[0].off, tab[2].len, buf+tab[2].off);
+	tab = &tab[1];
+	cnt = cnt-1;
+
 	u8* dst0b = buf+tab[0].off;
 	int dst0l = tab[0].len;
 	u8* src0b = buf+tab[2].off;
@@ -2334,74 +3595,219 @@ void assembly_arm64_orr(u8* buf, int len, struct offlen* tab, int cnt)
 		disasm_arm64_one(bin, 0);
 	}
 }
-void assembly_arm64_add(u8* buf, int len, struct offlen* tab, int cnt)
+void assembly_arm64_add(u8* ptr, int len, struct offlen* tab, int cnt)
 {
-	printf("dst=%.*s, src0=%.*s, src1=%.*s\n", tab[0].len, buf+tab[0].off, tab[2].len, buf+tab[2].off, tab[4].len, buf+tab[4].off);
-	u8* dst0b = buf+tab[0].off;
-	int dst0l = tab[0].len;
-	u8* src0b = buf+tab[2].off;
-	int src0l = tab[2].len;
-	u8* src1b = buf+tab[4].off;
-	int src1l = tab[4].len;
-
-	int sf = -1;
-	if( ('x'==dst0b[0]) && ('x'==src0b[0]) )sf = 1;
-	if( ('w'==dst0b[0]) && ('w'==src0b[0]) )sf = 0;
-
-	u32 bin = 0;
-	if(sf >= 0){
-		int d0 = atoi((char*)dst0b+1);
-		int s0 = atoi((char*)src0b+1);
-		int s1 = atoi((char*)src1b+1);
-		bin |= (d0<<0);
-		bin |= (s0<<5);
-		bin |= (s1<<16);
-		bin |= 0x0b000000;
-		bin |= ((u64)sf)<<31;
-		disasm_arm64_one(bin, 0);
+	int what = 0;
+	if(strncmp((char*)ptr+tab[0].off, "adds", 4) == 0){
+		what = 1;
 	}
+	if(strncmp((char*)ptr+tab[0].off, "cmn", 3) == 0){
+		what = 2;
+	}
+	tab = &tab[1];
+	cnt = cnt-1;
+
+	u8* buf0 = ptr+tab[0].off;
+	int len0 = tab[0].len;
+	u8* buf1 = ptr+tab[2].off;
+	int len1 = tab[2].len;
+	u8* buf2 = ptr+tab[2].off;
+	int len2 = tab[2].len;
+	u8* buf3 = ptr+tab[3].off;
+	int len3 = tab[3].len;
+	u8* buf4 = ptr+tab[4].off;
+	int len4 = tab[4].len;
+	u8* buf5 = ptr+tab[5].off;
+	int len5 = tab[5].len;
+	u8* buf6 = ptr+tab[6].off;
+	int len6 = tab[6].len;
+	u8* buf7 = ptr+tab[7].off;
+	int len7 = tab[7].len;
+	u8* buf8 = ptr+tab[8].off;
+	int len8 = tab[8].len;
+
+	int type = -1;
+	int subt = -1;
+	if(2 == what){
+		type = 3;
+	}
+	else{
+		if( ('x'==buf0[0]) && ('x'==buf2[0]) ){
+			if( (buf4[0]>='0') && (buf4[0]<='9') )type = 0;
+			if('x'==buf4[0])type = 1;
+			str2type(buf4, &type, &subt);
+		}
+		if( ('w'==buf0[0]) && ('w'==buf2[0]) ){
+			if( (buf4[0]>='0') && (buf4[0]<='9') )type = 0;
+			if('w'==buf4[0])type = 1;
+			str2type(buf4, &type, &subt);
+		}
+	}
+	printf("type=%d,subt=%d\n", type, subt);
+
+	u32 code = 0;
+	if(type == 0){		//		x0 = x1 + x2
+		int d0 = atoi((char*)buf0+1);
+		int s0 = atoi((char*)buf2+1);
+		int imm = arm64_str2data(buf4);
+		printf("imm=%x\n", imm);
+		arm64_add_imm_encode((void*)&code, d0, s0, imm, (what==1), ('x'==buf0[0]) );
+	}
+	if(type == 1){
+		int d0 = atoi((char*)buf0+1);
+		int s0 = atoi((char*)buf2+1);
+		int s1;
+
+		int shdata = 0;
+		int shtype = 0;
+		if(subt >= 0){		//		x0 = x1 + asr ( x2 , 4 )
+			s1 = atoi((char*)buf6+1);
+			shtype = subt;
+			shdata = arm64_str2data(buf8);
+		}
+		else{		//		x0 = x1 + x2 << 8
+			s1 = atoi((char*)buf4+1);
+			if(cnt == 7){
+				if('<' == buf5[0])shtype = 0;
+				if('>' == buf5[0])shtype = 1;
+				shdata = arm64_str2data(buf6);
+			}
+		}
+		arm64_add_regshift_encode((void*)&code, d0, s0, s1, shdata, shtype, (what==1), ('x'==buf0[0]) );
+	}
+	if(type == 2){		//		x0 = x1 + uxtw ( x2 , 9 )
+		int d0 = atoi((char*)buf0+1);
+		int s0 = atoi((char*)buf2+1);
+		int s1 = atoi((char*)buf6+1);
+		int shift = 0;
+		if(cnt > 7)shift = arm64_str2data(buf8);
+		arm64_add_regext_encode((void*)&code, d0, s0, s1, subt, shift, (what==1), ('x'==buf0[0]) );
+	}
+	if(type == 3){		//		x3 + x7
+		int s0 = atoi((char*)buf0+1);
+		int s1 = atoi((char*)buf2+1);
+		int is64 = ('x'==buf0[0]);
+		arm64_add_regext_encode((void*)&code, 0x1f, s0, s1, 2+is64, 0, 1, is64 );
+	}
+
+	disasm_arm64_one(code, 0);
 }
-void assembly_arm64_sub(u8* buf, int len, struct offlen* tab, int cnt)
+void assembly_arm64_sub(u8* ptr, int len, struct offlen* tab, int cnt)
 {
-	printf("dst=%.*s, src0=%.*s, src1=%.*s\n", tab[0].len, buf+tab[0].off, tab[2].len, buf+tab[2].off, tab[4].len, buf+tab[4].off);
-	u8* dst0b = buf+tab[0].off;
-	int dst0l = tab[0].len;
-	u8* src0b = buf+tab[2].off;
-	int src0l = tab[2].len;
-	u8* src1b = buf+tab[4].off;
-	int src1l = tab[4].len;
-
-	int sf = -1;
-	if( ('x'==dst0b[0]) && ('x'==src0b[0]) )sf = 1;
-	if( ('w'==dst0b[0]) && ('w'==src0b[0]) )sf = 0;
-
-	u32 bin = 0;
-	if(sf >= 0){
-		int d0 = atoi((char*)dst0b+1);
-		int s0 = atoi((char*)src0b+1);
-		int s1 = atoi((char*)src1b+1);
-		bin |= (d0<<0);
-		bin |= (s0<<5);
-		bin |= (s1<<16);
-		bin |= 0x4b000000;
-		bin |= ((u64)sf)<<31;
-		disasm_arm64_one(bin, 0);
+	int what = 0;
+	if(strncmp((char*)ptr+tab[0].off, "subs", 4) == 0){
+		what = 1;
 	}
+	if(strncmp((char*)ptr+tab[0].off, "cmp", 3) == 0){
+		what = 2;
+	}
+	tab = &tab[1];
+	cnt = cnt-1;
+
+	u8* buf0 = ptr+tab[0].off;
+	int len0 = tab[0].len;
+	u8* buf1 = ptr+tab[2].off;
+	int len1 = tab[2].len;
+	u8* buf2 = ptr+tab[2].off;
+	int len2 = tab[2].len;
+	u8* buf3 = ptr+tab[3].off;
+	int len3 = tab[3].len;
+	u8* buf4 = ptr+tab[4].off;
+	int len4 = tab[4].len;
+	u8* buf5 = ptr+tab[5].off;
+	int len5 = tab[5].len;
+	u8* buf6 = ptr+tab[6].off;
+	int len6 = tab[6].len;
+	u8* buf7 = ptr+tab[7].off;
+	int len7 = tab[7].len;
+	u8* buf8 = ptr+tab[8].off;
+	int len8 = tab[8].len;
+
+	int type = -1;
+	int subt = -1;
+	if(2 == what){
+		type = 3;
+	}
+	else{
+		if( ('x'==buf0[0]) && ('x'==buf2[0]) ){
+			if( (buf4[0]>='0') && (buf4[0]<='9') )type = 0;
+			if('x'==buf4[0])type = 1;
+			str2type(buf4, &type, &subt);
+		}
+		if( ('w'==buf0[0]) && ('w'==buf2[0]) ){
+			if( (buf4[0]>='0') && (buf4[0]<='9') )type = 0;
+			if('w'==buf4[0])type = 1;
+			str2type(buf4, &type, &subt);
+		}
+	}
+	printf("type=%d,subt=%d\n", type, subt);
+
+	u32 code = 0;
+	if(type == 0){		//x0 = x1 + x2
+		int d0 = atoi((char*)buf0+1);
+		int s0 = atoi((char*)buf2+1);
+		int imm = arm64_str2data(buf4);
+		printf("imm=%x\n", imm);
+		arm64_sub_imm_encode((void*)&code, d0, s0, imm, (what==1), ('x'==buf0[0]) );
+	}
+	if(type == 1){
+		int d0 = atoi((char*)buf0+1);
+		int s0 = atoi((char*)buf2+1);
+		int s1;
+
+		int shdata = 0;
+		int shtype = 0;
+		if(subt >= 0){		//x0 = x1 + asr ( x2 , 4 )
+			s1 = atoi((char*)buf6+1);
+			shtype = subt;
+			shdata = arm64_str2data(buf8);
+		}
+		else{		//		x0 = x1 + x2 << 8
+			s1 = atoi((char*)buf4+1);
+			if(cnt == 7){
+				if('<' == buf5[0])shtype = 0;
+				if('>' == buf5[0])shtype = 1;
+				shdata = arm64_str2data(buf6);
+			}
+		}
+		arm64_sub_regshift_encode((void*)&code, d0, s0, s1, shdata, shtype, (what==1), ('x'==buf0[0]) );
+	}
+	if(type == 2){		//x0 = x1 + uxtw ( x2 , 9 )
+		int d0 = atoi((char*)buf0+1);
+		int s0 = atoi((char*)buf2+1);
+		int s1 = atoi((char*)buf6+1);
+		int shift = 0;
+		if(cnt > 7)shift = arm64_str2data(buf8);
+		arm64_sub_regext_encode((void*)&code, d0, s0, s1, subt, shift, (what==1), ('x'==buf0[0]) );
+	}
+	if(type == 3){		//x3 - x7
+		int s0 = atoi((char*)buf0+1);
+		int s1 = atoi((char*)buf2+1);
+		int is64 = ('x'==buf0[0]);
+		arm64_sub_regext_encode((void*)&code, 0x1f, s0, s1, 2+is64, 0, 1, is64 );
+	}
+
+	disasm_arm64_one(code, 0);
 }
 void assembly_compile_arm64(u8* buf, int len, struct offlen* tab, int cnt)
 {
 	int j;
-	for(j=0;j<cnt;j++){
+/*	for(j=0;j<cnt;j++){
 		printf("%d: %.*s\n", j, tab[j].len, buf+tab[j].off);
 	}
-	if( (0 == strncmp((char*)buf+tab[0].off, "mov", 3)) |
-		(0 == strncmp((char*)buf+tab[0].off, "orr", 3)) ){
-		assembly_arm64_orr(buf, len, &tab[1], cnt-1);
+*/
+	if( (strncmp((char*)buf+tab[0].off, "mov", 3) == 0) |
+		(strncmp((char*)buf+tab[0].off, "orr", 3) == 0) ){
+		assembly_arm64_orr(buf, len, tab, cnt);
 	}
-	if(0 == strncmp((char*)buf+tab[0].off, "add", 3)){
-		assembly_arm64_add(buf, len, &tab[1], cnt-1);
+	if( (strncmp((char*)buf+tab[0].off, "add", 3) == 0) |
+		(strncmp((char*)buf+tab[0].off, "adds", 4) == 0) |
+		(strncmp((char*)buf+tab[0].off, "cmn", 3) == 0) ){
+		assembly_arm64_add(buf, len, tab, cnt);
 	}
-	if(0 == strncmp((char*)buf+tab[0].off, "sub", 3)){
-		assembly_arm64_sub(buf, len, &tab[1], cnt-1);
+	if( (strncmp((char*)buf+tab[0].off, "sub", 3) == 0) |
+		(strncmp((char*)buf+tab[0].off, "subs", 4) == 0) |
+		(strncmp((char*)buf+tab[0].off, "cmp", 3) == 0) ){
+		assembly_arm64_sub(buf, len, tab, cnt);
 	}
 }

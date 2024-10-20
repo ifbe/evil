@@ -2522,6 +2522,11 @@ struct offlen{
 	u8 off;
 	u8 len;
 }__attribute__((packed));
+u32 x8664_str2data(u8* p){
+	char* buf = (char*)p;
+	if( ('0' == buf[0]) && ('x' == buf[1]) )return strtol((char*)buf+2, 0, 16);
+	else return atoi((char*)buf);
+}
 int which08(u8* buf, int len)
 {
 	int j;
@@ -2562,53 +2567,130 @@ int which64(u8* buf, int len)
 	}
 	return -1;
 }
-int whichreg(u8* buf, int len)
+int whichreg(u8* buf, int len, int* type, int* reg)
 {
 	int ret;
 
 	ret = which64(buf,len);
-	if(ret >= 0)return (64<<8)+ret;
+	if(ret >= 0){
+		*type = 64;
+		*reg = ret;
+		return 1;
+	}
 
 	ret = which32(buf,len);
-	if(ret >= 0)return (32<<8)+ret;
+	if(ret >= 0){
+		*type = 32;
+		*reg = ret;
+		return 1;
+	}
 
 	ret = which16(buf,len);
-	if(ret >= 0)return (16<<8)+ret;
+	if(ret >= 0){
+		*type = 16;
+		*reg = ret;
+		return 1;
+	}
 
 	ret = which08(buf,len);
-	if(ret >= 0)return ( 8<<8)+ret;
+	if(ret >= 0){
+		*type = 8;
+		*reg = ret;
+		return 1;
+	}
 
+	if(buf[0]>='0' && buf[0]<='9'){
+		*type = 0;
+		*reg = x8664_str2data(buf);
+		return 1;
+	}
 	return 0;
 }
-void assembly_mov(u8* buf, int len, struct offlen* tab, int cnt)
+void assembly_x8664_mov(u8* buf, int len, struct offlen* tab, int cnt)
 {
-	printf("dst=%.*s, src=%.*s\n", tab[0].len, buf+tab[0].off, tab[2].len, buf+tab[2].off);
-	int dst = whichreg(buf+tab[0].off, tab[0].len);
-	int src = whichreg(buf+tab[2].off, tab[2].len);
-	printf("dst=%x, src=%x\n", dst, src);
+	int dsttype=-1, dstreg=-1;
+	int srctype=-1, srcreg=-1;
+	whichreg(buf+tab[0].off, tab[0].len, &dsttype, &dstreg);
+	whichreg(buf+tab[2].off, tab[2].len, &srctype, &srcreg);
+	printf("dst=%x,%x, src=%x,%x\n", dsttype,dstreg, srctype,srcreg);
 
 	u8 bin[8];
-	if( ((dst>>8)==16) && ((src>>8)==16) ){
+	if( (dsttype==16) && (srctype==16) ){
 		bin[0] = 0x66;
 		bin[1] = 0x89;
-		bin[2] = (dst) | (src<<3) | (3<<6);
+		bin[2] = (dstreg) | (srcreg<<3) | (3<<6);
 		disasm_x8664_one(bin, 0);
 	}
 }
-void assembly_add(u8* buf, int len, struct offlen* tab, int cnt)
+void assembly_x8664_add(u8* buf, int len, struct offlen* tab, int cnt)
 {
-	printf("dst=%.*s, src0=%.*s, src1=%.*s\n", tab[0].len, buf+tab[0].off, tab[2].len, buf+tab[2].off, tab[4].len, buf+tab[4].off);
+	int dsttype=-1, dstreg=-1;
+	int srctype=-1, srcreg=-1;
+	whichreg(buf+tab[0].off, tab[0].len, &dsttype, &dstreg);
+	whichreg(buf+tab[2].off, tab[2].len, &srctype, &srcreg);
+	printf("dst=%x,%x, src=%x,%x\n", dsttype,dstreg, srctype,srcreg);
+
+	u8 bin[8];
+	if( (dsttype==8) && (srctype==8) ){
+		bin[0] = 0x00;
+		bin[1] = (dstreg) | (srcreg<<3) | (3<<6);
+	}
+	if( (dsttype==16) && (srctype==16) ){
+		bin[0] = 0x66;
+		bin[1] = 0x89;
+		bin[2] = (dstreg) | (srcreg<<3) | (3<<6);
+	}
+	if( (dsttype==32) && (srctype==32) ){
+		bin[0] = 0x01;
+		bin[1] = (dstreg) | (srcreg<<3) | (3<<6);
+	}
+	if( (dsttype==64) && (srctype==64) ){
+		bin[0] = 0x48;
+		bin[1] = 0x01;
+		bin[2] = (dstreg) | (srcreg<<3) | (3<<6);
+	}
+	if( (dsttype==8) && (srctype==0) ){
+		if(0 == dstreg){
+			bin[0] = 0x04;
+			bin[1] = srcreg;
+		}
+		else{
+			//todo: all reg except al is not allowed?
+			bin[0] = 0x80;
+			bin[1] = (dstreg) | (3<<6);
+			bin[2] = srcreg;
+		}
+	}
+	if( (dsttype==16) && (srctype==0) ){
+		bin[0] = 0x66;
+		bin[1] = 0x83;
+		bin[2] = (dstreg) | (3<<6);
+		bin[3] = srcreg;
+	}
+	if( (dsttype==32) && (srctype==0) ){
+		bin[0] = 0x83;
+		bin[1] = (dstreg) | (3<<6);
+		bin[2] = srcreg;
+	}
+	if( (dsttype==64) && (srctype==0) ){
+		bin[0] = 0x48;
+		bin[1] = 0x83;
+		bin[2] = (dstreg) | (3<<6);
+		bin[3] = srcreg;
+	}
+	disasm_x8664_one(bin, 0);
 }
 void assembly_compile_x8664(u8* buf, int len, struct offlen* tab, int cnt)
 {
-	int j;
+/*	int j;
 	for(j=0;j<cnt;j++){
 		printf("%d: %.*s\n", j, tab[j].len, buf+tab[j].off);
 	}
+*/
 	if(0 == strncmp((char*)buf+tab[0].off, "mov", 3)){
-		assembly_mov(buf, len, &tab[1], cnt-1);
+		assembly_x8664_mov(buf, len, &tab[1], cnt-1);
 	}
 	if(0 == strncmp((char*)buf+tab[0].off, "add", 3)){
-		assembly_add(buf, len, &tab[1], cnt-1);
+		assembly_x8664_add(buf, len, &tab[1], cnt-1);
 	}
 }

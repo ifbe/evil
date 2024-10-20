@@ -1,6 +1,36 @@
 mov w9 = w17
 mov x8 = x14
+
+add w13 = w22 + 0x777
 add w8 = w9 + w10
 add x17 = x23 + x28
-sub w18 = w19 - w11
-sub x7 = x3 - x8
+add x19 = x22 + x25 >> 4
+add x23 = x7 + asr(x5, 6)
+add x8 = x19 + uxtb(x5)
+
+adds w13 = w22 + 0x777
+adds w8 = w9 + w10
+adds x17 = x23 + x28
+adds x19 = x22 + x25 >> 4
+adds x23 = x7 + asr(x5, 6)
+adds x8 = x19 + uxtb(x5)
+
+cmn x3 - x9
+cmn w6 - w22
+
+sub w13 = w22 + 0x777
+sub w8 = w9 + w10
+sub x17 = x23 + x28
+sub x19 = x22 + x25 >> 4
+sub x23 = x7 + asr(x5, 6)
+sub x8 = x19 + uxtb(x5)
+
+subs w13 = w22 + 0x777
+subs w8 = w9 + w10
+subs x17 = x23 + x28
+subs x19 = x22 + x25 >> 4
+subs x23 = x7 + asr(x5, 6)
+subs x8 = x19 + uxtb(x5)
+
+cmp x3 - x9
+cmp w6 - w22

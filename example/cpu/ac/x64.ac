@@ -1,2 +1,0 @@
-mov ax=bx
-add dx=ax+cx

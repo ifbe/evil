@@ -21,18 +21,59 @@ int hexstr2u32(void* str, void* dat);
 
 #define CPU_X8664 0
 #define CPU_ARM64 1
+#define CPU_MIPS64 2
+#define CPU_RISCV64 3
 struct offlen{
 	u8 off;
 	u8 len;
 }__attribute__((packed));
 void assembly_compile_x8664(u8* buf, int len, struct offlen* tab, int cnt);
 void assembly_compile_arm64(u8* buf, int len, struct offlen* tab, int cnt);
+void assembly_compile_mips64(u8* buf, int len, struct offlen* tab, int cnt);
+void assembly_compile_riscv64(u8* buf, int len, struct offlen* tab, int cnt);
 
 
 
 
+int issym(u8 key){
+	switch(key){
+	case '=':
+	case '+':
+	case '-':
+	case '*':
+	case '/':
+		return 1;
+	}
+	return 0;
+}
+int iskuohao(u8 key){
+	switch(key){
+	case '(':
+	case ')':
+	case '[':
+	case ']':
+	case '{':
+	case '}':
+		return 1;
+	}
+	return 0;
+}
+int iscomma(u8 key){
+	switch(key){
+	case ',':
+	case ';':
+		return 1;
+	}
+	return 0;
+}
+void printtoken(u8* buf, int len){
+	printf(" %.*s ", len, buf);
+}
 void assembly_oneline(u8* buf, int len, int cpu)
 {
+	if(len < 2)return;
+	printf("--------");
+
 	int cnt = 0;
 	struct offlen tab[16];
 
@@ -41,32 +82,58 @@ void assembly_oneline(u8* buf, int len, int cpu)
 	for(j=0;j<=len;j++){
 		if( (buf[j] == ' ') | (buf[j] ==  '\t') | (j==len) ){
 			if(k >= 0){
-				printf("(%.*s)", j-k, buf+k);
+				printtoken(buf+k, j-k);
 				tab[cnt].off = k;
 				tab[cnt].len = j-k;
 				cnt += 1;
 			}
 			k = -1;
 		}
-		else if( (buf[j] == '=') | (buf[j] == '+') ){
-			if(k >= 0){
-				printf("(%.*s)", j-k, buf+k);
+		else if(iscomma(buf[j])){
+			if(k < 0)k = j;
+			else{
+				printtoken(buf+k, j-k);
 				tab[cnt].off = k;
 				tab[cnt].len = j-k;
 				cnt += 1;
+				k = j;
 			}
-			printf("[%c]", buf[j]);
-			tab[cnt].off = j;
-			tab[cnt].len = 1;
-			cnt += 1;
-
-			k = -1;
+		}
+		else if(iskuohao(buf[j])){
+			if(k < 0)k = j;
+			else{
+				printtoken(buf+k, j-k);
+				tab[cnt].off = k;
+				tab[cnt].len = j-k;
+				cnt += 1;
+				k = j;
+			}
+		}
+		else if(issym(buf[j])){
+			if(k < 0)k = j;
+			else{
+				if(issym(buf[k]))continue;
+				else{
+					printtoken(buf+k, j-k);
+					tab[cnt].off = k;
+					tab[cnt].len = j-k;
+					cnt += 1;
+					k = j;
+				}
+			}
 		}
 		else{
 			if(k < 0)k = j;
+			else if( issym(buf[k]) | iskuohao(buf[k]) | iscomma(buf[k]) ){
+				printtoken(buf+k, j-k);
+				tab[cnt].off = k;
+				tab[cnt].len = j-k;
+				cnt += 1;
+				k = j;
+			}
 		}
 	}
-	printf("\n");
+	printf("--------\n");
 
 	switch(cpu){
 	case CPU_X8664:
@@ -75,14 +142,21 @@ void assembly_oneline(u8* buf, int len, int cpu)
 	case CPU_ARM64:
 		assembly_compile_arm64(buf,len, tab,cnt);
 		break;
+	case CPU_MIPS64:
+		assembly_compile_mips64(buf,len, tab,cnt);
+		break;
+	case CPU_RISCV64:
+		assembly_compile_riscv64(buf,len, tab,cnt);
+		break;
 	}
+	printf("\n");
 }
 void parseassembly(u8* buf, int len, int cpu)
 {
 	printf("len=%d\n", len);
 	int j,k=0;
-	for(j=0;j<len;j++){
-		if('\n' == buf[j]){
+	for(j=0;j<=len;j++){
+		if( ('\n' == buf[j]) | (j==len) ){
 			//printf("%.*s\n", j-k, buf+k);
 			assembly_oneline(buf+k, j-k, cpu);
 			k = j+1;

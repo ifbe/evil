@@ -41,6 +41,8 @@ source/lv1/1assembly/analyse/travel/arm64.c \
 source/lv1/1assembly/analyse/travel/x8664.c \
 source/lv1/1assembly/assembly/cpu/arm64.c \
 source/lv1/1assembly/assembly/cpu/x8664.c \
+source/lv1/1assembly/assembly/cpu/mips64.c \
+source/lv1/1assembly/assembly/cpu/riscv64.c \
 source/lv1/1assembly/assembly/exe/elf.c \
 source/lv1/1assembly/assembly/exe/mac.c \
 source/lv1/1assembly/assembly/exe/pe.c \

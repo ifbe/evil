@@ -55,8 +55,10 @@ void help(char* buf)
 	printf("	a.exe serve\n");
 	printf("	a.exe substr\n");
 	printf("lv3:\n");
-	printf("	a.exe quantization in.bin out.bin\n");
-	printf("	OMP_NUM_THREADS=4 a.exe llama llama7b.bin tokenizer.bin\n");
+	printf("	a.exe mnist train model=xxx image=yyy label=zzz\n");
+	printf("	a.exe mnist infer model=xxx image=yyy label=zzz\n");
+	printf("	a.exe llama quanti in.bin out.bin\n");
+	printf("	a.exe llama infer llama7b.bin tokenizer.bin\n");
 }
 int main(int argc, char** argv)
 {
