@@ -3,6 +3,26 @@ mov ax=bx
 mov ebx=esi
 mov rax=rdx
 
+mov rsi=[0x28]
+mov rsi=[rbp]
+mov rsi=[rdi]
+mov rsi=[rbp+0x25]
+mov rsi=[rdi+0x25]
+mov rsi=[rbp+0x1234]
+mov rsi=[rdi+0x1234]
+mov rsi=[8*rbp+0x75]
+mov rsi=[8*rbp+rdx]
+mov rsi=[8*rbp+rdx+0x1234]
+
+mov [rax]=rbx
+mov [rax*4]=rbx
+mov [rax*4+rsi]=rbx
+mov [rax*4+rsi+0x28]=rbx
+mov [rax]=0x1234
+mov [rax*4]=0x1234
+mov [rax*4+rsi]=0x1234
+mov [rax*4+rsi+0x28]=0x1234
+
 add dl += al
 add dx += ax
 add edx += eax

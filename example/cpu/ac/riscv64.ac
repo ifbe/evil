@@ -1,0 +1,4 @@
+li x9 = 0x60
+mv x13 = x20
+addi x4 = x13+32
+addi x4 = x3+x2+320

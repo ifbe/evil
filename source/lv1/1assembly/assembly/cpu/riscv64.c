@@ -110,6 +110,15 @@ struct rv64u{
 //addi
 //li: addi.rs1=r0
 //mv: addi.imm=0
+int riscv64_encode(struct rv64r* code, int opcode, int funct3, int rd, int rs1, int rs2, int funct7){
+	code->opcode = opcode;
+	code->funct3 = funct3;
+	code->rd = rd;
+	code->rs1 = rs1;
+	code->rs2 = rs2;
+	code->funct7 = funct7;
+	return 1;
+}
 
 
 /*
@@ -591,44 +600,24 @@ void disasm_riscv64_all(u8* buf, int len, int rip)
 		disasm_riscv64_one(code, rip+j);
 	}
 }
-void disasm_riscv64(int argc, char** argv)
-{
-	u32 at = 0;
-	u32 sz = 0;
-	if(argc < 2)return;
-	if(argc > 2)hexstr2u32(argv[2], &at);
-	if(argc > 3)hexstr2u32(argv[3], &sz);
-	if(0 == sz)sz = 0x1000000;
 
-	int fd = open(argv[1] , O_RDONLY|O_BINARY);
-	if(fd <= 0){
-		printf("errno=%d@open\n", errno);
-		return;
+
+
+
+u32 riscv64_str2data(u8* p){
+	char* buf = (char*)p;
+	if( ('0' == buf[0]) && ('x' == buf[1]) )return strtol((char*)buf+2, 0, 16);
+	else return atoi((char*)buf);
+}
+void riscv64_str2type(u8* p, int* t0, int* t1){
+	if('x'==p[0]){
+		*t0 = 0;
+		*t1 = riscv64_str2data(p+1);
 	}
-
-	u8* buf = malloc(sz);
-	if(0 == buf){
-		printf("errno=%d@malloc\n", errno);
-		goto theend;
+	if( (p[0]>='0') && (p[0]<='9') ){
+		*t0 = 1;
+		*t1 = riscv64_str2data(p);
 	}
-
-	int ret = lseek(fd, at, SEEK_SET);
-	if(ret < 0){
-		printf("errno=%d@lseek\n", errno);
-		goto release;
-	}
-
-	ret = read(fd, buf, sz);
-	if(ret <= 0){
-		printf("errno=%d@read\n", errno);
-		goto release;
-	}
-	disasm_riscv64_all(buf, ret, 0);
-
-release:
-	free(buf);
-theend:
-	close(fd);
 }
 
 
@@ -642,9 +631,70 @@ void assembly_riscv64_mov(u8* buf, int len, struct offlen* tab, int cnt)
 {
 	printf("dst=%.*s, src=%.*s\n", tab[0].len, buf+tab[0].off, tab[2].len, buf+tab[2].off);
 }
-void assembly_riscv64_add(u8* buf, int len, struct offlen* tab, int cnt)
+void assembly_riscv64_addi(u8* ptr, int len, struct offlen* tab, int cnt)
 {
-	printf("dst=%.*s, src0=%.*s, src1=%.*s\n", tab[0].len, buf+tab[0].off, tab[2].len, buf+tab[2].off, tab[4].len, buf+tab[4].off);
+	int what = -1;
+	if(strncmp((char*)ptr+tab[0].off, "addi", 4)==0){
+		what = 0;
+	}
+	else if(strncmp((char*)ptr+tab[0].off, "mv", 2)==0){
+		what = 1;
+	}
+	else if(strncmp((char*)ptr+tab[0].off, "li", 2)==0){
+		what = 2;
+	}
+	printf("what=%x\n", what);
+
+	tab = &tab[1];
+	cnt = cnt-1;
+
+	u8* buf0 = ptr+tab[0].off;
+	int len0 = tab[0].len;
+	u8* buf1 = ptr+tab[2].off;
+	int len1 = tab[2].len;
+	u8* buf2 = ptr+tab[2].off;
+	int len2 = tab[2].len;
+	u8* buf3 = ptr+tab[3].off;
+	int len3 = tab[3].len;
+	u8* buf4 = ptr+tab[4].off;
+	int len4 = tab[4].len;
+	u8* buf5 = ptr+tab[5].off;
+	int len5 = tab[5].len;
+	u8* buf6 = ptr+tab[6].off;
+	int len6 = tab[6].len;
+
+	int d0type = -1;
+	int d0data = -1;
+	riscv64_str2type(buf0, &d0type, &d0data);
+
+	int s0type = -1;
+	int s0data = -1;
+	riscv64_str2type(buf2, &s0type, &s0data);
+
+	u32 code;
+	if(2 == what){	//	li x3 = 0
+		printf("li %x %x\n", d0data, s0data);
+		riscv64_encode((void*)&code, 0x13, 0x0, d0data, 0, 0, s0data>>5);
+	}
+	else if(1 == what){	//	mv x3 = x22
+		printf("mv %x %x\n", d0data, s0data);
+		riscv64_encode((void*)&code, 0x13, 0x0, d0data, s0data, 0, 0);
+	}
+	else{	//addi
+		int s1type = -1;
+		int s1data = -1;
+		riscv64_str2type(buf4, &s1type, &s1data);
+		if(s1type == 1){
+			riscv64_encode((void*)&code, 0x13, 0x0, d0data, s0data, 0, s1data>>5);
+		}
+		else{
+			int immtype = -1;
+			int immdata = -1;
+			riscv64_str2type(buf6, &immtype, &immdata);
+			riscv64_encode((void*)&code, 0x13, 0x0, d0data, s0data, s1data, immdata>>5);
+		}
+	}
+	disasm_riscv64_one(code, 0);
 }
 void assembly_compile_riscv64(u8* buf, int len, struct offlen* tab, int cnt)
 {
@@ -653,11 +703,10 @@ void assembly_compile_riscv64(u8* buf, int len, struct offlen* tab, int cnt)
 		printf("%d: %.*s\n", j, tab[j].len, buf+tab[j].off);
 	}
 */
-	if(0 == strncmp((char*)buf+tab[0].off, "mov", 3)){
-		assembly_riscv64_mov(buf, len, &tab[1], cnt-1);
-	}
-	if(0 == strncmp((char*)buf+tab[0].off, "add", 3)){
-		assembly_riscv64_add(buf, len, &tab[1], cnt-1);
+	if(	(strncmp((char*)buf+tab[0].off, "addi", 4)==0) |
+		(strncmp((char*)buf+tab[0].off, "mv", 2)==0) |
+		(strncmp((char*)buf+tab[0].off, "li", 2)==0) ){
+		assembly_riscv64_addi(buf, len, tab, cnt);
 	}
 }
 

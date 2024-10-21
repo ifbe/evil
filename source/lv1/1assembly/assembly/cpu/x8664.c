@@ -422,7 +422,7 @@ int disasm_x8664_sib(u64 rip, u8* p, char* str, s64* dat, char** istr, char** bs
 		//p[1] = *5 *d
 		if(5 == (p[1] &7)){
 			off = *(int*)(p+2);
-			if(str)snprintf(str, 64, "rel %llx", rip+6+off);
+			if(str)snprintf(str, 64, "rel 0x%llx", rip+6+off);
 			if(dat)dat[0] = off;
 			return 6;
 		}
@@ -433,7 +433,7 @@ int disasm_x8664_sib(u64 rip, u8* p, char* str, s64* dat, char** istr, char** bs
 		_b = p[2]&7;
 		if(5 == _b){
 			off = *(int*)(p+3);
-			if(4 == _i)snprintf(str, 64, "%llx", off);
+			if(4 == _i)snprintf(str, 64, "0x%llx", off);
 			else snprintf(str, 64, "%d*%s+0x%llx", _s, istr[_i], off);
 			return 7;
 		}
@@ -2474,46 +2474,6 @@ void disasm_x8664_all(u8* buf, int len, u64 rip)
 		j += disasm_x8664_one(buf+j, rip+j);
 	}//while
 }
-void disasm_x8664(int argc, char** argv)
-{
-	u32 at = 0;
-	u32 sz = 0;
-	if(argc < 2)return;
-	if(argc > 2)hexstr2u32(argv[2], &at);
-	if(argc > 3)hexstr2u32(argv[3], &sz);
-	if(0 == sz)sz = 0x1000000;
-
-	int fd = open(argv[1] , O_RDONLY|O_BINARY);
-	if(fd <= 0){
-		printf("errno=%d@open\n", errno);
-		return;
-	}
-
-	u8* buf = malloc(sz);
-        if(0 == buf){
-		printf("errno=%d@malloc\n", errno);
-		goto theend;
-	}
-
-	int ret = lseek(fd, at, SEEK_SET);
-	if(ret < 0){
-		printf("errno=%d@lseek\n", errno);
-		goto release;
-	}
-
-	ret = read(fd, buf, sz);
-	if(ret <= 0){
-		printf("errno=%d@read\n", errno);
-		goto release;
-	}
-
-	disasm_x8664_all(buf, ret, 0);
-
-release:
-	free(buf);
-theend:
-	close(fd);
-}
 
 
 
@@ -2521,6 +2481,10 @@ theend:
 struct offlen{
 	u8 off;
 	u8 len;
+}__attribute__((packed));
+struct typedata{
+	int type;
+	int data;
 }__attribute__((packed));
 u32 x8664_str2data(u8* p){
 	char* buf = (char*)p;
@@ -2606,29 +2570,476 @@ int whichreg(u8* buf, int len, int* type, int* reg)
 	}
 	return 0;
 }
+int x8664_scaleindexbaseimm(
+	u8* buf, int len, struct offlen* tab, int cnt,
+	struct typedata* td)
+{
+	int j;
+
+	for(j=0;j<cnt;j++){
+		if(']'==buf[tab[j].off])break;
+		//printf("%d:%.*s\n", j, tab[j].len, buf+tab[j].off);
+	}
+	//printf("j=%d\n", j);
+
+	int type0 = -1, data0 = -1;
+	int type2 = -1, data2 = -1;
+	int type4 = -1, data4 = -1;
+	int type6 = -1, data6 = -1;
+	if(j>=1){
+		whichreg(buf+tab[0].off, tab[0].len, &type0, &data0);
+	}
+	if(j>=3){
+		whichreg(buf+tab[2].off, tab[2].len, &type2, &data2);
+	}
+	if(j>=5){
+		whichreg(buf+tab[4].off, tab[4].len, &type4, &data4);
+	}
+	if(j>=7){
+		whichreg(buf+tab[6].off, tab[6].len, &type6, &data6);
+	}
+
+	if(1 == j){		//	1 arg
+		//	0x8
+		if(0 == type0){
+			td[0].type = td[1].type = td[2].type = -1;
+			td[3].type = 1;
+
+			td[0].data = 0;
+			td[1].data = 0;
+			td[2].data = 0;
+			td[3].data = data0;
+			printf("1op: imm=0x%x\n", data0);
+		}
+		//	rax
+		else{
+			td[0].type = td[1].type = td[3].type = -1;
+			td[2].type = 1;
+
+			td[0].data = 0;
+			td[1].data = 0;
+			td[2].data = data0;
+			td[3].data = 0;
+			printf("1op: base=%d\n", data0);
+		}
+	}
+	else if(3 == j){		//	2 arg
+		//	0x8 * rax
+		//	rax * 0x8
+		if('*' == buf[tab[1].off]){
+			td[0].type = td[1].type = 1;
+			td[2].type = td[3].type =-1;
+
+			if(0 == type0){
+				td[0].data = data0;
+				td[1].data = data2;
+				td[2].data = 0;
+				td[3].data = 0;
+				printf("2op: scale=%d,index=%d\n", data0, data2);
+			}
+			else if(0 == type2){
+				td[0].data = data2;
+				td[1].data = data0;
+				td[2].data = 0;
+				td[3].data = 0;
+				printf("2op: scale=%d,index=%d\n", data2, data0);
+			}
+		}
+		//	0x8 + rax
+		//	rax + 0x8
+		else if('+' == buf[tab[1].off]){
+			td[0].type = td[1].type =-1;
+			td[2].type = td[3].type = 1;
+			if(0 == type0){
+				td[0].data = 0;
+				td[1].data = 0;
+				td[2].data = data2;
+				td[3].data = data0;
+				printf("2op: base=%d,imm=0x%x\n", data2, data0);
+			}
+			else if(0 == type2){
+				td[0].data = 0;
+				td[1].data = 0;
+				td[2].data = data0;
+				td[3].data = data2;
+				printf("2op: base=%d,imm=0x%x\n", data0, data2);
+			}
+		}
+	}
+	else if(5 == j){		//	3 arg
+		//	* +
+		//	rax * 0x8 + 0x5
+		//	rax * 0x8 + rbx
+		//	0x8 * rax + 0x5
+		//	0x8 * rax + rbx
+		if('*' == buf[tab[1].off]){
+			if(0 == type2){
+				td[0].data = data2;
+				td[1].data = data0;
+				if(0 == type4){
+					td[2].data = 0;
+					td[3].data = data4;
+					printf("3op: scale=%d,index=%d,imm=%d\n", data2, data0, data4);
+					td[0].type = td[1].type = td[3].type =1;
+					td[2].type = -1;
+				}
+				else{
+					td[2].data = data4;
+					td[3].data = 0;
+					printf("3op: scale=%d,index=%d,base=%d\n", data2, data0, data4);
+					td[0].type = td[1].type = td[2].type =1;
+					td[3].type = -1;
+				}
+			}
+			else if(0 == type0){
+				td[0].data = data0;
+				td[1].data = data2;
+				if(0 == type4){
+					td[2].data = 0;
+					td[3].data = data4;
+					printf("3op: scale=%d,index=%d,base=%d\n", data0, data2, data4);
+					td[0].type = td[1].type = td[3].type =1;
+					td[2].type = -1;
+				}
+				else{
+					td[2].data = data4;
+					td[3].data = 0;
+					printf("3op: scale=%d,index=%d,base=%d\n", data0, data2, data4);
+					td[0].type = td[1].type = td[2].type =1;
+					td[3].type = -1;
+				}
+			}
+		}
+		//	+ *
+		//	0x3 + rbx * 0x8
+		//	rax + rbx * 0x8
+		//	0x3 + 0x8 * rbx
+		//	rax + 0x8 * rbx
+		else if('*' == buf[tab[3].off]){
+			if(0 == type4){
+				td[0].data = data4;
+				td[1].data = data2;
+				if(0 == type0){
+					td[2].data = 0;
+					td[3].data = data0;
+					printf("3op: scale=%d,index=%d,imm=%d\n", data4, data2, data0);
+					td[0].type = td[1].type = td[3].type =1;
+					td[2].type = -1;
+				}
+				else{
+					td[2].data = data0;
+					td[3].data = 0;
+					printf("3op: scale=%d,index=%d,base=%d\n", data4, data2, data0);
+					td[0].type = td[1].type = td[2].type =1;
+					td[3].type = -1;
+				}
+			}
+			else if(0 == type2){
+				td[0].data = data2;
+				td[1].data = data4;
+				if(0 == type0){
+					td[2].data = 0;
+					td[3].data = data0;
+					printf("3op: scale=%d,index=%d,imm=%d\n", data2, data4, data0);
+					td[0].type = td[1].type = td[3].type =1;
+					td[2].type = -1;
+				}
+				else{
+					td[2].data = data0;
+					td[3].data = 0;
+					printf("3op: scale=%d,index=%d,base=%d\n", data2, data4, data0);
+					td[0].type = td[1].type = td[2].type =1;
+					td[3].type = -1;
+				}
+			}
+		}
+		//	+ +
+		//	rax + rbx + 0x8
+		//	rax + 0x8 + rbx
+		//	0x8 + rax + rbx
+		else if( ('+' == buf[tab[1].off]) && ('+' == buf[tab[3].off]) ){
+			td[0].type = td[1].type = td[2].type = td[3].type = 1;
+			if(0 == type4){
+				td[0].data = 1;
+				td[1].data = data0;
+				td[2].data = data2;
+				td[3].data = data4;
+				printf("3op: index=%d,base=%d,imm=0x%x\n", data0, data2, data4);
+			}
+			else if(0 == type2){
+				td[0].data = 1;
+				td[1].data = data0;
+				td[2].data = data4;
+				td[3].data = data2;
+				printf("3op: index=%d,base=%d,imm=0x%x\n", data0, data4, data2);
+			}
+			else if(0 == type0){
+				td[0].data = 1;
+				td[1].data = data2;
+				td[2].data = data4;
+				td[3].data = data0;
+				printf("3op: index=%d,base=%d,imm=0x%x\n", data2, data4, data0);
+			}
+		}
+	}
+	else if(7 == j){		//	4 arg
+		td[0].type = td[1].type = td[2].type = td[3].type = 1;
+		//	* + +
+		//	rax * 0x8 + rbx + 0x4
+		//	rax * 0x8 + 0x4 + rbx
+		//	0x8 * rax + rbx + 0x4
+		//	0x8 * rax + 0x4 + rbx
+		if('*' == buf[tab[1].off]){
+			if( (0 == type2) && (0 == type6) ){
+				td[0].data = data2;
+				td[1].data = data0;
+				td[2].data = data4;
+				td[3].data = data6;
+				printf("4op: scale=%d,index=%d,base=%d,imm=0x%x\n", data2, data0, data4, data6);
+			}
+			else if( (0 == type2) && (0 == type4) ){
+				td[0].data = data2;
+				td[1].data = data0;
+				td[2].data = data6;
+				td[3].data = data4;
+				printf("4op: scale=%d,index=%d,base=%d,imm=0x%x\n", data2, data0, data6, data4);
+			}
+			else if( (0 == type0) && (0 == type6) ){
+				td[0].data = data0;
+				td[1].data = data2;
+				td[2].data = data4;
+				td[3].data = data6;
+				printf("4op: scale=%d,index=%d,base=%d,imm=0x%x\n", data0, data2, data4, data6);
+			}
+			else if( (0 == type0) && (0 == type4) ){
+				td[0].data = data0;
+				td[1].data = data2;
+				td[2].data = data6;
+				td[3].data = data4;
+				printf("4op: scale=%d,index=%d,base=%d,imm=0x%x\n", data0, data2, data6, data4);
+			}
+		}
+		//	+ * +
+		//	rbx + rax * 0x8 + 0x4
+		//	0x4 + rax * 0x8 + rbx
+		//	rbx + 0x8 * rax + 0x4
+		//	0x4 + 0x8 * rax + rbx
+		if('*' == buf[tab[3].off]){
+			if( (0 == type4) && (0 == type6) ){
+				td[0].data = data4;
+				td[1].data = data2;
+				td[2].data = data0;
+				td[3].data = data6;
+				printf("4op: scale=%d,index=%d,base=%d,imm=0x%x\n", data4, data2, data0, data6);
+			}
+			else if( (0 == type0) && (0 == type4) ){
+				td[0].data = data4;
+				td[1].data = data2;
+				td[2].data = data6;
+				td[3].data = data0;
+				printf("4op: scale=%d,index=%d,base=%d,imm=0x%x\n", data4, data2, data6, data0);
+			}
+			else if( (0 == type2) && (0 == type6) ){
+				td[0].data = data2;
+				td[1].data = data4;
+				td[2].data = data0;
+				td[3].data = data6;
+				printf("4op: scale=%d,index=%d,base=%d,imm=0x%x\n", data2, data4, data0, data6);
+			}
+			else if( (0 == type0) && (0 == type2) ){
+				td[0].data = data2;
+				td[1].data = data4;
+				td[2].data = data6;
+				td[3].data = data0;
+				printf("4op: scale=%d,index=%d,base=%d,imm=0x%x\n", data2, data4, data6, data0);
+			}
+		}
+		//	+ + *
+		//	rbx + 0x4 + rax * 0x8
+		//	0x4 + rbx + rax * 0x8
+		//	rbx + 0x4 + 0x8 * rax
+		//	0x4 + rbx + 0x8 * rax
+		if('*' == buf[tab[5].off]){
+			if( (0 == type2) && (0 == type6) ){
+				td[0].data = data6;
+				td[1].data = data4;
+				td[2].data = data0;
+				td[3].data = data2;
+				printf("4op: scale=%d,index=%d,base=%d,imm=0x%x\n", data6, data4, data0, data2);
+			}
+			else if( (0 == type0) && (0 == type6) ){
+				td[0].data = data6;
+				td[1].data = data4;
+				td[2].data = data2;
+				td[3].data = data0;
+				printf("4op: scale=%d,index=%d,base=%d,imm=0x%x\n", data6, data4, data2, data0);
+			}
+			else if( (0 == type2) && (0 == type4) ){
+				td[0].data = data4;
+				td[1].data = data6;
+				td[2].data = data0;
+				td[3].data = data2;
+				printf("4op: scale=%d,index=%d,base=%d,imm=0x%x\n", data4, data6, data0, data2);
+			}
+			else if( (0 == type0) && (0 == type4) ){
+				td[0].data = data4;
+				td[1].data = data6;
+				td[2].data = data2;
+				td[3].data = data0;
+				printf("4op: scale=%d,index=%d,base=%d,imm=0x%x\n", data4, data6, data2, data0);
+			}
+		}
+	}
+	return j;
+}
+int get_reg_or_sib(u8* buf, int len, struct offlen* tab, int cnt, struct typedata* td)
+{
+	printf("%c\n", buf[tab[0].off]);
+	if('[' != buf[tab[0].off]){
+		whichreg(buf+tab[0].off, tab[0].len, &td[0].type, &td[0].data);
+		printf("%x,%x\n", td[0].type, td[0].data);
+		return 0;
+	}
+	else{
+		td[0].type = 99;
+		td[0].data = 0;
+		int ret = x8664_scaleindexbaseimm(buf,len, &tab[1],cnt-1, &td[1]);
+		if(td[1].data >= 0){
+			if(1==td[1].data)td[1].data = 0;
+			else if(2==td[1].data)td[1].data = 1;
+			else if(4==td[1].data)td[1].data = 2;
+			else if(8==td[1].data)td[1].data = 3;
+		}
+		return ret+1;
+	}
+}
 void assembly_x8664_mov(u8* buf, int len, struct offlen* tab, int cnt)
 {
-	int dsttype=-1, dstreg=-1;
-	int srctype=-1, srcreg=-1;
-	whichreg(buf+tab[0].off, tab[0].len, &dsttype, &dstreg);
-	whichreg(buf+tab[2].off, tab[2].len, &srctype, &srcreg);
-	printf("dst=%x,%x, src=%x,%x\n", dsttype,dstreg, srctype,srcreg);
+	struct typedata dst[5];		//regorbracket, scale, index, base, data
+	int end0 = 0 + get_reg_or_sib(buf,len, tab,cnt, dst);
+
+	struct typedata src[5];
+	int end1 = end0+2 + get_reg_or_sib(buf,len, &tab[end0+2],cnt-(end0+2), src);
+
+	printf("dsttype=%d\n",dst[0].type);
+	printf("srctype=%d\n",src[0].type);
 
 	u8 bin[8];
-	if( (dsttype==16) && (srctype==16) ){
+	if( (8==dst[0].type) && (8==src[0].type) ){
+		bin[0] = 0x88;
+		bin[1] = (dst[0].data) | (src[0].data<<3) | (3<<6);
+	}
+	if( (16==dst[0].type) && (16==src[0].type) ){
 		bin[0] = 0x66;
 		bin[1] = 0x89;
-		bin[2] = (dstreg) | (srcreg<<3) | (3<<6);
-		disasm_x8664_one(bin, 0);
+		bin[2] = (dst[0].data) | (src[0].data<<3) | (3<<6);
 	}
+	if( (32==dst[0].type) && (32==src[0].type) ){
+		bin[0] = 0x89;
+		bin[1] = (dst[0].data) | (src[0].data<<3) | (3<<6);
+	}
+	if( (64==dst[0].type) && (64==src[0].type) ){
+		bin[0] = 0x48;
+		bin[1] = 0x89;
+		bin[2] = (dst[0].data) | (src[0].data<<3) | (3<<6);
+	}
+
+	if( (64==dst[0].type) && (99==src[0].type) ){	//mov rax,[]
+		printf("%x,%x,%x,%x\n",src[1].data,src[2].data,src[3].data,src[4].data);
+		bin[0] = 0x48;
+		bin[1] = 0x8b;
+		if( (src[2].type < 0) && (src[3].type < 0) ){	//mov rax,[0x1234]		//index=none,base=none
+			bin[2] = (0<<6) | (dst[0].data<<3) | (4);
+			bin[3] = 0x25;
+			*(int*)(bin+4) = src[4].data;
+		}
+		else if( (src[2].type < 0) && (src[4].type < 0) ){	//mov rax,[rbx]		//index=none,imm=none
+			if(5 == src[3].data){	//mov rax,[rbp]
+				bin[2] = (1<<6) | (dst[0].data<<3) | (src[3].data);
+				bin[3] = 0;
+			}
+			else{
+				bin[2] = (0<<6) | (dst[0].data<<3) | (src[3].data);
+			}
+		}
+		else if(src[2].type < 0){	//mov rax,[rbp+0x1234]		//index=none
+			if(src[4].data < 0x100){
+				bin[2] = (1<<6) | (dst[0].data<<3) | (src[3].data);		//mod r r/m
+				bin[3] = src[4].data;
+			}
+			else{
+				bin[2] = (2<<6) | (dst[0].data<<3) | (src[3].data);		//mod r r/m
+				*(int*)(bin+3) = src[4].data;
+			}
+		}
+		else if(src[3].type < 0){	//mov rax,[rax*8+0x1234]	//base=none
+			bin[2] = (0<<6) | (dst[0].data<<3) | (4);		//mod r r/m
+			bin[3] = (src[1].data<<6) | (src[2].data<<3) | (5);	//sib
+			*(int*)(bin+4) = src[4].data;
+		}
+		else{	//mov rax,[rcx*8+rbp+0x1234]
+			bin[2] = (2<<6) | (dst[0].data<<3) | (4);		//mod r r/m
+			bin[3] = (src[1].data<<6) | (src[2].data<<3) | (src[3].data);	//sib
+			*(int*)(bin+4) = src[4].data;
+		}
+	}
+	if( (99==dst[0].type) && (64==src[0].type) ){	//mov [],rax
+		printf("%x,%x,%x,%x\n",dst[1].data,dst[2].data,dst[3].data,dst[4].data);
+		bin[0] = 0x48;
+		bin[1] = 0x89;
+		if( (dst[2].type < 0) && (dst[3].type < 0) ){	//mov rax,[0x1234]		//index=none,base=none
+			bin[2] = (0<<6) | (src[0].data<<3) | (4);
+			bin[3] = 0x25;
+			*(int*)(bin+4) = dst[4].data;
+		}
+		else if( (dst[2].type < 0) && (dst[4].type < 0) ){	//mov rax,[rbx]		//index=none,imm=none
+			if(5 == dst[3].data){	//mov rax,[rbp]
+				bin[2] = (1<<6) | (src[0].data<<3) | (dst[3].data);
+				bin[3] = 0;
+			}
+			else{
+				bin[2] = (0<<6) | (src[0].data<<3) | (dst[3].data);
+			}
+		}
+		else if(dst[2].type < 0){	//mov rax,[rbp+0x1234]		//index=none
+			if(dst[4].data < 0x100){
+				bin[2] = (1<<6) | (src[0].data<<3) | (dst[3].data);		//mod r r/m
+				bin[3] = dst[4].data;
+			}
+			else{
+				bin[2] = (2<<6) | (src[0].data<<3) | (dst[3].data);		//mod r r/m
+				*(int*)(bin+3) = dst[4].data;
+			}
+		}
+		else if(dst[3].type < 0){	//mov rax,[rax*8+0x1234]	//base=none
+			bin[2] = (0<<6) | (src[0].data<<3) | (4);		//mod r r/m
+			bin[3] = (dst[1].data<<6) | (dst[2].data<<3) | (5);	//sib
+			*(int*)(bin+4) = dst[4].data;
+		}
+		else{	//mov rax,[rcx*8+rbp+0x1234]
+			bin[2] = (2<<6) | (src[0].data<<3) | (4);		//mod r r/m
+			bin[3] = (dst[1].data<<6) | (dst[2].data<<3) | (dst[3].data);	//sib
+			*(int*)(bin+4) = dst[4].data;
+		}
+	}
+	if( (99==dst[0].type) && (0==src[0].type) ){	//mov [],0x12	//mov [],0x1234	//mov [],0x12345678
+	}
+	disasm_x8664_one(bin, 0);
 }
 void assembly_x8664_add(u8* buf, int len, struct offlen* tab, int cnt)
 {
 	int dsttype=-1, dstreg=-1;
-	int srctype=-1, srcreg=-1;
 	whichreg(buf+tab[0].off, tab[0].len, &dsttype, &dstreg);
-	whichreg(buf+tab[2].off, tab[2].len, &srctype, &srcreg);
-	printf("dst=%x,%x, src=%x,%x\n", dsttype,dstreg, srctype,srcreg);
+	int srctype=-1, srcreg=-1;
+	int immtype=-1, immval=-1;
+	if('['==buf[tab[2].off]){
+		whichreg(buf+tab[3].off, tab[3].len, &srctype, &srcreg);
+		whichreg(buf+tab[5].off, tab[5].len, &immtype, &immval);
+	}
+	else{
+		whichreg(buf+tab[2].off, tab[2].len, &srctype, &srcreg);
+	}
+	printf("dst=%x,%x, src=%x,%x, imm=%x,%x\n", dsttype,dstreg, srctype,srcreg, immtype,immval);
 
 	u8 bin[8];
 	if( (dsttype==8) && (srctype==8) ){
@@ -2637,7 +3048,7 @@ void assembly_x8664_add(u8* buf, int len, struct offlen* tab, int cnt)
 	}
 	if( (dsttype==16) && (srctype==16) ){
 		bin[0] = 0x66;
-		bin[1] = 0x89;
+		bin[1] = 0x01;
 		bin[2] = (dstreg) | (srcreg<<3) | (3<<6);
 	}
 	if( (dsttype==32) && (srctype==32) ){
