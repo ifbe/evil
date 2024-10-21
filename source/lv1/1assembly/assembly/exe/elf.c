@@ -17,6 +17,8 @@
 int hexstr2u32(void* str, void* dat);
 int disasm_arm64_all(void* buf, int len, u64 rip);
 int disasm_x8664_all(void* buf, int len, u64 rip);
+int disasm_mips64_all(void* buf, int len, u64 rip);
+int disasm_riscv64_all(void* buf, int len, u64 rip);
 
 
 #define SHT_NULL                    0    // Unused
@@ -166,6 +168,8 @@ void disasm_elf64_program(void* buf)
 	switch(h->e_machine){
 	case 0x3e:disasm_x8664_all(buf+ph->p_offset, ph->p_filesz, ph->p_vaddr);break;
 	case 0xb7:disasm_arm64_all(buf+ph->p_offset, ph->p_filesz, ph->p_vaddr);break;
+	//case 0x??:disasm_mips64_all(buf+ph->p_offset, ph->p_filesz, ph->p_vaddr);break;
+	case 0xf3:disasm_riscv64_all(buf+ph->p_offset, ph->p_filesz, ph->p_vaddr);break;
 	}
 }
 void disasm_elf64_section(void* buf)
@@ -200,6 +204,8 @@ void disasm_elf64_section(void* buf)
 			switch(h->e_machine){
 			case 0x3e:disasm_x8664_all(buf+sh[j].sh_offset, sh[j].sh_size, sh[j].sh_addr);break;
 			case 0xb7:disasm_arm64_all(buf+sh[j].sh_offset, sh[j].sh_size, sh[j].sh_addr);break;
+			//case 0x??:disasm_mips64_all(buf+ph->p_offset, ph->p_filesz, ph->p_vaddr);break;
+			case 0xf3:disasm_riscv64_all(buf+sh[j].sh_offset, sh[j].sh_size, sh[j].sh_addr);break;
 			}//switch
 		}//if
 	}//for
