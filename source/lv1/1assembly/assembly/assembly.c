@@ -237,3 +237,77 @@ release:
 theend:
 	close(fd);
 }
+void assembly_mips64(int argc, char** argv)
+{
+	u32 at = 0;
+	u32 sz = 0x100000;
+	if(argc < 2)return;
+
+	int fd = open(argv[1] , O_RDONLY|O_BINARY);
+	if(fd <= 0){
+		printf("errno=%d@open\n", errno);
+		return;
+	}
+
+	u8* buf = malloc(sz);
+        if(0 == buf){
+		printf("errno=%d@malloc\n", errno);
+		goto theend;
+	}
+
+	int ret = lseek(fd, at, SEEK_SET);
+	if(ret < 0){
+		printf("errno=%d@lseek\n", errno);
+		goto release;
+	}
+
+	ret = read(fd, buf, sz);
+	if(ret <= 0){
+		printf("errno=%d@read\n", errno);
+		goto release;
+	}
+
+	parseassembly(buf, ret, CPU_MIPS64);
+
+release:
+	free(buf);
+theend:
+	close(fd);
+}
+void assembly_riscv64(int argc, char** argv)
+{
+	u32 at = 0;
+	u32 sz = 0x100000;
+	if(argc < 2)return;
+
+	int fd = open(argv[1] , O_RDONLY|O_BINARY);
+	if(fd <= 0){
+		printf("errno=%d@open\n", errno);
+		return;
+	}
+
+	u8* buf = malloc(sz);
+        if(0 == buf){
+		printf("errno=%d@malloc\n", errno);
+		goto theend;
+	}
+
+	int ret = lseek(fd, at, SEEK_SET);
+	if(ret < 0){
+		printf("errno=%d@lseek\n", errno);
+		goto release;
+	}
+
+	ret = read(fd, buf, sz);
+	if(ret <= 0){
+		printf("errno=%d@read\n", errno);
+		goto release;
+	}
+
+	parseassembly(buf, ret, CPU_RISCV64);
+
+release:
+	free(buf);
+theend:
+	close(fd);
+}

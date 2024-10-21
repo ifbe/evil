@@ -7,6 +7,8 @@ int format(int argc,char** argv);
 //lv1
 int assembly_arm64(int argc,char** argv);
 int assembly_x8664(int argc,char** argv);
+int assembly_mips64(int argc,char** argv);
+int assembly_riscv64(int argc,char** argv);
 int disasm(int argc,char** argv);
 int disasm_arm64(int argc,char** argv);
 int disasm_x8664(int argc,char** argv);
@@ -114,6 +116,12 @@ int main(int argc, char** argv)
 	}
 	else if(strncmp(argv[1], "asm_x8664", 9) == 0){
 		assembly_x8664(argc-1, argv+1);
+	}
+	else if(strncmp(argv[1], "asm_mips64", 9) == 0){
+		assembly_mips64(argc-1, argv+1);
+	}
+	else if(strncmp(argv[1], "asm_riscv64", 9) == 0){
+		assembly_riscv64(argc-1, argv+1);
 	}
 
 	//lv2

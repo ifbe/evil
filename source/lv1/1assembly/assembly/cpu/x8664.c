@@ -2474,46 +2474,6 @@ void disasm_x8664_all(u8* buf, int len, u64 rip)
 		j += disasm_x8664_one(buf+j, rip+j);
 	}//while
 }
-void disasm_x8664(int argc, char** argv)
-{
-	u32 at = 0;
-	u32 sz = 0;
-	if(argc < 2)return;
-	if(argc > 2)hexstr2u32(argv[2], &at);
-	if(argc > 3)hexstr2u32(argv[3], &sz);
-	if(0 == sz)sz = 0x1000000;
-
-	int fd = open(argv[1] , O_RDONLY|O_BINARY);
-	if(fd <= 0){
-		printf("errno=%d@open\n", errno);
-		return;
-	}
-
-	u8* buf = malloc(sz);
-        if(0 == buf){
-		printf("errno=%d@malloc\n", errno);
-		goto theend;
-	}
-
-	int ret = lseek(fd, at, SEEK_SET);
-	if(ret < 0){
-		printf("errno=%d@lseek\n", errno);
-		goto release;
-	}
-
-	ret = read(fd, buf, sz);
-	if(ret <= 0){
-		printf("errno=%d@read\n", errno);
-		goto release;
-	}
-
-	disasm_x8664_all(buf, ret, 0);
-
-release:
-	free(buf);
-theend:
-	close(fd);
-}
 
 
 
@@ -2606,29 +2566,82 @@ int whichreg(u8* buf, int len, int* type, int* reg)
 	}
 	return 0;
 }
+int x8664_scaleindexbaseimm(
+	u8* buf, int len, struct offlen* tab, int cnt,
+	int* scale, int* index, int* base, int* imm)
+{
+	int j;
+	for(j=0;j<cnt;j++){
+		printf("%d:%.*s\n", j, tab[j].len, buf+tab[j].off);
+		if(']'==buf[tab[j].off])break;
+	}
+	return j;
+}
 void assembly_x8664_mov(u8* buf, int len, struct offlen* tab, int cnt)
 {
+	int dstend = 0;
 	int dsttype=-1, dstreg=-1;
+	int scale=0,index=0,base=0,imm=0;
+	if('['==buf[tab[0].off]){
+		dstend = x8664_scaleindexbaseimm(buf,len,tab,cnt,&scale,&index,&base,&imm);
+	}
+	else{
+		whichreg(buf+tab[0].off, tab[0].len, &dsttype, &dstreg);
+		dstend = 0;
+	}
+
 	int srctype=-1, srcreg=-1;
-	whichreg(buf+tab[0].off, tab[0].len, &dsttype, &dstreg);
-	whichreg(buf+tab[2].off, tab[2].len, &srctype, &srcreg);
-	printf("dst=%x,%x, src=%x,%x\n", dsttype,dstreg, srctype,srcreg);
+	int immtype=-1, immval=-1;
+	if('['==buf[tab[dstend+2].off]){
+		whichreg(buf+tab[dstend+3].off, tab[dstend+3].len, &srctype, &srcreg);
+		whichreg(buf+tab[dstend+5].off, tab[dstend+5].len, &immtype, &immval);
+	}
+	else{
+		whichreg(buf+tab[dstend+2].off, tab[dstend+2].len, &srctype, &srcreg);
+	}
+	printf("dst=%x,%x, src=%x,%x, imm=%x,%x\n", dsttype,dstreg, srctype,srcreg, immtype,immval);
 
 	u8 bin[8];
-	if( (dsttype==16) && (srctype==16) ){
+	if( (8==dsttype) && (8==srctype) ){
+		bin[0] = 0x88;
+		bin[1] = (dstreg) | (srcreg<<3) | (3<<6);
+	}
+	if( (16==dsttype) && (16==srctype) ){
 		bin[0] = 0x66;
 		bin[1] = 0x89;
 		bin[2] = (dstreg) | (srcreg<<3) | (3<<6);
-		disasm_x8664_one(bin, 0);
 	}
+	if( (32==dsttype) && (32==srctype) ){
+		bin[0] = 0x89;
+		bin[1] = (dstreg) | (srcreg<<3) | (3<<6);
+	}
+	if( (64==dsttype) && (64==srctype) ){
+		bin[0] = 0x48;
+		bin[1] = 0x89;
+		bin[2] = (dstreg) | (srcreg<<3) | (3<<6);
+	}
+	if( (64==dsttype) && (64==srctype) && (0 == immtype) ){
+		bin[0] = 0x48;
+		bin[1] = 0x8b;
+		bin[2] = (srcreg) | (dstreg<<3) | (1<<6);
+		bin[3] = immval;
+	}
+	disasm_x8664_one(bin, 0);
 }
 void assembly_x8664_add(u8* buf, int len, struct offlen* tab, int cnt)
 {
 	int dsttype=-1, dstreg=-1;
-	int srctype=-1, srcreg=-1;
 	whichreg(buf+tab[0].off, tab[0].len, &dsttype, &dstreg);
-	whichreg(buf+tab[2].off, tab[2].len, &srctype, &srcreg);
-	printf("dst=%x,%x, src=%x,%x\n", dsttype,dstreg, srctype,srcreg);
+	int srctype=-1, srcreg=-1;
+	int immtype=-1, immval=-1;
+	if('['==buf[tab[2].off]){
+		whichreg(buf+tab[3].off, tab[3].len, &srctype, &srcreg);
+		whichreg(buf+tab[5].off, tab[5].len, &immtype, &immval);
+	}
+	else{
+		whichreg(buf+tab[2].off, tab[2].len, &srctype, &srcreg);
+	}
+	printf("dst=%x,%x, src=%x,%x, imm=%x,%x\n", dsttype,dstreg, srctype,srcreg, immtype,immval);
 
 	u8 bin[8];
 	if( (dsttype==8) && (srctype==8) ){

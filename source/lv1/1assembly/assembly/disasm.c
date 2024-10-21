@@ -18,6 +18,12 @@
 	#define O_BINARY 0x0
 #endif
 int hexstr2u32(void* str, void* dat);
+//
+void disasm_x8664_all(u8* buf, int len, u64 rip);
+void disasm_arm64_all(u8* buf, int len, int rip);
+void disasm_mips64_all(u8* buf, int len, int rip);
+void disasm_riscv64_all(u8* buf, int len, int rip);
+//
 int check_elf(void*);
 int disasm_elf64(void*, int);
 int check_mach(void*);
@@ -30,6 +36,163 @@ int disasm_object(void*, int);
 
 
 
+void disasm_x8664(int argc, char** argv)
+{
+	u32 at = 0;
+	u32 sz = 0;
+	if(argc < 2)return;
+	if(argc > 2)hexstr2u32(argv[2], &at);
+	if(argc > 3)hexstr2u32(argv[3], &sz);
+	if(0 == sz)sz = 0x1000000;
+
+	int fd = open(argv[1] , O_RDONLY|O_BINARY);
+	if(fd <= 0){
+		printf("errno=%d@open\n", errno);
+		return;
+	}
+
+	u8* buf = malloc(sz);
+        if(0 == buf){
+		printf("errno=%d@malloc\n", errno);
+		goto theend;
+	}
+
+	int ret = lseek(fd, at, SEEK_SET);
+	if(ret < 0){
+		printf("errno=%d@lseek\n", errno);
+		goto release;
+	}
+
+	ret = read(fd, buf, sz);
+	if(ret <= 0){
+		printf("errno=%d@read\n", errno);
+		goto release;
+	}
+
+	disasm_x8664_all(buf, ret, 0);
+
+release:
+	free(buf);
+theend:
+	close(fd);
+}
+void disasm_arm64(int argc, char** argv)
+{
+	u32 at = 0;
+	u32 sz = 0;
+	if(argc < 2)return;
+	if(argc > 2)hexstr2u32(argv[2], &at);
+	if(argc > 3)hexstr2u32(argv[3], &sz);
+	if(0 == sz)sz = 0x1000000;
+
+	int fd = open(argv[1] , O_RDONLY|O_BINARY);
+	if(fd <= 0){
+		printf("errno=%d@open\n", errno);
+		return;
+	}
+
+	u8* buf = malloc(sz);
+	if(0 == buf){
+		printf("errno=%d@malloc\n", errno);
+		goto theend;
+	}
+
+	int ret = lseek(fd, at, SEEK_SET);
+	if(ret < 0){
+		printf("errno=%d@lseek\n", errno);
+		goto release;
+	}
+
+	ret = read(fd, buf, sz);
+	if(ret <= 0){
+		printf("errno=%d@read\n", errno);
+		goto release;
+	}
+	disasm_arm64_all(buf, ret, 0);
+
+release:
+	free(buf);
+theend:
+	close(fd);
+}
+void disasm_mips64(int argc, char** argv)
+{
+	u32 at = 0;
+	u32 sz = 0;
+	if(argc < 2)return;
+	if(argc > 2)hexstr2u32(argv[2], &at);
+	if(argc > 3)hexstr2u32(argv[3], &sz);
+	if(0 == sz)sz = 0x1000000;
+
+	int fd = open(argv[1] , O_RDONLY|O_BINARY);
+	if(fd <= 0){
+		printf("errno=%d@open\n", errno);
+		return;
+	}
+
+	u8* buf = malloc(sz);
+	if(0 == buf){
+		printf("errno=%d@malloc\n", errno);
+		goto theend;
+	}
+
+	int ret = lseek(fd, at, SEEK_SET);
+	if(ret < 0){
+		printf("errno=%d@lseek\n", errno);
+		goto release;
+	}
+
+	ret = read(fd, buf, sz);
+	if(ret <= 0){
+		printf("errno=%d@read\n", errno);
+		goto release;
+	}
+	disasm_mips64_all(buf, ret, 0);
+
+release:
+	free(buf);
+theend:
+	close(fd);
+}
+void disasm_riscv64(int argc, char** argv)
+{
+	u32 at = 0;
+	u32 sz = 0;
+	if(argc < 2)return;
+	if(argc > 2)hexstr2u32(argv[2], &at);
+	if(argc > 3)hexstr2u32(argv[3], &sz);
+	if(0 == sz)sz = 0x1000000;
+
+	int fd = open(argv[1] , O_RDONLY|O_BINARY);
+	if(fd <= 0){
+		printf("errno=%d@open\n", errno);
+		return;
+	}
+
+	u8* buf = malloc(sz);
+	if(0 == buf){
+		printf("errno=%d@malloc\n", errno);
+		goto theend;
+	}
+
+	int ret = lseek(fd, at, SEEK_SET);
+	if(ret < 0){
+		printf("errno=%d@lseek\n", errno);
+		goto release;
+	}
+
+	ret = read(fd, buf, sz);
+	if(ret <= 0){
+		printf("errno=%d@read\n", errno);
+		goto release;
+	}
+	disasm_riscv64_all(buf, ret, 0);
+
+release:
+	free(buf);
+theend:
+	close(fd);
+}
 void disasm(int argc, char** argv)
 {
 	u32 at = 0;
