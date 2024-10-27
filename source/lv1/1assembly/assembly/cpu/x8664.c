@@ -393,7 +393,7 @@ int disasm_x8664_sib(u64 rip, u8* p, char* str, s64* dat, char** istr, char** bs
 		//p[1] != *4 *c
 		if(4 != (p[1] &7)){
 			dst = p[1]&7;
-			snprintf(str, 64, "%s %+d", bstr[dst], *(char*)(p+2));
+			snprintf(str, 64, "%s + 0x%x", bstr[dst], *(char*)(p+2));
 			return 3;
 		}
 
@@ -402,11 +402,11 @@ int disasm_x8664_sib(u64 rip, u8* p, char* str, s64* dat, char** istr, char** bs
 		_i = (p[2]>>3)&7;
 		_b = p[2]&7;
 		if(4 == _i){
-			snprintf(str, 64, "%s %+d", bstr[_b], *(char*)(p+3));
+			snprintf(str, 64, "%s + 0x%x", bstr[_b], *(char*)(p+3));
 		}
 		//p[2] != above
 		else{
-			snprintf(str, 64, "%d*%s +%s %+d", _s, istr[_i], bstr[_b], *(char*)(p+3));
+			snprintf(str, 64, "%d*%s +%s + 0x%x", _s, istr[_i], bstr[_b], *(char*)(p+3));
 		}
 		return 4;
 	}
@@ -1046,6 +1046,17 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 
 	//80:
 	if(0x80 == opc[0]){
+		if(0xc0 == (opc[1]&0xf8)){
+			disasm_x8664_print(pre, opc-pre+3);
+			printf("add	%s += 0x%x\n", reg08[opc[1]&0x7], opc[2]);
+			return 3;
+		}
+		if(0xe8 == (opc[1]&0xf8)){
+			disasm_x8664_print(pre, opc-pre+3);
+			printf("sub	%s -= 0x%x\n", reg08[opc[1]&0x7], opc[2]);
+			return 3;
+		}
+
 		if(3 == bit6){
 			disasm_x8664_print(pre, opc-pre+3);
 			printf("%s	%s %s byte 0x%x\n",
@@ -1261,7 +1272,12 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 	//[b0,b7]: mov8 r,0xff
 	if(0xb0 == (opc[0]&0xf8)){
 		disasm_x8664_print(pre, opc-pre+2);
-		printf("mov1	%s = [0x%x]\n", fixbyte[opc[0]&7], opc[1]);
+		if(fix66){
+			printf("mov1	%s = 0x%x\n", reg16[opc[0]&7], opc[1]);
+		}
+		else{
+			printf("mov1	%s = 0x%x\n", fixbyte[opc[0]&7], opc[1]);
+		}
 		return 2;
 	}
 
@@ -1363,7 +1379,8 @@ int disasm_x8664_normal(u8* pre, u8* opc, u64 rip)
 		}
 		case 0xc0:{
 			disasm_x8664_print(pre, opc-pre+6);
-			printf("mov4	[%s] = 0x%x\n", reg32[opc[1]&7], *(u32*)(opc+2));
+			//printf("mov4	[%s] = 0x%x\n", reg32[opc[1]&7], *(u32*)(opc+2));
+			printf("mov64	%s = 0x%x\n", reg64[opc[1]&7], *(u32*)(opc+2));
 			return 6;
 		}
 		}//switch
@@ -2481,11 +2498,11 @@ void disasm_x8664_all(u8* buf, int len, u64 rip)
 struct offlen{
 	u8 off;
 	u8 len;
-}__attribute__((packed));
+};
 struct typedata{
 	int type;
 	int data;
-}__attribute__((packed));
+};
 u32 x8664_str2data(u8* p){
 	char* buf = (char*)p;
 	if( ('0' == buf[0]) && ('x' == buf[1]) )return strtol((char*)buf+2, 0, 16);
@@ -2894,7 +2911,7 @@ int x8664_scaleindexbaseimm(
 }
 int get_reg_or_sib(u8* buf, int len, struct offlen* tab, int cnt, struct typedata* td)
 {
-	printf("%c\n", buf[tab[0].off]);
+	//printf("%c\n", buf[tab[0].off]);
 	if('[' != buf[tab[0].off]){
 		whichreg(buf+tab[0].off, tab[0].len, &td[0].type, &td[0].data);
 		printf("%x,%x\n", td[0].type, td[0].data);
@@ -2913,6 +2930,166 @@ int get_reg_or_sib(u8* buf, int len, struct offlen* tab, int cnt, struct typedat
 		return ret+1;
 	}
 }
+void modrm_sib_1dstnsrc(u8* bin, struct typedata* dst, struct typedata* src)
+{
+	struct typedata* _s = &src[0];
+	struct typedata* _i = &src[1];
+	struct typedata* _b = &src[2];
+	struct typedata* _d = &src[3];
+	if( (_i->type < 0) && (_b->type < 0) ){	//mov rax,[0x1234]		//index=none,base=none
+		bin[2] = (0<<6) | (dst[0].data<<3) | (4);
+		bin[3] = 0x25;
+		*(int*)(bin+4) = _d->data;
+	}
+	else if( (_i->type < 0) && (_d->type < 0) ){	//mov rax,[rbx]		//index=none,imm=none
+		if(5 == _b->data){	//mov rax,[rbp]
+			bin[2] = (1<<6) | (dst[0].data<<3) | (_b->data);
+			bin[3] = 0;
+		}
+		else{
+			bin[2] = (0<<6) | (dst[0].data<<3) | (_b->data);
+		}
+	}
+	else if(_i->type < 0){	//mov rax,[rbp+0x1234]		//index=none
+		if(_d->data < 0x100){
+			bin[2] = (1<<6) | (dst[0].data<<3) | (_b->data);		//mod r r/m
+			bin[3] = _d->data;
+		}
+		else{
+			bin[2] = (2<<6) | (dst[0].data<<3) | (_b->data);		//mod r r/m
+			*(int*)(bin+3) = _d->data;
+		}
+	}
+	else if(_b->type < 0){	//mov rax,[rax*8+0x1234]	//base=none
+		bin[2] = (0<<6) | (dst[0].data<<3) | (4);		//mod r r/m
+		bin[3] = (_s->data<<6) | (_i->data<<3) | (5);	//sib
+		*(int*)(bin+4) = _d->data;
+	}
+	else{	//mov rax,[rcx*8+rbp+0x1234]
+		bin[2] = (2<<6) | (dst[0].data<<3) | (4);		//mod r r/m
+		bin[3] = (_s->data<<6) | (_i->data<<3) | (_b->data);	//sib
+		*(int*)(bin+4) = _d->data;
+	}
+}
+void modrm_sib_ndst1src(u8* bin, struct typedata* dst, struct typedata* src)
+{
+	struct typedata* _s = &dst[0];
+	struct typedata* _i = &dst[1];
+	struct typedata* _b = &dst[2];
+	struct typedata* _d = &dst[3];
+	if( (_i->type < 0) && (_b->type < 0) ){	//mov rax,[0x1234]		//index=none,base=none
+		bin[2] = (0<<6) | (src[0].data<<3) | (4);
+		bin[3] = 0x25;
+		*(int*)(bin+4) = _d->data;
+	}
+	else if( (_i->type < 0) && (_d->type < 0) ){	//mov rax,[rbx]		//index=none,imm=none
+		if(5 == _b->data){	//mov rax,[rbp]
+			bin[2] = (1<<6) | (src[0].data<<3) | (_b->data);
+			bin[3] = 0;
+		}
+		else{
+			bin[2] = (0<<6) | (src[0].data<<3) | (_b->data);
+		}
+	}
+	else if(_i->type < 0){	//mov rax,[rbp+0x1234]		//index=none
+		if(_d->data < 0x100){
+			bin[2] = (1<<6) | (src[0].data<<3) | (_b->data);		//mod r r/m
+			bin[3] = _d->data;
+		}
+		else{
+			bin[2] = (2<<6) | (src[0].data<<3) | (_b->data);		//mod r r/m
+			*(int*)(bin+3) = _d->data;
+		}
+	}
+	else if(_b->type < 0){	//mov rax,[rax*8+0x1234]	//base=none
+		bin[2] = (0<<6) | (src[0].data<<3) | (4);		//mod r r/m
+		bin[3] = (_s->data<<6) | (_i->data<<3) | (5);	//sib
+		*(int*)(bin+4) = _d->data;
+	}
+	else{	//mov rax,[rcx*8+rbp+0x1234]
+		bin[2] = (2<<6) | (src[0].data<<3) | (4);		//mod r r/m
+		bin[3] = (_s->data<<6) | (_i->data<<3) | (_b->data);	//sib
+		*(int*)(bin+4) = _d->data;
+	}
+}
+void assembly_x8664_opcode(u8* bin, int opcode, struct typedata* src, struct typedata* dst)
+{
+	if( (dst[0].type==16) && (src[0].type==16) ){
+		bin[0] = 0x66;
+		bin[1] = opcode;
+		bin[2] = (dst[0].data) | (src[0].data<<3) | (3<<6);
+	}
+	if( (dst[0].type==32) && (src[0].type==32) ){
+		bin[0] = opcode;
+		bin[1] = (dst[0].data) | (src[0].data<<3) | (3<<6);
+	}
+	if( (dst[0].type==64) && (src[0].type==64) ){
+		bin[0] = 0x48;
+		bin[1] = opcode;
+		bin[2] = (dst[0].data) | (src[0].data<<3) | (3<<6);
+	}
+	if( (dst[0].type==8) && (src[0].type==0) ){
+		if(0 == dst[0].data){
+			bin[0] = 0x34;
+			bin[1] = src[0].data;
+		}
+		else{
+			//todo: all reg except al is not allowed?
+			bin[0] = 0x80;
+			bin[1] = 0xf0 | (dst[0].data);
+			bin[2] = src[0].data;
+		}
+	}
+	if( (dst[0].type==16) && (src[0].type==0) ){
+		bin[0] = 0x66;
+		bin[1] = opcode;
+		bin[2] = (dst[0].data) | (3<<6);
+		bin[3] = src[0].data;
+	}
+	if( (dst[0].type==32) && (src[0].type==0) ){
+		bin[0] = opcode;
+		bin[1] = (dst[0].data) | (3<<6);
+		bin[2] = src[0].data;
+	}
+	if( (dst[0].type==64) && (src[0].type==0) ){
+		bin[0] = 0x48;
+		bin[1] = opcode;
+		bin[2] = (dst[0].data) | (3<<6);
+		bin[3] = src[0].data;
+	}
+
+	if( (64==dst[0].type) && (99==src[0].type) ){	//add rax,[]
+		printf("%x,%x,%x,%x\n",src[1].data,src[2].data,src[3].data,src[4].data);
+		bin[0] = 0x48;
+		bin[1] = opcode | 2;
+		modrm_sib_1dstnsrc(bin, dst, &src[1]);
+	}
+	if( (99==dst[0].type) && (64==src[0].type) ){	//add [],rax
+		printf("%x,%x,%x,%x\n",dst[1].data,dst[2].data,dst[3].data,dst[4].data);
+		bin[0] = 0x48;
+		bin[1] = opcode;
+		modrm_sib_ndst1src(bin, &dst[1], src);
+	}
+}
+#define OPCODE_LEA 0x8d
+void assembly_x8664_lea(u8* buf, int len, struct offlen* tab, int cnt)
+{
+	struct typedata dst;		//regorbracket, scale, index, base, data
+	whichreg(buf+tab[0].off, tab[0].len, &dst.type, &dst.data);
+
+	struct typedata src[4];
+	int ret = x8664_scaleindexbaseimm(buf,len, &tab[2],cnt-2, src);
+
+	u8 bin[8];
+	if( (64==dst.type) ){	//mov rax,[]
+		printf("%x,%x,%x,%x\n",src[0].data,src[1].data,src[2].data,src[3].data);
+		bin[0] = 0x48;
+		bin[1] = OPCODE_LEA;
+		modrm_sib_1dstnsrc(bin, &dst, src);
+	}
+	disasm_x8664_one(bin, 0);
+}
+#define OPCODE_MOV 0x89
 void assembly_x8664_mov(u8* buf, int len, struct offlen* tab, int cnt)
 {
 	struct typedata dst[5];		//regorbracket, scale, index, base, data
@@ -2921,173 +3098,291 @@ void assembly_x8664_mov(u8* buf, int len, struct offlen* tab, int cnt)
 	struct typedata src[5];
 	int end1 = end0+2 + get_reg_or_sib(buf,len, &tab[end0+2],cnt-(end0+2), src);
 
-	printf("dsttype=%d\n",dst[0].type);
-	printf("srctype=%d\n",src[0].type);
-
 	u8 bin[8];
 	if( (8==dst[0].type) && (8==src[0].type) ){
 		bin[0] = 0x88;
 		bin[1] = (dst[0].data) | (src[0].data<<3) | (3<<6);
 	}
-	if( (16==dst[0].type) && (16==src[0].type) ){
+	else if( (dst[0].type==8) && (src[0].type==0) ){
+		bin[0] = 0xb0 | (dst[0].data);
+		bin[1] = src[0].data;
+	}
+	else if( (dst[0].type==16) && (src[0].type==0) ){
 		bin[0] = 0x66;
-		bin[1] = 0x89;
-		bin[2] = (dst[0].data) | (src[0].data<<3) | (3<<6);
+		bin[1] = 0xb0 | (dst[0].data);
+		*(short*)(bin+2) = src[0].data;
 	}
-	if( (32==dst[0].type) && (32==src[0].type) ){
-		bin[0] = 0x89;
-		bin[1] = (dst[0].data) | (src[0].data<<3) | (3<<6);
+	else if( (dst[0].type==32) && (src[0].type==0) ){
+		bin[0] = 0xb8 | (dst[0].data);
+		*(int*)(bin+1) = src[0].data;
 	}
-	if( (64==dst[0].type) && (64==src[0].type) ){
+	else if( (dst[0].type==64) && (src[0].type==0) ){
 		bin[0] = 0x48;
-		bin[1] = 0x89;
-		bin[2] = (dst[0].data) | (src[0].data<<3) | (3<<6);
+		bin[1] = 0xc7;
+		bin[2] = 0xc0 | (dst[0].data);
+		*(int*)(bin+3) = src[0].data;
 	}
-
-	if( (64==dst[0].type) && (99==src[0].type) ){	//mov rax,[]
-		printf("%x,%x,%x,%x\n",src[1].data,src[2].data,src[3].data,src[4].data);
-		bin[0] = 0x48;
-		bin[1] = 0x8b;
-		if( (src[2].type < 0) && (src[3].type < 0) ){	//mov rax,[0x1234]		//index=none,base=none
-			bin[2] = (0<<6) | (dst[0].data<<3) | (4);
-			bin[3] = 0x25;
-			*(int*)(bin+4) = src[4].data;
-		}
-		else if( (src[2].type < 0) && (src[4].type < 0) ){	//mov rax,[rbx]		//index=none,imm=none
-			if(5 == src[3].data){	//mov rax,[rbp]
-				bin[2] = (1<<6) | (dst[0].data<<3) | (src[3].data);
-				bin[3] = 0;
-			}
-			else{
-				bin[2] = (0<<6) | (dst[0].data<<3) | (src[3].data);
-			}
-		}
-		else if(src[2].type < 0){	//mov rax,[rbp+0x1234]		//index=none
-			if(src[4].data < 0x100){
-				bin[2] = (1<<6) | (dst[0].data<<3) | (src[3].data);		//mod r r/m
-				bin[3] = src[4].data;
-			}
-			else{
-				bin[2] = (2<<6) | (dst[0].data<<3) | (src[3].data);		//mod r r/m
-				*(int*)(bin+3) = src[4].data;
-			}
-		}
-		else if(src[3].type < 0){	//mov rax,[rax*8+0x1234]	//base=none
-			bin[2] = (0<<6) | (dst[0].data<<3) | (4);		//mod r r/m
-			bin[3] = (src[1].data<<6) | (src[2].data<<3) | (5);	//sib
-			*(int*)(bin+4) = src[4].data;
-		}
-		else{	//mov rax,[rcx*8+rbp+0x1234]
-			bin[2] = (2<<6) | (dst[0].data<<3) | (4);		//mod r r/m
-			bin[3] = (src[1].data<<6) | (src[2].data<<3) | (src[3].data);	//sib
-			*(int*)(bin+4) = src[4].data;
-		}
+	else if( (99==dst[0].type) && (0==src[0].type) ){	//mov [],0x12	//mov [],0x1234	//mov [],0x12345678
+		bin[0] = 0xc7;
+		bin[1] = (1<<6) | (0<<3) | (dst[3].data);
+		bin[2] = dst[4].data;
+		*(int*)(bin+3) = src[0].data;
 	}
-	if( (99==dst[0].type) && (64==src[0].type) ){	//mov [],rax
-		printf("%x,%x,%x,%x\n",dst[1].data,dst[2].data,dst[3].data,dst[4].data);
-		bin[0] = 0x48;
-		bin[1] = 0x89;
-		if( (dst[2].type < 0) && (dst[3].type < 0) ){	//mov rax,[0x1234]		//index=none,base=none
-			bin[2] = (0<<6) | (src[0].data<<3) | (4);
-			bin[3] = 0x25;
-			*(int*)(bin+4) = dst[4].data;
-		}
-		else if( (dst[2].type < 0) && (dst[4].type < 0) ){	//mov rax,[rbx]		//index=none,imm=none
-			if(5 == dst[3].data){	//mov rax,[rbp]
-				bin[2] = (1<<6) | (src[0].data<<3) | (dst[3].data);
-				bin[3] = 0;
-			}
-			else{
-				bin[2] = (0<<6) | (src[0].data<<3) | (dst[3].data);
-			}
-		}
-		else if(dst[2].type < 0){	//mov rax,[rbp+0x1234]		//index=none
-			if(dst[4].data < 0x100){
-				bin[2] = (1<<6) | (src[0].data<<3) | (dst[3].data);		//mod r r/m
-				bin[3] = dst[4].data;
-			}
-			else{
-				bin[2] = (2<<6) | (src[0].data<<3) | (dst[3].data);		//mod r r/m
-				*(int*)(bin+3) = dst[4].data;
-			}
-		}
-		else if(dst[3].type < 0){	//mov rax,[rax*8+0x1234]	//base=none
-			bin[2] = (0<<6) | (src[0].data<<3) | (4);		//mod r r/m
-			bin[3] = (dst[1].data<<6) | (dst[2].data<<3) | (5);	//sib
-			*(int*)(bin+4) = dst[4].data;
-		}
-		else{	//mov rax,[rcx*8+rbp+0x1234]
-			bin[2] = (2<<6) | (src[0].data<<3) | (4);		//mod r r/m
-			bin[3] = (dst[1].data<<6) | (dst[2].data<<3) | (dst[3].data);	//sib
-			*(int*)(bin+4) = dst[4].data;
-		}
-	}
-	if( (99==dst[0].type) && (0==src[0].type) ){	//mov [],0x12	//mov [],0x1234	//mov [],0x12345678
+	else{
+		assembly_x8664_opcode(bin, OPCODE_MOV, src, dst);
 	}
 	disasm_x8664_one(bin, 0);
 }
+#define OPCODE_ADD 0x1
 void assembly_x8664_add(u8* buf, int len, struct offlen* tab, int cnt)
 {
-	int dsttype=-1, dstreg=-1;
-	whichreg(buf+tab[0].off, tab[0].len, &dsttype, &dstreg);
-	int srctype=-1, srcreg=-1;
-	int immtype=-1, immval=-1;
-	if('['==buf[tab[2].off]){
-		whichreg(buf+tab[3].off, tab[3].len, &srctype, &srcreg);
-		whichreg(buf+tab[5].off, tab[5].len, &immtype, &immval);
-	}
-	else{
-		whichreg(buf+tab[2].off, tab[2].len, &srctype, &srcreg);
-	}
-	printf("dst=%x,%x, src=%x,%x, imm=%x,%x\n", dsttype,dstreg, srctype,srcreg, immtype,immval);
+	struct typedata dst[5];		//regorbracket, scale, index, base, data
+	int end0 = 0 + get_reg_or_sib(buf,len, tab,cnt, dst);
+
+	struct typedata src[5];
+	int end1 = end0+2 + get_reg_or_sib(buf,len, &tab[end0+2],cnt-(end0+2), src);
 
 	u8 bin[8];
-	if( (dsttype==8) && (srctype==8) ){
-		bin[0] = 0x00;
-		bin[1] = (dstreg) | (srcreg<<3) | (3<<6);
-	}
-	if( (dsttype==16) && (srctype==16) ){
-		bin[0] = 0x66;
-		bin[1] = 0x01;
-		bin[2] = (dstreg) | (srcreg<<3) | (3<<6);
-	}
-	if( (dsttype==32) && (srctype==32) ){
-		bin[0] = 0x01;
-		bin[1] = (dstreg) | (srcreg<<3) | (3<<6);
-	}
-	if( (dsttype==64) && (srctype==64) ){
-		bin[0] = 0x48;
-		bin[1] = 0x01;
-		bin[2] = (dstreg) | (srcreg<<3) | (3<<6);
-	}
-	if( (dsttype==8) && (srctype==0) ){
-		if(0 == dstreg){
+	if( (dst[0].type==8) && (src[0].type==0) ){
+		if(0 == dst[0].data){
 			bin[0] = 0x04;
-			bin[1] = srcreg;
+			bin[1] = src[0].data;
+		}
+		else{
+			bin[0] = 0x80;
+			bin[1] = 0xc0 | (dst[0].data);
+			bin[2] = src[0].data;
+		}
+	}
+	else if( (dst[0].type==16) && (src[0].type==0) ){
+		bin[0] = 0x66;
+		bin[1] = 0x83;
+		bin[2] = 0xc0 | (dst[0].data);
+		bin[3] = src[0].data;
+	}
+	else if( (dst[0].type==32) && (src[0].type==0) ){
+		bin[0] = 0x83;
+		bin[1] = 0xc0 | (dst[0].data);
+		bin[2] = src[0].data;
+	}
+	else if( (dst[0].type==64) && (src[0].type==0) ){
+		bin[0] = 0x48;
+		bin[1] = 0x83;
+		bin[2] = 0xc0 | (dst[0].data);
+		bin[3] = src[0].data;
+	}
+	else{
+		assembly_x8664_opcode(bin, OPCODE_ADD, src, dst);
+	}
+	disasm_x8664_one(bin, 0);
+}
+#define OPCODE_SUB 0x29
+void assembly_x8664_sub(u8* buf, int len, struct offlen* tab, int cnt)
+{
+	struct typedata dst[5];		//regorbracket, scale, index, base, data
+	int end0 = 0 + get_reg_or_sib(buf,len, tab,cnt, dst);
+
+	struct typedata src[5];
+	int end1 = end0+2 + get_reg_or_sib(buf,len, &tab[end0+2],cnt-(end0+2), src);
+
+	u8 bin[8];
+	if( (dst[0].type==8) && (src[0].type==0) ){
+		if(0 == dst[0].data){
+			bin[0] = 0x2c;
+			bin[1] = src[0].data;
+		}
+		else{
+			bin[0] = 0x80;
+			bin[1] = 0xe8 | (dst[0].data);
+			bin[2] = src[0].data;
+		}
+	}
+	else if( (dst[0].type==16) && (src[0].type==0) ){
+		bin[0] = 0x66;
+		bin[1] = 0x83;
+		bin[2] = 0xe8 | (dst[0].data);
+		bin[3] = src[0].data;
+	}
+	else if( (dst[0].type==32) && (src[0].type==0) ){
+		bin[0] = 0x83;
+		bin[1] = 0xe8 | (dst[0].data);
+		bin[2] = src[0].data;
+	}
+	else if( (dst[0].type==64) && (src[0].type==0) ){
+		bin[0] = 0x48;
+		bin[1] = 0x83;
+		bin[2] = 0xe8 | (dst[0].data);
+		bin[3] = src[0].data;
+	}
+	else{
+		assembly_x8664_opcode(bin, OPCODE_SUB, src, dst);
+	}
+	disasm_x8664_one(bin, 0);
+}
+#define OPCODE_CMP 0x39
+void assembly_x8664_cmp(u8* buf, int len, struct offlen* tab, int cnt)
+{
+	struct typedata dst[5];		//regorbracket, scale, index, base, data
+	int end0 = 0 + get_reg_or_sib(buf,len, tab,cnt, dst);
+
+	struct typedata src[5];
+	int end1 = end0+2 + get_reg_or_sib(buf,len, &tab[end0+2],cnt-(end0+2), src);
+
+	u8 bin[8];
+	if( (dst[0].type==8) && (src[0].type==0) ){
+		if(0 == dst[0].data){
+			bin[0] = 0x04;
+			bin[1] = src[0].data;
 		}
 		else{
 			//todo: all reg except al is not allowed?
 			bin[0] = 0x80;
-			bin[1] = (dstreg) | (3<<6);
-			bin[2] = srcreg;
+			bin[1] = (dst[0].data) | (3<<6);
+			bin[2] = src[0].data;
 		}
 	}
-	if( (dsttype==16) && (srctype==0) ){
-		bin[0] = 0x66;
-		bin[1] = 0x83;
-		bin[2] = (dstreg) | (3<<6);
-		bin[3] = srcreg;
+	else{
+		assembly_x8664_opcode(bin, OPCODE_CMP, src, dst);
 	}
-	if( (dsttype==32) && (srctype==0) ){
-		bin[0] = 0x83;
-		bin[1] = (dstreg) | (3<<6);
-		bin[2] = srcreg;
+	disasm_x8664_one(bin, 0);
+}
+#define OPCODE_OR 0x9
+void assembly_x8664_or(u8* buf, int len, struct offlen* tab, int cnt)
+{
+	struct typedata dst[5];		//regorbracket, scale, index, base, data
+	int end0 = 0 + get_reg_or_sib(buf,len, tab,cnt, dst);
+
+	struct typedata src[5];
+	int end1 = end0+2 + get_reg_or_sib(buf,len, &tab[end0+2],cnt-(end0+2), src);
+
+	u8 bin[8];
+	if( (dst[0].type==8) && (src[0].type==0) ){
+		if(0 == dst[0].data){
+			bin[0] = 0x04;
+			bin[1] = src[0].data;
+		}
+		else{
+			//todo: all reg except al is not allowed?
+			bin[0] = 0x80;
+			bin[1] = (dst[0].data) | (3<<6);
+			bin[2] = src[0].data;
+		}
 	}
-	if( (dsttype==64) && (srctype==0) ){
-		bin[0] = 0x48;
-		bin[1] = 0x83;
-		bin[2] = (dstreg) | (3<<6);
-		bin[3] = srcreg;
+	else{
+		assembly_x8664_opcode(bin, OPCODE_OR, src, dst);
+	}
+	disasm_x8664_one(bin, 0);
+}
+#define OPCODE_AND 0x21
+void assembly_x8664_and(u8* buf, int len, struct offlen* tab, int cnt)
+{
+	struct typedata dst[5];		//regorbracket, scale, index, base, data
+	int end0 = 0 + get_reg_or_sib(buf,len, tab,cnt, dst);
+
+	struct typedata src[5];
+	int end1 = end0+2 + get_reg_or_sib(buf,len, &tab[end0+2],cnt-(end0+2), src);
+
+	u8 bin[8];
+	if( (dst[0].type==8) && (src[0].type==0) ){
+		if(0 == dst[0].data){
+			bin[0] = 0x04;
+			bin[1] = src[0].data;
+		}
+		else{
+			//todo: all reg except al is not allowed?
+			bin[0] = 0x80;
+			bin[1] = (dst[0].data) | (3<<6);
+			bin[2] = src[0].data;
+		}
+	}
+	else{
+		assembly_x8664_opcode(bin, OPCODE_AND, src, dst);
+	}
+	disasm_x8664_one(bin, 0);
+}
+#define OPCODE_XOR 0x31
+void assembly_x8664_xor(u8* buf, int len, struct offlen* tab, int cnt)
+{
+	struct typedata dst[5];		//regorbracket, scale, index, base, data
+	int end0 = 0 + get_reg_or_sib(buf,len, tab,cnt, dst);
+
+	struct typedata src[5];
+	int end1 = end0+2 + get_reg_or_sib(buf,len, &tab[end0+2],cnt-(end0+2), src);
+
+	u8 bin[8];
+	if( (dst[0].type==8) && (src[0].type==0) ){
+		if(0 == dst[0].data){
+			bin[0] = 0x34;
+			bin[1] = src[0].data;
+		}
+		else{
+			//todo: all reg except al is not allowed?
+			bin[0] = 0x80;
+			bin[1] = 0xf0 | (dst[0].data);
+			bin[2] = src[0].data;
+		}
+	}
+	else{
+		assembly_x8664_opcode(bin, OPCODE_XOR, src, dst);
+	}
+	disasm_x8664_one(bin, 0);
+}
+#define OPCODE_TEST 0x85
+void assembly_x8664_test(u8* buf, int len, struct offlen* tab, int cnt)
+{
+	struct typedata dst[5];		//regorbracket, scale, index, base, data
+	int end0 = 0 + get_reg_or_sib(buf,len, tab,cnt, dst);
+
+	struct typedata src[5];
+	int end1 = end0+2 + get_reg_or_sib(buf,len, &tab[end0+2],cnt-(end0+2), src);
+
+	u8 bin[8];
+	if( (64==dst[0].type) && (99==src[0].type) ){	//add rax,[]
+		//error
+	}
+	else{
+		assembly_x8664_opcode(bin, OPCODE_TEST, src, dst);
+	}
+	disasm_x8664_one(bin, 0);
+}
+#define OPCODE_XCHG 0x87
+void assembly_x8664_xchg(u8* buf, int len, struct offlen* tab, int cnt)
+{
+	struct typedata dst[5];		//regorbracket, scale, index, base, data
+	int end0 = 0 + get_reg_or_sib(buf,len, tab,cnt, dst);
+
+	struct typedata src[5];
+	int end1 = end0+2 + get_reg_or_sib(buf,len, &tab[end0+2],cnt-(end0+2), src);
+
+	u8 bin[8];
+	if( (99==dst[0].type) && (64==src[0].type) ){	//add [],rax
+		//error
+	}
+	else{
+		assembly_x8664_opcode(bin, OPCODE_XCHG, src, dst);
+	}
+	disasm_x8664_one(bin, 0);
+}
+#define OPCODE_IMUL 0x0f
+void assembly_x8664_imul(u8* buf, int len, struct offlen* tab, int cnt)
+{
+	struct typedata dst[5];		//regorbracket, scale, index, base, data
+	int end0 = 0 + get_reg_or_sib(buf,len, tab,cnt, dst);
+
+	struct typedata src[5];
+	int end1 = end0+2 + get_reg_or_sib(buf,len, &tab[end0+2],cnt-(end0+2), src);
+
+/*
+imul ecx		// eax = eax * ecx, edx=0
+imul ecx,2		// ecx *= 2
+imul eax,ecx	// eax *= ecx
+imul ecx,edx,2	// ecx = edx * 2
+*/
+	u8 bin[8];
+	if( (dst[0].type==8) && (src[0].type==0) ){
+	}
+	else{
+		assembly_x8664_opcode(bin, OPCODE_IMUL, src, dst);
 	}
 	disasm_x8664_one(bin, 0);
 }
@@ -3098,10 +3393,37 @@ void assembly_compile_x8664(u8* buf, int len, struct offlen* tab, int cnt)
 		printf("%d: %.*s\n", j, tab[j].len, buf+tab[j].off);
 	}
 */
-	if(0 == strncmp((char*)buf+tab[0].off, "mov", 3)){
+	if(0 == strncmp((char*)buf+tab[0].off, "lea", 3)){
+		assembly_x8664_lea(buf, len, &tab[1], cnt-1);
+	}
+	else if(0 == strncmp((char*)buf+tab[0].off, "mov", 3)){
 		assembly_x8664_mov(buf, len, &tab[1], cnt-1);
 	}
-	if(0 == strncmp((char*)buf+tab[0].off, "add", 3)){
+	else if(0 == strncmp((char*)buf+tab[0].off, "add", 3)){
 		assembly_x8664_add(buf, len, &tab[1], cnt-1);
+	}
+	else if(0 == strncmp((char*)buf+tab[0].off, "sub", 3)){
+		assembly_x8664_sub(buf, len, &tab[1], cnt-1);
+	}
+	else if(0 == strncmp((char*)buf+tab[0].off, "cmp", 3)){
+		assembly_x8664_cmp(buf, len, &tab[1], cnt-1);
+	}
+	else if(0 == strncmp((char*)buf+tab[0].off, "or", 2)){
+		assembly_x8664_or(buf, len, &tab[1], cnt-1);
+	}
+	else if(0 == strncmp((char*)buf+tab[0].off, "and", 3)){
+		assembly_x8664_and(buf, len, &tab[1], cnt-1);
+	}
+	else if(0 == strncmp((char*)buf+tab[0].off, "xor", 3)){
+		assembly_x8664_xor(buf, len, &tab[1], cnt-1);
+	}
+	else if(0 == strncmp((char*)buf+tab[0].off, "test", 4)){
+		assembly_x8664_test(buf, len, &tab[1], cnt-1);
+	}
+	else if(0 == strncmp((char*)buf+tab[0].off, "xchg", 4)){
+		assembly_x8664_xchg(buf, len, &tab[1], cnt-1);
+	}
+	else if(0 == strncmp((char*)buf+tab[0].off, "imul", 4)){
+		assembly_x8664_imul(buf, len, &tab[1], cnt-1);
 	}
 }

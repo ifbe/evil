@@ -1,0 +1,11 @@
+
+xchg rsi & [0x28]
+xchg rsi & [rbp]
+xchg rsi & [rdi]
+xchg rsi & [rbp+0x25]
+xchg rsi & [rdi+0x25]
+xchg rsi & [rbp+0x1234]
+xchg rsi & [rdi+0x1234]
+xchg rsi & [8*rbp+0x75]
+xchg rsi & [8*rbp+rdx]
+xchg rsi & [8*rbp+rdx+0x1234]

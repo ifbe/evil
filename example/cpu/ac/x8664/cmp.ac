@@ -1,0 +1,21 @@
+cmp dl - al
+cmp dx - ax
+cmp edx - eax
+cmp rdx - rax
+
+cmp al - 0x7
+cmp ah - 0x3
+cmp bx - 0x65
+cmp ecx - 0x43
+cmp rdx - 0x21
+
+cmp rsi - [0x28]
+cmp rsi - [rbp]
+cmp rsi - [rdi]
+cmp rsi - [rbp+0x25]
+cmp rsi - [rdi+0x25]
+cmp rsi - [rbp+0x1234]
+cmp rsi - [rdi+0x1234]
+cmp rsi - [8*rbp+0x75]
+cmp rsi - [8*rbp+rdx]
+cmp rsi - [8*rbp+rdx+0x1234]

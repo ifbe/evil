@@ -1,0 +1,38 @@
+add al += 0x7
+add ah += 0x3
+
+add ax += 0x65
+add cx += 0x65
+
+add eax += 0x43
+add edx += 0x43
+
+add rax += 0x21
+add rbx += 0x21
+
+add dl += al
+add dx += ax
+add edx += eax
+add rdx += rax
+
+add rsi += [0x28]
+add rsi += [rbp]
+add rsi += [rdi]
+add rsi += [rbp+0x25]
+add rsi += [rdi+0x25]
+add rsi += [rbp+0x1234]
+add rsi += [rdi+0x1234]
+add rsi += [8*rbp+0x75]
+add rsi += [8*rbp+rdx]
+add rsi += [8*rbp+rdx+0x1234]
+
+add [0x28] += rdi
+add [rbp] += rdi
+add [rdi] += rdi
+add [rbp+0x25] += rdi
+add [rdi+0x25] += rdi
+add [rbp+0x1234] += rdi
+add [rdi+0x1234] += rdi
+add [8*rbp+0x75] += rdi
+add [8*rbp+rdx] += rdi
+add [8*rbp+rdx+0x1234] += rdi

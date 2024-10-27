@@ -1,0 +1,21 @@
+or dl |= al
+or dx |= ax
+or edx |= eax
+or rdx |= rax
+
+or al |= 0x7
+or ah |= 0x3
+or bx |= 0x65
+or ecx |= 0x43
+or rdx |= 0x21
+
+or rsi |= [0x28]
+or rsi |= [rbp]
+or rsi |= [rdi]
+or rsi |= [rbp+0x25]
+or rsi |= [rdi+0x25]
+or rsi |= [rbp+0x1234]
+or rsi |= [rdi+0x1234]
+or rsi |= [8*rbp+0x75]
+or rsi |= [8*rbp+rdx]
+or rsi |= [8*rbp+rdx+0x1234]

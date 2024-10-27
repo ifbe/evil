@@ -42,6 +42,9 @@ int issym(u8 key){
 	case '-':
 	case '*':
 	case '/':
+	case '&':
+	case '|':
+	case '^':
 		return 1;
 	}
 	return 0;

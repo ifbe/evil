@@ -1,0 +1,21 @@
+test dl & al
+test dx & ax
+test edx & eax
+test rdx & rax
+
+test al & 0x7
+test ah & 0x3
+test bx & 0x65
+test ecx & 0x43
+test rdx & 0x21
+
+test [0x28] & rsi 
+test [rbp] & rsi
+test [rdi] & rsi
+test [rbp+0x25] & rsi
+test [rdi+0x25] & rsi
+test [rbp+0x1234] & rsi
+test [rdi+0x1234] & rsi
+test [8*rbp+0x75] & rsi
+test [8*rbp+rdx] & rsi
+test [8*rbp+rdx+0x1234] & rsi

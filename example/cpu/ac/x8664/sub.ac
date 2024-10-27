@@ -1,0 +1,27 @@
+sub al -= 0x7
+sub ah -= 0x3
+
+sub ax -= 0x65
+sub cx -= 0x65
+
+sub eax -= 0x43
+sub edx -= 0x43
+
+sub rax -= 0x21
+sub rbx -= 0x21
+
+sub dl -= al
+sub dx -= ax
+sub edx -= eax
+sub rdx -= rax
+
+sub rsi -= [0x28]
+sub rsi -= [rbp]
+sub rsi -= [rdi]
+sub rsi -= [rbp+0x25]
+sub rsi -= [rdi+0x25]
+sub rsi -= [rbp+0x1234]
+sub rsi -= [rdi+0x1234]
+sub rsi -= [8*rbp+0x75]
+sub rsi -= [8*rbp+rdx]
+sub rsi -= [8*rbp+rdx+0x1234]

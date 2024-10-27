@@ -1,0 +1,21 @@
+and dl &= al
+and dx &= ax
+and edx &= eax
+and rdx &= rax
+
+and al &= 0x7
+and ah &= 0x3
+and bx &= 0x65
+and ecx &= 0x43
+and rdx &= 0x21
+
+and rsi &= [0x28]
+and rsi &= [rbp]
+and rsi &= [rdi]
+and rsi &= [rbp+0x25]
+and rsi &= [rdi+0x25]
+and rsi &= [rbp+0x1234]
+and rsi &= [rdi+0x1234]
+and rsi &= [8*rbp+0x75]
+and rsi &= [8*rbp+rdx]
+and rsi &= [8*rbp+rdx+0x1234]

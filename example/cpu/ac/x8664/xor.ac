@@ -1,0 +1,21 @@
+xor dl ^= al
+xor dx ^= ax
+xor edx ^= eax
+xor rdx ^= rax
+
+xor al ^= 0x7
+xor ah ^= 0x3
+xor bx ^= 0x65
+xor ecx ^= 0x43
+xor rdx ^= 0x21
+
+xor rsi ^= [0x28]
+xor rsi ^= [rbp]
+xor rsi ^= [rdi]
+xor rsi ^= [rbp+0x25]
+xor rsi ^= [rdi+0x25]
+xor rsi ^= [rbp+0x1234]
+xor rsi ^= [rdi+0x1234]
+xor rsi ^= [8*rbp+0x75]
+xor rsi ^= [8*rbp+rdx]
+xor rsi ^= [8*rbp+rdx+0x1234]

@@ -1,0 +1,21 @@
+mul dl *= al
+mul dx *= ax
+mul edx *= eax
+mul rdx *= rax
+
+mul al *= 0x7
+mul ah *= 0x3
+mul bx *= 0x65
+mul ecx *= 0x43
+mul rdx *= 0x21
+
+mul rsi *= [0x28]
+mul rsi *= [rbp]
+mul rsi *= [rdi]
+mul rsi *= [rbp+0x25]
+mul rsi *= [rdi+0x25]
+mul rsi *= [rbp+0x1234]
+mul rsi *= [rdi+0x1234]
+mul rsi *= [8*rbp+0x75]
+mul rsi *= [8*rbp+rdx]
+mul rsi *= [8*rbp+rdx+0x1234]
