@@ -1,24 +1,24 @@
 /*
- |----------------pin1----------------|
-V1+                                  R1+
-V1-                                  R1-
- |pin3------------S(G)D-----------pin2|
-                    |
-                  pin4
-V1{
-	+@pin1
-	-@pin3
-}
-R1{
-	+@pin1
-	-@pin2
-}
-NMOS1{
-	D@pin2
-	S@pin3
-	G@pin4
+|-------vcc-------|
+|                 +
+|                 R1
++                 -
+V1               tmp
+-                 d
+|                nmos---pin4
+|                 s
+|-------gnd-------|
+easy(){
+	V1(+@vcc, -@gnd)
+	R1(+@vcc, -@tmp)
+	NMOS1(D@tmp, S@gnd, G@pin4)
 }
 */
+
+
+
+
+
 /*                    (bulk-boost)
 |--------------------------------------------------------|
 |   pin1   pin2    pin3                 pin4             |
@@ -33,30 +33,11 @@ NMOS1{
 |                            pin5                        |
 |--------------------------------------------------------|
 */
-
-
-
-
-pin1{
-	V1(+)
-	NMOS1(D)
-}
-pin2{
-	NMOS1(G)
-}
-pin3{
-	NMOS1(S)
-	DIODE(+)
-	L1(+)
-}
-pin4{
-	DIODE(-)
-	C1(+)
-	R1(+)
-}
-pin5{
-	V1(-)
-	L1(-)
-	C1(-)
-	R1(-)
+bulk-boost(){
+	V1(pin1, pin5)
+	L1(pin3, pin5)
+	C1(pin4, pin5)
+	R1(pin4, pin5)
+	DIODE(pin3, pin4)
+	mos(pin1, pin3, pin2)
 }

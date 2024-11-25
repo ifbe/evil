@@ -15,6 +15,7 @@
 #define s32 signed int
 #define s64 signed long long
 int hexstr2u32(void* str, void* dat);
+int disasm_arm64_all(void* buf, int len, u64 rip);
 int disasm_x8664_all(void* buf, int len, u64 rip);
 
 
@@ -25,6 +26,9 @@ int disasm_x8664_all(void* buf, int len, u64 rip);
 #define MH_CIGAM    0xcefaedfe  /* NXSwapInt(MH_MAGIC) */
 #define MH_MAGIC_64 0xfeedfacf /* the 64-bit mach magic number */
 #define MH_CIGAM_64 0xcffaedfe /* NXSwapInt(MH_MAGIC_64) */
+//
+#define CPUTYPE_X8664 0x01000007
+#define CPUTYPE_ARM64 0x0100000c
 
 //
 #define	LC_SEGMENT	0x1	/* segment of this file to be mapped */
@@ -106,7 +110,7 @@ u32 reserved3;	/* reserved */
 
 
 
-void disasm_macho64_seg19(void* buf,int len, struct command_19* cmd,int max)
+void disasm_macho64_seg19(void* buf,int len, struct command_19* cmd,int max, u32 cputype)
 {
 	int cnt = cmd->nsects;
 	if(0 == cnt)return;
@@ -115,9 +119,10 @@ void disasm_macho64_seg19(void* buf,int len, struct command_19* cmd,int max)
 	int j;
 	struct section_64* pp = (void*)cmd + sizeof(struct command_19);
 	for(j=0;j<cnt;j++){
-		printf("%16llx,%8x,%s.%s\n", pp[j].addr, pp[j].offset, pp[j].seg_name, pp[j].sec_name);
+		printf("addr=%16llx,offs=%8x,name=%s.%s\n", pp[j].addr, pp[j].offset, pp[j].seg_name, pp[j].sec_name);
 		if(0==strncmp(pp[j].sec_name, "__text", 16)){
-			disasm_x8664_all(buf+pp[j].offset, pp[j].size, pp[j].addr);
+			if(CPUTYPE_X8664==cputype)disasm_x8664_all(buf+pp[j].offset, pp[j].size, pp[j].addr);
+			if(CPUTYPE_ARM64==cputype)disasm_arm64_all(buf+pp[j].offset, pp[j].size, pp[j].addr);
 		}
 	}
 	printf("}\n");
@@ -143,7 +148,13 @@ void disasm_macho64(void* buf,int len)
 	);
 
 	if(0xfeedfacf != head->magic)return;
-	if(0x01000007 != head->cputype)return;
+	switch(head->cputype){
+	case CPUTYPE_X8664:
+	case CPUTYPE_ARM64:
+		break;
+	default:
+		return;
+	}
 	//printf("shit\n");
 
 	int j,k;
@@ -154,7 +165,7 @@ void disasm_macho64(void* buf,int len)
 		here = buf+k;
 		printf("%08x: type=%08x, size=%08x\n", k, here[0], here[1]);
 
-		if(0x19 == here[0])disasm_macho64_seg19(buf,len, buf+k,here[1]);
+		if(0x19 == here[0])disasm_macho64_seg19(buf,len, buf+k,here[1], head->cputype);
 
 		k += here[1];
 	}
@@ -163,6 +174,13 @@ int check_mach(void* buf)
 {
 	struct mach_header_64* head = buf;
 	if(0xfeedfacf != head->magic)return 0;
-	if(0x01000007 != head->cputype)return 0;
+
+	switch(head->cputype){
+	case CPUTYPE_X8664:
+	case CPUTYPE_ARM64:
+		break;
+	default:
+		return 0;
+	}
 	return 1;
 }

@@ -11,29 +11,18 @@
         |
        gnd
 */
-Ia = 1A
-Ua = 2V
-Ra = 2
-Rb = 2
-Rc = 3
-Rd = 4
-pina{
-	Ra(-)
-	Rb(-)
-	Rc(+)
-	Ia(+)
-}
-pinb{
-	Ua(+)
-	Rb(+)
-	Rd(+)
-}
-pinc{
-	Ra(+)
-	Ua(-)
-}
-gnd{
-	Ia(-)
-	Rc(-)
-	Rd(-)
+simple()
+{
+chip:
+	Ia : 1A
+	Ua : 2V
+	R2 : 2ohm
+	R3 : 3ohm
+	R4 : 4ohm
+chipview:
+	Ia(a, gnd)
+	Ua(b, c)
+	R2(b, a)
+	R3(a, gnd)
+	R4(b, gnd)
 }
