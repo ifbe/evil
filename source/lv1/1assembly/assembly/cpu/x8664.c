@@ -369,7 +369,9 @@ int disasm_x8664_sib(u64 rip, u8* p, char* str, s64* dat, char** istr, char** bs
 		if(4 != (p[1] &7)){
 			dst = p[1]&7;
 			off = *(int*)(p+2);
-			snprintf(str, 64, "%s +0x%llx", bstr[dst], off);
+			char sym = (off<0) ? '-' : '+';
+			off = (off<0) ? -off : off;
+			snprintf(str, 64, "%s %c 0x%llx", bstr[dst], sym, off);
 			return 6;
 		}
 
@@ -393,7 +395,9 @@ int disasm_x8664_sib(u64 rip, u8* p, char* str, s64* dat, char** istr, char** bs
 		//p[1] != *4 *c
 		if(4 != (p[1] &7)){
 			dst = p[1]&7;
-			snprintf(str, 64, "%s + 0x%x", bstr[dst], *(char*)(p+2));
+			char val = *(char*)(p+2);
+			char sym = (val<0) ? '-' : '+';
+			snprintf(str, 64, "%s %c 0x%x", bstr[dst], sym, abs(val));
 			return 3;
 		}
 
