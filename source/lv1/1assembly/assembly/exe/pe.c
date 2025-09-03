@@ -304,7 +304,17 @@ dir->delayimportaddr, dir->delayimportsize
 
 	return imagebase;
 }
-int disasm_pe64(void* pe, int len)
+static int shoulddisasm(char* curr, char* want)
+{
+	if(want){
+		if(strcmp(curr, want)==0)return 1;
+	}
+	else{
+		if(strncmp(curr, ".text", 5)==0)return 1;
+	}
+	return 0;
+}
+int disasm_pe64(void* pe, int len, char* section)
 {
 	u64 base;
 	int j,num;
@@ -340,7 +350,9 @@ int disasm_pe64(void* pe, int len)
 			sec[j].VirtualSize,
 			sec[j].Name
 		);
-		if(strncmp(sec[j].Name, ".text", 8))continue;
+		int dis = shoulddisasm(sec[j].Name, section);
+		if(!dis)continue;
+
 		disasm_x8664_all(
 			pe+sec[j].PointerToRawData, sec[j].SizeOfRawData,
 			base + sec[j].VirtualAddress

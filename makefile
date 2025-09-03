@@ -2,10 +2,13 @@ LINUXVULKAN:=/opt/vulkansdk/1.3.268.0/x86_64
 MACVULKAN:=/Users/ifbe/VulkanSDK/1.3.268.1/macOS
 WINVULKAN:=C:\VulkanSDK\1.3.268.0
 
-CC:=gcc		#/usr/local/opt/llvm/bin/clang
-CF:=
+#/usr/local/opt/llvm/bin/clang
+CC:=gcc
+CF:=-g
+DIR_INC:=-Isource/libunit -Isource
+DIR_LIB:=
 
-SRC = \
+src_base = \
 source/libunit/load.c \
 source/libunit/rel/rel.c \
 source/libunit/chip/chipdata.c \
@@ -96,23 +99,49 @@ source/lv2/operate/render/render.c \
 source/lv2/operate/route/route.c \
 source/lv2/operate/serve/serve.c \
 source/lv2/operate/substr/substr.c \
-source/lv3/llama/backend/remotegpu.c \
-source/lv3/llama/detail/infer.c \
-source/lv3/llama/detail/quanti.c \
-source/lv3/llama/detail/train.c \
-source/lv3/llama/llama2.c \
 source/lv3/mnist/detail/data.c \
 source/lv3/mnist/detail/infer.c \
 source/lv3/mnist/detail/train.c \
 source/lv3/mnist/mnist.c \
 source/evil.c
-OBJ:=$(patsubst %.c,%.o,$(SRC))
+
+
+#choose ui=cli
+src_ui_cli = source/lv2/operate/render/cli.c
+src_ui_glfw = source/operator/2indite/render/glfw.c
+src_ui_qt = 
+ifdef ui
+	UI_TYPE=$(ui)
+else
+	UI_TYPE=cli
+endif
+src_ui = $(src_ui_$(UI_TYPE))
+
+
+#choose llame=1
+ifneq ($(llama),)
+CF += -DLLAMA_ENABLE=1
+src_llama = \
+source/lv3/llama/backend/remotegpu.c \
+source/lv3/llama/detail/infer.c \
+source/lv3/llama/detail/quanti.c \
+source/lv3/llama/detail/train.c \
+source/lv3/llama/llama2.c
+else
+src_llama=
+endif
+
+
+SRC = $(src_base) $(src_ui) $(src_llama)
 
 cli:
-	$(CC) $(CF) -o a.exe $(SRC) \
-	source/lv2/operate/render/cli.c \
-	source/lv2/operate/serve/none.c \
-	-Isource/libunit -Isource -lm
+	$(CC) \
+$(CF) \
+-o a.exe \
+$(SRC) \
+source/lv2/operate/serve/none.c \
+$(DIR_INC) \
+-lm
 cli-fast:
 	make -s cli CF="-Ofast"
 cli-fastnative:

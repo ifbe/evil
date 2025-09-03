@@ -110,24 +110,42 @@ u32 reserved3;	/* reserved */
 
 
 
-void disasm_macho64_seg19(void* buf,int len, struct command_19* cmd,int max, u32 cputype)
+static int shoulddisasm(char* curr, char* want)
+{
+//printf("@@@@%s,%s\n", curr, want);
+	if(want){
+		if(strcmp(curr, want)==0)return 1;
+	}
+	else{
+		if(strncmp(curr, "__text", 6)==0)return 1;
+	}
+	return 0;
+}
+void disasm_macho64_seg19(void* buf,int len, struct command_19* cmd,int max, u32 cputype, char* section)
 {
 	int cnt = cmd->nsects;
-	if(0 == cnt)return;
-
-	printf("cnt=%x{\n",cnt);
+	printf("segname=%s cnt=%x{\n", cmd->segname, cnt);
+if(cnt){
 	int j;
 	struct section_64* pp = (void*)cmd + sizeof(struct command_19);
 	for(j=0;j<cnt;j++){
-		printf("addr=%16llx,offs=%8x,name=%s.%s\n", pp[j].addr, pp[j].offset, pp[j].seg_name, pp[j].sec_name);
-		if(0==strncmp(pp[j].sec_name, "__text", 16)){
-			if(CPUTYPE_X8664==cputype)disasm_x8664_all(buf+pp[j].offset, pp[j].size, pp[j].addr);
-			if(CPUTYPE_ARM64==cputype)disasm_arm64_all(buf+pp[j].offset, pp[j].size, pp[j].addr);
-		}
+		printf("offs=%08x addr=%016llx segment=%s section=%s\n",
+			pp[j].offset,
+			pp[j].addr,
+			pp[j].seg_name,
+			pp[j].sec_name
+		);
+
+		int dis = shoulddisasm(pp[j].sec_name, section);
+		if(!dis)continue;
+
+		if(CPUTYPE_X8664==cputype)disasm_x8664_all(buf+pp[j].offset, pp[j].size, pp[j].addr);
+		if(CPUTYPE_ARM64==cputype)disasm_arm64_all(buf+pp[j].offset, pp[j].size, pp[j].addr);
 	}
+}
 	printf("}\n");
 }
-void disasm_macho64(void* buf,int len)
+void disasm_macho64(void* buf,int len,char* section)
 {
 	struct mach_header_64* head = buf;
 	printf(
@@ -165,7 +183,7 @@ void disasm_macho64(void* buf,int len)
 		here = buf+k;
 		printf("%08x: type=%08x, size=%08x\n", k, here[0], here[1]);
 
-		if(0x19 == here[0])disasm_macho64_seg19(buf,len, buf+k,here[1], head->cputype);
+		if(0x19 == here[0])disasm_macho64_seg19(buf,len, buf+k,here[1], head->cputype, section);
 
 		k += here[1];
 	}

@@ -34,7 +34,7 @@ struct object
 
 
 
-int disasm_object(void* pe, int len)
+int disasm_object(void* pe, int len, char* section)
 {
 	return 0;
 }

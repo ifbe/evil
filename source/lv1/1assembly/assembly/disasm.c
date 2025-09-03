@@ -25,13 +25,13 @@ void disasm_mips64_all(u8* buf, int len, int rip);
 void disasm_riscv64_all(u8* buf, int len, int rip);
 //
 int check_elf(void*);
-int disasm_elf64(void*, int);
+int disasm_elf64(void*, int, char*);
 int check_mach(void*);
-int disasm_macho64(void*, int);
+int disasm_macho64(void*, int, char*);
 int check_pe(void*);
-int disasm_pe64(void*, int);
+int disasm_pe64(void*, int, char*);
 int check_object(void*);
-int disasm_object(void*, int);
+int disasm_object(void*, int, char*);
 
 
 
@@ -197,9 +197,23 @@ void disasm(int argc, char** argv)
 {
 	u32 at = 0;
 	u32 sz = 0;
+	char* section = 0;
 	if(argc < 2)return;
+	/*
 	if(argc > 2)hexstr2u32(argv[2], &at);
 	if(argc > 3)hexstr2u32(argv[3], &sz);
+	*/
+	for(int j=2;j<argc;j++){
+		if(strncmp(argv[j], "section=", 8)==0){
+			section = argv[j]+8;
+		}
+		else if(strncmp(argv[j], "at=", 3)==0){
+			hexstr2u32(argv[j]+3, &at);
+		}
+		else if(strncmp(argv[j], "sz=", 3)==0){
+			hexstr2u32(argv[j]+3, &sz);
+		}
+	}
 	if(0 == sz)sz = 0x1000000;
 
 	int fd = open(argv[1] , O_RDONLY|O_BINARY);
@@ -227,19 +241,19 @@ void disasm(int argc, char** argv)
 	}
 
 	if(check_elf(buf)){
-		disasm_elf64(buf, ret);
+		disasm_elf64(buf, ret, section);
 		goto release;
 	}
 	if(check_mach(buf)){
-		disasm_macho64(buf, ret);
+		disasm_macho64(buf, ret, section);
 		goto release;
 	}
 	if(check_pe(buf)){
-		disasm_pe64(buf, ret);
+		disasm_pe64(buf, ret, section);
 		goto release;
 	}
 	if(check_object(buf)){
-		disasm_object(buf, ret);
+		disasm_object(buf, ret, section);
 		goto release;
 	}
 

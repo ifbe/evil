@@ -163,10 +163,11 @@ int main(int argc, char** argv)
 	else if(strncmp(argv[1], "mnist", 5) == 0){
 		mnist(argc-1, argv+1);
 	}
+#ifdef LLAMA_ENABLE
 	else if(strncmp(argv[1], "llama", 5) == 0){
 		llama(argc-1, argv+1);
 	}
-
+#endif
 	//
 	else{
 		help(argv[1]);

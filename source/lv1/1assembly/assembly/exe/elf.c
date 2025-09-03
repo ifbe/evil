@@ -140,7 +140,7 @@ u64 sh_entsize;		/* Entry size if section holds table */
 
 
 
-void disasm_elf64_program(void* buf)
+void disasm_elf64_program(void* buf, char* section)
 {
 	struct elf64_hdr* h = buf;
 	struct elf64_phdr* ph = buf + h->e_phoff;
@@ -172,7 +172,20 @@ void disasm_elf64_program(void* buf)
 	case 0xf3:disasm_riscv64_all(buf+ph->p_offset, ph->p_filesz, ph->p_vaddr);break;
 	}
 }
-void disasm_elf64_section(void* buf)
+static int shoulddisasm(char* curr, char* want)
+{
+	if(want){
+		if(strcmp(curr, want) == 0)return 1;
+	}
+	else{
+		if(strcmp(curr, ".init") == 0)return 1;
+		if(strcmp(curr, ".fini") == 0)return 1;
+		if(strcmp(curr, ".text") == 0)return 1;
+		if(strcmp(curr, ".plt") == 0)return 1;
+	}
+	return 0;
+}
+void disasm_elf64_section(void* buf, char* section)
 {
 	int j;
 	struct elf64_hdr* h = buf;
@@ -196,21 +209,18 @@ void disasm_elf64_section(void* buf)
 		str + sh[j].sh_name
 		);
 
-		if( (0 == strcmp(str + sh[j].sh_name, ".init")) |
-		    (0 == strcmp(str + sh[j].sh_name, ".fini")) |
-		    (0 == strcmp(str + sh[j].sh_name, ".text")) |
-		    (0 == strcmp(str + sh[j].sh_name, ".plt")) )
-		{
-			switch(h->e_machine){
-			case 0x3e:disasm_x8664_all(buf+sh[j].sh_offset, sh[j].sh_size, sh[j].sh_addr);break;
-			case 0xb7:disasm_arm64_all(buf+sh[j].sh_offset, sh[j].sh_size, sh[j].sh_addr);break;
-			//case 0x??:disasm_mips64_all(buf+ph->p_offset, ph->p_filesz, ph->p_vaddr);break;
-			case 0xf3:disasm_riscv64_all(buf+sh[j].sh_offset, sh[j].sh_size, sh[j].sh_addr);break;
-			}//switch
-		}//if
+		int dis = shoulddisasm(str + sh[j].sh_name, section);
+		if(!dis)continue;
+
+		switch(h->e_machine){
+		case 0x3e:disasm_x8664_all(buf+sh[j].sh_offset, sh[j].sh_size, sh[j].sh_addr);break;
+		case 0xb7:disasm_arm64_all(buf+sh[j].sh_offset, sh[j].sh_size, sh[j].sh_addr);break;
+		//case 0x??:disasm_mips64_all(buf+ph->p_offset, ph->p_filesz, ph->p_vaddr);break;
+		case 0xf3:disasm_riscv64_all(buf+sh[j].sh_offset, sh[j].sh_size, sh[j].sh_addr);break;
+		}//switch
 	}//for
 }
-void disasm_elf64(void* buf,int len)
+void disasm_elf64(void* buf,int len, char* section)
 {
 //----------------0.header----------------
 	struct elf64_hdr* h = buf;
@@ -254,8 +264,8 @@ void disasm_elf64(void* buf,int len)
 	h->e_shstrndx
 	);
 
-	if(h->e_phoff)disasm_elf64_program(buf);
-	if(h->e_shoff)disasm_elf64_section(buf);
+	if(h->e_phoff)disasm_elf64_program(buf, section);
+	if(h->e_shoff)disasm_elf64_section(buf, section);
 }
 int check_elf(u8* addr)
 {
