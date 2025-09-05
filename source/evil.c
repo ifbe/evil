@@ -99,18 +99,6 @@ int main(int argc, char** argv)
 	else if(strcmp(argv[1], "disasm") == 0){
 		disasm(argc-1, argv+1);
 	}
-	else if(strcmp(argv[1], "follow_arm64") == 0){
-		follow_arm64(argc-1, argv+1);
-	}
-	else if(strcmp(argv[1], "follow_x8664") == 0){
-		follow_x8664(argc-1, argv+1);
-	}
-	else if(strcmp(argv[1], "travel_arm64") == 0){
-		travel_arm64(argc-1, argv+1);
-	}
-	else if(strcmp(argv[1], "travel_x8664") == 0){
-		travel_x8664(argc-1, argv+1);
-	}
 	else if(strncmp(argv[1], "asm_arm64", 9) == 0){
 		assembly_arm64(argc-1, argv+1);
 	}
@@ -122,6 +110,18 @@ int main(int argc, char** argv)
 	}
 	else if(strncmp(argv[1], "asm_riscv64", 9) == 0){
 		assembly_riscv64(argc-1, argv+1);
+	}
+	else if(strcmp(argv[1], "follow_arm64") == 0){
+		follow_arm64(argc-1, argv+1);
+	}
+	else if(strcmp(argv[1], "follow_x8664") == 0){
+		follow_x8664(argc-1, argv+1);
+	}
+	else if(strcmp(argv[1], "travel_arm64") == 0){
+		travel_arm64(argc-1, argv+1);
+	}
+	else if(strcmp(argv[1], "travel_x8664") == 0){
+		travel_x8664(argc-1, argv+1);
 	}
 
 	//lv2
@@ -160,9 +160,11 @@ int main(int argc, char** argv)
 	}
 
 	//lv3
+#ifdef MNIST_ENABLE
 	else if(strncmp(argv[1], "mnist", 5) == 0){
 		mnist(argc-1, argv+1);
 	}
+#endif
 #ifdef LLAMA_ENABLE
 	else if(strncmp(argv[1], "llama", 5) == 0){
 		llama(argc-1, argv+1);

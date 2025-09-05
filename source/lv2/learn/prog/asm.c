@@ -21,7 +21,7 @@ static int line = 0;
 
 
 
-
+/*
 void arm2ac_line(char* buf, int len)
 {
 	printf("%.*s\n",len,buf);
@@ -598,7 +598,7 @@ int ac2intel(int argc, char** argv)
 	}
 	return 0;
 }
-
+*/
 
 
 

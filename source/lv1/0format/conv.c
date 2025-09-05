@@ -27,7 +27,7 @@ void ac2intel(int argc, char** argv);
 int conv(int argc, char** argv)
 {
 	if(argc <= 2)return 0;
-
+/*
 	if(strcmp(argv[1], "arm2ac") == 0)
 	{
 		arm2ac(argc-1, argv+1);
@@ -52,5 +52,6 @@ int conv(int argc, char** argv)
 	{
 		ac2intel(argc-1, argv+1);
 	}
+*/
 	return 0;
 }
